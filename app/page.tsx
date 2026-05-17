@@ -211,7 +211,7 @@ function HomeInner() {
                 ref={videoRef}
                 src="/intro.mp4"
                 playsInline
-                className="h-[60vh] w-auto max-w-full object-contain"
+                className="h-screen w-full min-[960px]:h-[60vh] min-[960px]:w-auto object-contain"
                 onEnded={goToGallery}
               />
               <button
