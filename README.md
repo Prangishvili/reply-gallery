@@ -1,36 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Reply.
 
-## Getting Started
+An interactive 3D gallery for university students to share images and text. Images are placed on a rotating 3D globe — drag to explore, hover to read captions.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Next.js 16** (App Router, TypeScript, Tailwind CSS)
+- **Three.js** via `@react-three/fiber` + `@react-three/drei` — 3D globe
+- **Supabase** — Postgres (post metadata) + Storage (image files)
+- **Vercel** — deployment
+
+## Features
+
+- Intro sequence: sound prompt → loading bar → fullscreen video → globe
+- 3D interactive globe with Fibonacci-distributed image tiles
+- Drag to rotate, scroll to zoom, hover to reveal captions
+- Batch image upload — multiple files, individual captions (auto-filled from filename)
+- Admin controls panel at `/?admin=true` — rotation speed + globe size sliders
+- Custom logo (`/public/logo.svg`) and intro video (`/public/intro.mp4`)
+
+## Project structure
+
+```
+app/
+  page.tsx          # Main UI — intro phases, upload modal, admin controls
+  globe.tsx         # Three.js scene — 3D globe with image tiles
+  api/posts/
+    route.ts        # GET + POST endpoints
+lib/
+  supabase.ts       # Supabase client + Post type
+public/
+  logo.svg          # Custom logo
+  intro.mp4         # Intro video
+supabase-setup.sql  # Run once in Supabase SQL Editor to set up DB
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 1. Supabase
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Create a project at [supabase.com](https://supabase.com)
+2. SQL Editor → run `supabase-setup.sql`
+3. Storage → create bucket `images` (public) with anon INSERT policy
+4. Settings → API → copy Project URL and publishable key
 
-## Learn More
+### 2. Environment variables
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+cp .env.local.example .env.local
+# Fill in your Supabase URL and anon key
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 3. Run locally
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm install
+npm run dev
+```
 
-## Deploy on Vercel
+Open [http://localhost:3000](http://localhost:3000)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploy
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Push to GitHub, import on [vercel.com](https://vercel.com), add env vars (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) in project settings, deploy.
