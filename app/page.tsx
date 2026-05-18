@@ -272,10 +272,17 @@ function HomeInner() {
     return () => clearTimeout(t)
   }, [phase])
 
-  // Advance to video only when both bar animation and video are ready
+  // Advance to video only when both bar animation and video are ready.
+  // Fallback: if video never fires canplaythrough (iOS), proceed after 3s.
   useEffect(() => {
     if (phase === 'loading' && barDone && videoReady) setPhase('video')
   }, [barDone, videoReady, phase])
+
+  useEffect(() => {
+    if (!barDone || phase !== 'loading') return
+    const fallback = setTimeout(() => setVideoReady(true), 3000)
+    return () => clearTimeout(fallback)
+  }, [barDone, phase])
 
   useEffect(() => {
     if (phase !== 'video' || !videoRef.current) return
@@ -445,7 +452,10 @@ function HomeInner() {
               <video
                 src="/intro.mp4"
                 preload="auto"
+                playsInline
+                muted
                 style={{ display: 'none' }}
+                onLoadedData={() => setVideoReady(true)}
                 onCanPlayThrough={() => setVideoReady(true)}
               />
               <div className="w-48 h-px bg-black/10 relative overflow-hidden">
