@@ -393,15 +393,17 @@ function HomeInner() {
         )}
       </div>
 
-      {/* Upload FAB */}
-      <button
-        onClick={() => setShowUpload(true)}
-        className="fixed bottom-9 left-1/2 -translate-x-1/2 z-20 bg-white shadow-md rounded-full px-7 py-[18px] font-mono text-black text-xl leading-none hover:shadow-lg transition-shadow border border-gray-100"
-        aria-label="Upload"
-        style={isAdmin ? { transform: 'translateX(calc(-50% - 140px))' } : {}}
-      >
-        +
-      </button>
+      {/* Upload FAB — admin only */}
+      {isAdmin && (
+        <button
+          onClick={() => setShowUpload(true)}
+          className="fixed bottom-9 left-1/2 -translate-x-1/2 z-20 bg-white shadow-md rounded-full px-7 py-[18px] font-mono text-black text-xl leading-none hover:shadow-lg transition-shadow border border-gray-100"
+          aria-label="Upload"
+          style={{ transform: 'translateX(calc(-50% - 140px))' }}
+        >
+          +
+        </button>
+      )}
 
       {/* Admin panel */}
       {isAdmin && (
