@@ -425,6 +425,19 @@ function HomeInner() {
           className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center"
           style={{ opacity: fadeOut ? 0 : 1, transition: 'opacity 0.6s ease', right: isAdmin ? 280 : 0 }}
         >
+          {/* Video element lives here from entry onwards so iOS gesture unlock works */}
+          <video
+            ref={videoRef}
+            src="/intro.mp4"
+            preload="auto"
+            playsInline
+            style={{ display: phase === 'video' ? 'block' : 'none' }}
+            className="h-screen w-full min-[960px]:h-[60vh] min-[960px]:w-auto object-contain"
+            onLoadedData={() => setVideoReady(true)}
+            onCanPlayThrough={() => setVideoReady(true)}
+            onEnded={goToGallery}
+          />
+
           {phase === 'entry' && (
             <div className="flex flex-col items-center gap-8">
               <p className="font-mono text-black/60 text-[11px] tracking-[0.2em] uppercase">
@@ -432,13 +445,22 @@ function HomeInner() {
               </p>
               <div className="flex items-center gap-6">
                 <button
-                  onClick={() => { setWithSound(true); setBarWidth(0); setPhase('loading'); startBgAudio(true) }}
+                  onClick={() => {
+                    setWithSound(true)
+                    // Unlock video on iOS while gesture is fresh
+                    if (videoRef.current) { videoRef.current.muted = true; videoRef.current.play().then(() => videoRef.current?.pause()).catch(() => {}) }
+                    setBarWidth(0); setPhase('loading'); startBgAudio(true)
+                  }}
                   className="font-mono text-[11px] tracking-[0.2em] uppercase text-black border border-black px-5 py-2.5 hover:bg-black hover:text-white transition-colors"
                 >
                   yes
                 </button>
                 <button
-                  onClick={() => { setWithSound(false); setBarWidth(0); setPhase('loading') }}
+                  onClick={() => {
+                    setWithSound(false)
+                    if (videoRef.current) { videoRef.current.muted = true; videoRef.current.play().then(() => videoRef.current?.pause()).catch(() => {}) }
+                    setBarWidth(0); setPhase('loading')
+                  }}
                   className="font-mono text-[11px] tracking-[0.2em] uppercase text-black/40 hover:text-black transition-colors"
                 >
                   no
@@ -449,15 +471,6 @@ function HomeInner() {
 
           {phase === 'loading' && (
             <>
-              <video
-                src="/intro.mp4"
-                preload="auto"
-                playsInline
-                muted
-                style={{ display: 'none' }}
-                onLoadedData={() => setVideoReady(true)}
-                onCanPlayThrough={() => setVideoReady(true)}
-              />
               <div className="w-48 h-px bg-black/10 relative overflow-hidden">
                 <div
                   className="absolute inset-y-0 left-0 bg-black/60"
@@ -472,13 +485,6 @@ function HomeInner() {
 
           {phase === 'video' && (
             <>
-              <video
-                ref={videoRef}
-                src="/intro.mp4"
-                playsInline
-                className="h-screen w-full min-[960px]:h-[60vh] min-[960px]:w-auto object-contain"
-                onEnded={goToGallery}
-              />
               <button
                 onClick={goToGallery}
                 className="absolute bottom-9 right-9 font-mono text-black/50 hover:text-black text-[11px] tracking-[0.2em] uppercase transition-colors"
