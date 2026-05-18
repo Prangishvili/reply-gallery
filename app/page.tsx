@@ -101,6 +101,10 @@ function AdminPanel({
   tileSize, setTileSize,
   tileStyle, setTileStyle,
   audioVolume, setAudioVolume,
+  showNames, setShowNames,
+  nameSize, setNameSize,
+  timebombActive, setTimebombActive,
+  hiddenCount, resetTimebomb,
   phase,
 }: {
   rotateSpeed: number; setRotateSpeed: (v: number) => void
@@ -108,6 +112,10 @@ function AdminPanel({
   tileSize: number; setTileSize: (v: number) => void
   tileStyle: 'billboard' | 'outward'; setTileStyle: (v: 'billboard' | 'outward') => void
   audioVolume: number; setAudioVolume: (v: number) => void
+  showNames: boolean; setShowNames: (v: boolean) => void
+  nameSize: number; setNameSize: (v: number) => void
+  timebombActive: boolean; setTimebombActive: (v: boolean) => void
+  hiddenCount: number; resetTimebomb: () => void
   phase: Phase
 }) {
   return (
@@ -156,6 +164,39 @@ function AdminPanel({
         </div>
       </PanelSection>
 
+      <PanelSection title="Names">
+        <div style={{ fontSize: 11, color: P.dim, marginBottom: 8 }}>Visibility</div>
+        <PanelToggle
+          options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
+          value={showNames ? 'show' : 'hide'}
+          onChange={v => setShowNames(v === 'show')}
+        />
+        <PanelSlider label="Font size" value={nameSize} min={6} max={24} step={0.5} decimals={1} onChange={setNameSize} />
+      </PanelSection>
+
+      <PanelSection title="Timebomb">
+        <PanelToggle
+          options={[{ label: 'Armed', value: 'on' }, { label: 'Safe', value: 'off' }]}
+          value={timebombActive ? 'on' : 'off'}
+          onChange={v => setTimebombActive(v === 'on')}
+        />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 10, color: P.dim }}>
+            {hiddenCount} image{hiddenCount !== 1 ? 's' : ''} hidden
+          </span>
+          <button
+            onClick={resetTimebomb}
+            style={{
+              fontFamily: P.font, fontSize: 10, letterSpacing: 0.5,
+              padding: '4px 10px', background: 'transparent',
+              color: P.dim, border: `1px solid ${P.border}`, cursor: 'pointer',
+            }}
+          >
+            Reset
+          </button>
+        </div>
+      </PanelSection>
+
       <PanelSection title="About">
         <div style={{ fontSize: 10, color: P.low, lineHeight: 1.7 }}>
           <strong style={{ color: P.dim }}>URL</strong> ?admin=true<br />
@@ -187,11 +228,15 @@ function HomeInner() {
   const [dragging, setDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [rotateSpeed, setRotateSpeed] = useState(0.5)
-  const [globeScale, setGlobeScale] = useState(1)
-  const [tileSize, setTileSize] = useState(0.85)
+  const [rotateSpeed, setRotateSpeed] = useState(0.05)
+  const [globeScale, setGlobeScale] = useState(1.5)
+  const [tileSize, setTileSize] = useState(0.40)
   const [tileStyle, setTileStyle] = useState<'billboard' | 'outward'>('billboard')
-  const [audioVolume, setAudioVolume] = useState(0.5)
+  const [audioVolume, setAudioVolume] = useState(0.10)
+  const [showNames, setShowNames] = useState(true)
+  const [nameSize, setNameSize] = useState(10)
+  const [timebombActive, setTimebombActive] = useState(false)
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set())
 
   const isAdmin = useSearchParams().get('admin') === 'true'
 
@@ -199,6 +244,20 @@ function HomeInner() {
   useEffect(() => {
     if (bgAudioRef.current) bgAudioRef.current.volume = audioVolume
   }, [audioVolume])
+
+  // Timebomb: hide one random post every 2s, restore all when disarmed
+  useEffect(() => {
+    if (!timebombActive) { setHiddenIds(new Set()); return }
+    const timer = setInterval(() => {
+      setHiddenIds(prev => {
+        const visible = posts.filter(p => !prev.has(p.id))
+        if (visible.length === 0) return prev
+        const pick = visible[Math.floor(Math.random() * visible.length)]
+        return new Set([...prev, pick.id])
+      })
+    }, 2000)
+    return () => clearInterval(timer)
+  }, [timebombActive, posts])
 
   // Loading bar → video
   useEffect(() => {
@@ -306,11 +365,13 @@ function HomeInner() {
         )}
         {!loading && posts.length > 0 && (
           <GlobeCanvas
-            posts={posts}
+            posts={posts.filter(p => !hiddenIds.has(p.id))}
             rotateSpeed={rotateSpeed}
             scale={globeScale}
             tileSize={tileSize}
             tileStyle={tileStyle}
+            showNames={showNames}
+            nameSize={nameSize}
           />
         )}
       </div>
@@ -333,6 +394,10 @@ function HomeInner() {
           tileSize={tileSize} setTileSize={setTileSize}
           tileStyle={tileStyle} setTileStyle={setTileStyle}
           audioVolume={audioVolume} setAudioVolume={setAudioVolume}
+          showNames={showNames} setShowNames={setShowNames}
+          nameSize={nameSize} setNameSize={setNameSize}
+          timebombActive={timebombActive} setTimebombActive={setTimebombActive}
+          hiddenCount={hiddenIds.size} resetTimebomb={() => setHiddenIds(new Set())}
           phase={phase}
         />
       )}
