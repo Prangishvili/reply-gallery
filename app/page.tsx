@@ -16,12 +16,166 @@ function fileToCaption(file: File): string {
 
 type Phase = 'entry' | 'loading' | 'video' | 'gallery'
 
+// ─── Admin panel components ───────────────────────────────────────────────────
+
+const P = {
+  bg: '#0a0a0a',
+  surface: '#131313',
+  surface2: '#1a1a1a',
+  border: '#232323',
+  borderStrong: '#2e2e2e',
+  text: '#e8e8e6',
+  dim: '#7a7a78',
+  low: '#4a4a48',
+  accent: '#f0eb5c',
+  font: 'ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, monospace',
+}
+
+function PanelSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ borderBottom: `1px solid ${P.border}`, padding: '16px 20px' }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
+        fontSize: 9, fontWeight: 600, letterSpacing: 2.5, color: P.dim, textTransform: 'uppercase' as const,
+      }}>
+        {title}
+        <div style={{ flex: 1, height: 1, background: P.border }} />
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function PanelSlider({ label, value, min, max, step, decimals = 0, onChange }: {
+  label: string; value: number; min: number; max: number; step: number; decimals?: number; onChange: (v: number) => void
+}) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+        <span style={{ fontSize: 11, color: P.text }}>{label}</span>
+        <span style={{ fontSize: 11, color: P.accent, fontVariantNumeric: 'tabular-nums', minWidth: 36, textAlign: 'right' }}>
+          {decimals === 0 ? value : value.toFixed(decimals)}
+        </span>
+      </div>
+      <input
+        type="range" min={min} max={max} step={step} value={value}
+        onChange={e => onChange(Number(e.target.value))}
+        style={{ width: '100%', accentColor: P.accent, cursor: 'pointer' }}
+      />
+    </div>
+  )
+}
+
+function PanelToggle({ options, value, onChange }: {
+  options: { label: string; value: string }[]
+  value: string
+  onChange: (v: string) => void
+}) {
+  return (
+    <div style={{
+      display: 'grid', gridTemplateColumns: `repeat(${options.length}, 1fr)`,
+      background: P.surface2, border: `1px solid ${P.border}`, padding: 2, marginBottom: 12,
+    }}>
+      {options.map(opt => (
+        <button
+          key={opt.value}
+          onClick={() => onChange(opt.value)}
+          style={{
+            fontFamily: P.font, fontSize: 10, fontWeight: 500, letterSpacing: 1,
+            padding: '7px 10px', border: 'none', cursor: 'pointer', textTransform: 'uppercase' as const,
+            background: value === opt.value ? P.text : 'transparent',
+            color: value === opt.value ? '#0a0a0a' : P.dim,
+            transition: 'all 0.1s',
+          }}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function AdminPanel({
+  rotateSpeed, setRotateSpeed,
+  globeScale, setGlobeScale,
+  tileSize, setTileSize,
+  tileStyle, setTileStyle,
+  audioVolume, setAudioVolume,
+  phase,
+}: {
+  rotateSpeed: number; setRotateSpeed: (v: number) => void
+  globeScale: number; setGlobeScale: (v: number) => void
+  tileSize: number; setTileSize: (v: number) => void
+  tileStyle: 'billboard' | 'outward'; setTileStyle: (v: 'billboard' | 'outward') => void
+  audioVolume: number; setAudioVolume: (v: number) => void
+  phase: Phase
+}) {
+  return (
+    <div style={{
+      position: 'fixed', top: 0, right: 0, bottom: 0, width: 280, zIndex: 100,
+      background: P.surface, borderLeft: `1px solid ${P.border}`,
+      overflowY: 'auto', fontFamily: P.font, userSelect: 'none',
+    }}>
+      {/* Header */}
+      <div style={{
+        padding: '14px 20px', borderBottom: `1px solid ${P.border}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: 3, color: P.text }}>REPLY.</div>
+          <div style={{ fontSize: 9, color: P.dim, letterSpacing: 1.5, marginTop: 2 }}>LIVE EDITOR</div>
+        </div>
+        <div style={{
+          fontSize: 9, letterSpacing: 1, padding: '3px 7px',
+          border: `1px solid ${P.border}`, color: P.dim,
+        }}>
+          {phase.toUpperCase()}
+        </div>
+      </div>
+
+      <PanelSection title="Audio">
+        <PanelSlider label="Volume" value={audioVolume} min={0} max={1} step={0.01} decimals={2} onChange={setAudioVolume} />
+      </PanelSection>
+
+      <PanelSection title="Globe">
+        <PanelSlider label="Rotation speed" value={rotateSpeed} min={0} max={5} step={0.1} decimals={1} onChange={setRotateSpeed} />
+        <PanelSlider label="Globe scale" value={globeScale} min={0.4} max={2} step={0.05} decimals={2} onChange={setGlobeScale} />
+        <PanelSlider label="Tile size" value={tileSize} min={0.3} max={1.8} step={0.05} decimals={2} onChange={setTileSize} />
+      </PanelSection>
+
+      <PanelSection title="Tiles">
+        <div style={{ fontSize: 11, color: P.dim, marginBottom: 8 }}>Orientation</div>
+        <PanelToggle
+          options={[{ label: 'Billboard', value: 'billboard' }, { label: 'Outward', value: 'outward' }]}
+          value={tileStyle}
+          onChange={v => setTileStyle(v as 'billboard' | 'outward')}
+        />
+        <div style={{ fontSize: 10, color: P.low, lineHeight: 1.6 }}>
+          <strong style={{ color: P.dim }}>Billboard</strong> — always faces camera<br />
+          <strong style={{ color: P.dim }}>Outward</strong> — rotates with globe
+        </div>
+      </PanelSection>
+
+      <PanelSection title="About">
+        <div style={{ fontSize: 10, color: P.low, lineHeight: 1.7 }}>
+          <strong style={{ color: P.dim }}>URL</strong> ?admin=true<br />
+          <strong style={{ color: P.dim }}>Stack</strong> Next.js · Three.js · Supabase<br />
+          <strong style={{ color: P.dim }}>Repo</strong> Prangishvili/reply-gallery
+        </div>
+      </PanelSection>
+    </div>
+  )
+}
+
+// ─── Main app ─────────────────────────────────────────────────────────────────
+
 function HomeInner() {
   const [phase, setPhase] = useState<Phase>('entry')
   const [withSound, setWithSound] = useState(true)
   const [barWidth, setBarWidth] = useState(0)
   const [fadeOut, setFadeOut] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const bgAudioRef = useRef<HTMLAudioElement | null>(null)
 
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
@@ -31,12 +185,22 @@ function HomeInner() {
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
-  const [rotateSpeed, setRotateSpeed] = useState(0.5)
-  const [globeScale, setGlobeScale] = useState(1)
-  const isAdmin = useSearchParams().get('admin') === 'true'
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Loading bar animation → auto-advance to video
+  const [rotateSpeed, setRotateSpeed] = useState(0.5)
+  const [globeScale, setGlobeScale] = useState(1)
+  const [tileSize, setTileSize] = useState(0.85)
+  const [tileStyle, setTileStyle] = useState<'billboard' | 'outward'>('billboard')
+  const [audioVolume, setAudioVolume] = useState(0.5)
+
+  const isAdmin = useSearchParams().get('admin') === 'true'
+
+  // Sync audio volume live
+  useEffect(() => {
+    if (bgAudioRef.current) bgAudioRef.current.volume = audioVolume
+  }, [audioVolume])
+
+  // Loading bar → video
   useEffect(() => {
     if (phase !== 'loading') return
     requestAnimationFrame(() => setBarWidth(100))
@@ -50,6 +214,15 @@ function HomeInner() {
     v.muted = !withSound
     v.play().catch(() => {})
   }, [phase])
+
+  function startBgAudio(sound: boolean) {
+    if (!sound) return
+    const audio = new Audio('/fx_bg.mp3')
+    audio.loop = true
+    audio.volume = audioVolume
+    audio.play().catch(() => {})
+    bgAudioRef.current = audio
+  }
 
   function goToGallery() {
     setFadeOut(true)
@@ -120,7 +293,7 @@ function HomeInner() {
       </div>
 
       {/* Globe */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0" style={isAdmin ? { right: 280 } : {}}>
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center">
             <span className="font-mono text-gray-300 text-sm animate-pulse">loading…</span>
@@ -131,7 +304,15 @@ function HomeInner() {
             <span className="font-mono text-gray-300 text-sm">nothing here yet — be first.</span>
           </div>
         )}
-        {!loading && posts.length > 0 && <GlobeCanvas posts={posts} rotateSpeed={rotateSpeed} scale={globeScale} />}
+        {!loading && posts.length > 0 && (
+          <GlobeCanvas
+            posts={posts}
+            rotateSpeed={rotateSpeed}
+            scale={globeScale}
+            tileSize={tileSize}
+            tileStyle={tileStyle}
+          />
+        )}
       </div>
 
       {/* Upload FAB */}
@@ -139,35 +320,28 @@ function HomeInner() {
         onClick={() => setShowUpload(true)}
         className="fixed bottom-9 left-1/2 -translate-x-1/2 z-20 bg-white shadow-md rounded-full px-7 py-[18px] font-mono text-black text-xl leading-none hover:shadow-lg transition-shadow border border-gray-100"
         aria-label="Upload"
+        style={isAdmin ? { transform: 'translateX(calc(-50% - 140px))' } : {}}
       >
         +
       </button>
 
-      {/* Controls — admin only */}
-      {isAdmin && <div className="fixed bottom-9 right-6 z-20 flex flex-col gap-2 bg-white/80 backdrop-blur-sm border border-gray-100 rounded-2xl px-4 py-3 shadow-sm">
-        <label className="flex flex-col gap-1">
-          <span className="font-mono text-[10px] text-gray-400 uppercase tracking-widest">Speed</span>
-          <input
-            type="range" min={0} max={5} step={0.1} value={rotateSpeed}
-            onChange={e => setRotateSpeed(Number(e.target.value))}
-            className="w-28 accent-black"
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="font-mono text-[10px] text-gray-400 uppercase tracking-widest">Size</span>
-          <input
-            type="range" min={0.4} max={2} step={0.05} value={globeScale}
-            onChange={e => setGlobeScale(Number(e.target.value))}
-            className="w-28 accent-black"
-          />
-        </label>
-      </div>}
+      {/* Admin panel */}
+      {isAdmin && (
+        <AdminPanel
+          rotateSpeed={rotateSpeed} setRotateSpeed={setRotateSpeed}
+          globeScale={globeScale} setGlobeScale={setGlobeScale}
+          tileSize={tileSize} setTileSize={setTileSize}
+          tileStyle={tileStyle} setTileStyle={setTileStyle}
+          audioVolume={audioVolume} setAudioVolume={setAudioVolume}
+          phase={phase}
+        />
+      )}
 
       {/* Intro overlay */}
       {phase !== 'gallery' && (
         <div
           className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center"
-          style={{ opacity: fadeOut ? 0 : 1, transition: 'opacity 0.6s ease' }}
+          style={{ opacity: fadeOut ? 0 : 1, transition: 'opacity 0.6s ease', right: isAdmin ? 280 : 0 }}
         >
           {phase === 'entry' && (
             <div className="flex flex-col items-center gap-8">
@@ -176,7 +350,7 @@ function HomeInner() {
               </p>
               <div className="flex items-center gap-6">
                 <button
-                  onClick={() => { setWithSound(true); setBarWidth(0); setPhase('loading') }}
+                  onClick={() => { setWithSound(true); setBarWidth(0); setPhase('loading'); startBgAudio(true) }}
                   className="font-mono text-[11px] tracking-[0.2em] uppercase text-black border border-black px-5 py-2.5 hover:bg-black hover:text-white transition-colors"
                 >
                   yes
@@ -227,7 +401,7 @@ function HomeInner() {
 
       {/* Upload Modal */}
       {showUpload && (
-        <div className="fixed inset-0 z-30 flex items-end sm:items-center justify-center">
+        <div className="fixed inset-0 z-30 flex items-end sm:items-center justify-center" style={isAdmin ? { right: 280 } : {}}>
           <div className="absolute inset-0 bg-black/25 backdrop-blur-sm" onClick={closeModal} />
           <div className="relative bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between mb-4 shrink-0">
@@ -236,7 +410,6 @@ function HomeInner() {
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-3 min-h-0">
-              {/* Drop zone */}
               <div
                 onClick={() => fileInputRef.current?.click()}
                 onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files) }}
@@ -251,7 +424,6 @@ function HomeInner() {
                 <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = '' }} />
               </div>
 
-              {/* Image list */}
               {items.length > 0 && (
                 <div className="overflow-y-auto flex flex-col gap-2 min-h-0">
                   {items.map((item, i) => (

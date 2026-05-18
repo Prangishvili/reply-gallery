@@ -8,9 +8,6 @@ import { Post } from '@/lib/supabase'
 
 const RADIUS = 3.2
 
-// Swap tile style here: 'billboard' = always face camera | 'outward' = face away from sphere
-const TILE_STYLE: 'billboard' | 'outward' = 'billboard'
-
 function spherePoint(index: number, total: number): THREE.Vector3 {
   const phi = Math.acos(1 - (2 * (index + 0.5)) / total)
   const theta = Math.PI * (1 + Math.sqrt(5)) * index
@@ -42,8 +39,7 @@ function Caption({ text }: { text: string }) {
   )
 }
 
-// billboard: always faces the camera
-function TileBillboard({ post, index, total }: { post: Post; index: number; total: number }) {
+function TileBillboard({ post, index, total, tileSize }: { post: Post; index: number; total: number; tileSize: number }) {
   const mesh = useRef<THREE.Mesh>(null)
   const [hovered, setHovered] = useState(false)
   const texture = useTexture(post.image_url)
@@ -58,12 +54,8 @@ function TileBillboard({ post, index, total }: { post: Post; index: number; tota
 
   return (
     <Billboard position={pos}>
-      <mesh
-        ref={mesh}
-        onPointerOver={e => { e.stopPropagation(); setHovered(true) }}
-        onPointerOut={() => setHovered(false)}
-      >
-        <planeGeometry args={[0.85, 0.85]} />
+      <mesh ref={mesh} onPointerOver={e => { e.stopPropagation(); setHovered(true) }} onPointerOut={() => setHovered(false)}>
+        <planeGeometry args={[tileSize, tileSize]} />
         <meshBasicMaterial map={texture} side={THREE.DoubleSide} />
         {hovered && <Caption text={post.text} />}
       </mesh>
@@ -71,8 +63,7 @@ function TileBillboard({ post, index, total }: { post: Post; index: number; tota
   )
 }
 
-// outward: tile faces away from the sphere center, rotates with the globe
-function TileOutward({ post, index, total }: { post: Post; index: number; total: number }) {
+function TileOutward({ post, index, total, tileSize }: { post: Post; index: number; total: number; tileSize: number }) {
   const mesh = useRef<THREE.Mesh>(null)
   const [hovered, setHovered] = useState(false)
   const texture = useTexture(post.image_url)
@@ -88,37 +79,29 @@ function TileOutward({ post, index, total }: { post: Post; index: number; total:
   })
 
   return (
-    <mesh
-      ref={mesh}
-      position={pos}
-      quaternion={quaternion}
-      onPointerOver={e => { e.stopPropagation(); setHovered(true) }}
-      onPointerOut={() => setHovered(false)}
-    >
-      <planeGeometry args={[0.85, 0.85]} />
+    <mesh ref={mesh} position={pos} quaternion={quaternion} onPointerOver={e => { e.stopPropagation(); setHovered(true) }} onPointerOut={() => setHovered(false)}>
+      <planeGeometry args={[tileSize, tileSize]} />
       <meshBasicMaterial map={texture} side={THREE.DoubleSide} />
       {hovered && <Caption text={post.text} />}
     </mesh>
   )
 }
 
-const Tile = TILE_STYLE === 'billboard' ? TileBillboard : TileOutward
-
-function Scene({ posts, rotateSpeed, scale }: { posts: Post[]; rotateSpeed: number; scale: number }) {
+function Scene({ posts, rotateSpeed, scale, tileSize, tileStyle }: {
+  posts: Post[]
+  rotateSpeed: number
+  scale: number
+  tileSize: number
+  tileStyle: 'billboard' | 'outward'
+}) {
+  const Tile = tileStyle === 'billboard' ? TileBillboard : TileOutward
   return (
     <>
-      <OrbitControls
-        autoRotate
-        autoRotateSpeed={rotateSpeed}
-        enableZoom
-        enablePan={false}
-        minDistance={4.5}
-        maxDistance={12}
-      />
+      <OrbitControls autoRotate autoRotateSpeed={rotateSpeed} enableZoom enablePan={false} minDistance={4.5} maxDistance={12} />
       <group scale={scale}>
         {posts.map((post, i) => (
           <Suspense key={post.id} fallback={null}>
-            <Tile post={post} index={i} total={posts.length} />
+            <Tile post={post} index={i} total={posts.length} tileSize={tileSize} />
           </Suspense>
         ))}
       </group>
@@ -126,14 +109,16 @@ function Scene({ posts, rotateSpeed, scale }: { posts: Post[]; rotateSpeed: numb
   )
 }
 
-export default function GlobeCanvas({ posts, rotateSpeed, scale }: { posts: Post[]; rotateSpeed: number; scale: number }) {
+export default function GlobeCanvas({ posts, rotateSpeed, scale, tileSize, tileStyle }: {
+  posts: Post[]
+  rotateSpeed: number
+  scale: number
+  tileSize: number
+  tileStyle: 'billboard' | 'outward'
+}) {
   return (
-    <Canvas
-      camera={{ position: [0, 0, 7.5], fov: 50 }}
-      dpr={[1, 2]}
-      style={{ width: '100%', height: '100%' }}
-    >
-      <Scene posts={posts} rotateSpeed={rotateSpeed} scale={scale} />
+    <Canvas camera={{ position: [0, 0, 7.5], fov: 50 }} dpr={[1, 2]} style={{ width: '100%', height: '100%' }}>
+      <Scene posts={posts} rotateSpeed={rotateSpeed} scale={scale} tileSize={tileSize} tileStyle={tileStyle} />
     </Canvas>
   )
 }
