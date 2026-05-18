@@ -259,13 +259,23 @@ function HomeInner() {
     return () => clearInterval(timer)
   }, [timebombActive, posts])
 
-  // Loading bar → video
+  const [barDone, setBarDone] = useState(false)
+  const [videoReady, setVideoReady] = useState(false)
+
+  // Loading bar — sets barDone after animation
   useEffect(() => {
     if (phase !== 'loading') return
+    setBarDone(false)
+    setVideoReady(false)
     requestAnimationFrame(() => setBarWidth(100))
-    const t = setTimeout(() => setPhase('video'), 2800)
+    const t = setTimeout(() => setBarDone(true), 2800)
     return () => clearTimeout(t)
   }, [phase])
+
+  // Advance to video only when both bar animation and video are ready
+  useEffect(() => {
+    if (phase === 'loading' && barDone && videoReady) setPhase('video')
+  }, [barDone, videoReady, phase])
 
   useEffect(() => {
     if (phase !== 'video' || !videoRef.current) return
@@ -432,6 +442,12 @@ function HomeInner() {
 
           {phase === 'loading' && (
             <>
+              <video
+                src="/intro.mp4"
+                preload="auto"
+                style={{ display: 'none' }}
+                onCanPlayThrough={() => setVideoReady(true)}
+              />
               <div className="w-48 h-px bg-black/10 relative overflow-hidden">
                 <div
                   className="absolute inset-y-0 left-0 bg-black/60"
