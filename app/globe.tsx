@@ -128,6 +128,7 @@ function GlobeControls({ groupRef, rotateSpeed }: { groupRef: React.RefObject<TH
       dragging.current = true
       velocity.current = { x: 0, y: 0 }
       lastPointer.current = { x: e.clientX, y: e.clientY }
+      canvas.setPointerCapture(e.pointerId)
     }
     const onPointerMove = (e: PointerEvent) => {
       if (!dragging.current) return
@@ -144,14 +145,16 @@ function GlobeControls({ groupRef, rotateSpeed }: { groupRef: React.RefObject<TH
     }
 
     canvas.addEventListener('pointerdown', onPointerDown)
-    window.addEventListener('pointermove', onPointerMove)
-    window.addEventListener('pointerup', onPointerUp)
+    canvas.addEventListener('pointermove', onPointerMove)
+    canvas.addEventListener('pointerup', onPointerUp)
+    canvas.addEventListener('pointercancel', onPointerUp)
     canvas.addEventListener('wheel', onWheel, { passive: true })
 
     return () => {
       canvas.removeEventListener('pointerdown', onPointerDown)
-      window.removeEventListener('pointermove', onPointerMove)
-      window.removeEventListener('pointerup', onPointerUp)
+      canvas.removeEventListener('pointermove', onPointerMove)
+      canvas.removeEventListener('pointerup', onPointerUp)
+      canvas.removeEventListener('pointercancel', onPointerUp)
       canvas.removeEventListener('wheel', onWheel)
     }
   }, [gl, camera])
@@ -217,7 +220,7 @@ export default function GlobeCanvas({ posts, rotateSpeed, scale, tileSize, tileS
   nameSize: number
 }) {
   return (
-    <Canvas camera={{ position: [0, 0, 7.5], fov: 50 }} dpr={[1, 2]} style={{ width: '100%', height: '100%' }}>
+    <Canvas camera={{ position: [0, 0, 7.5], fov: 50 }} dpr={[1, 2]} style={{ width: '100%', height: '100%', touchAction: 'none' }}>
       <Scene posts={posts} rotateSpeed={rotateSpeed} scale={scale} tileSize={tileSize} tileStyle={tileStyle} showNames={showNames} nameSize={nameSize} />
     </Canvas>
   )
