@@ -336,6 +336,7 @@ function HomeInner() {
   const [error, setError] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [roomKey, setRoomKey] = useState(0)
 
   const [rotateSpeed, setRotateSpeed] = useState(0.05)
   const [globeScale, setGlobeScale] = useState(1.5)
@@ -360,6 +361,18 @@ function HomeInner() {
   const [showAbout, setShowAbout] = useState(false)
 
   const [viewMode, setViewMode] = useState<'globe' | 'room'>('globe')
+  const switchView = (v: 'globe' | 'room') => {
+    if (v === 'room') setRoomKey(k => k + 1)
+    setViewMode(v)
+  }
+
+  // Delay mounting the room canvas so the GPU can release the globe context first
+  const [mountedView, setMountedView] = useState<'globe' | 'room'>('globe')
+  useEffect(() => {
+    if (viewMode === 'globe') { setMountedView('globe'); return }
+    const id = setTimeout(() => setMountedView('room'), 200)
+    return () => clearTimeout(id)
+  }, [viewMode])
 
   const grainRef = useRef<SVGFETurbulenceElement>(null)
   const [showTexture, setShowTexture] = useState(false)
@@ -544,9 +557,9 @@ function HomeInner() {
             {(['globe', 'room'] as const).map(mode => (
               <button
                 key={mode}
-                onClick={() => setViewMode(mode)}
+                onClick={() => switchView(mode)}
                 style={{
-                  fontFamily: 'ui-monospace, monospace', fontSize: 9, letterSpacing: 1.5,
+                  fontFamily: 'ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5,
                   padding: 0, border: 'none', cursor: 'pointer', textTransform: 'uppercase',
                   background: 'transparent',
                   color: viewMode === mode ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.3)',
@@ -566,10 +579,10 @@ function HomeInner() {
           onClick={() => setShowAbout(v => !v)}
           style={{
             position: 'fixed', top: 24, left: 24, zIndex: 60,
-            fontFamily: 'ui-monospace, monospace', fontSize: 9, letterSpacing: 1.5,
+            fontFamily: 'ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5,
             textTransform: 'uppercase', background: 'transparent', border: 'none',
             cursor: 'pointer', padding: 0,
-            color: showAbout ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.3)',
+            color: showAbout ? 'rgb(0, 0, 0)' : 'rgb(0, 0, 0)',
             transition: 'color 0.15s',
           }}
         >
@@ -583,8 +596,8 @@ function HomeInner() {
           onClick={() => setShowAbout(false)}
           style={{
             position: 'fixed', inset: 0, zIndex: 55,
-            backdropFilter: 'blur(18px)',
             background: 'rgba(255,255,255,0.55)',
+            backdropFilter: 'blur(18px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: '40px 24px',
           }}
@@ -637,10 +650,10 @@ You are not trying to be understood. You are trying to respond to what you think
             <span className="font-mono text-gray-300 text-sm">nothing here yet — be first.</span>
           </div>
         )}
-        {!loading && posts.length > 0 && viewMode === 'room' && (
-          <RoomCanvas posts={posts.filter(p => !hiddenIds.has(p.id))} />
+        {!loading && posts.length > 0 && mountedView === 'room' && (
+          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} />
         )}
-        {!loading && posts.length > 0 && viewMode === 'globe' && (
+        {!loading && posts.length > 0 && mountedView === 'globe' && (
           <GlobeCanvas
             posts={posts.filter(p => !hiddenIds.has(p.id))}
             rotateSpeed={rotateSpeed}
@@ -737,7 +750,7 @@ You are not trying to be understood. You are trying to respond to what you think
           wireframeSegments={wireframeSegments} setWireframeSegments={setWireframeSegments}
           wireframeOpacity={wireframeOpacity} setWireframeOpacity={setWireframeOpacity}
           wireframeColor={wireframeColor} setWireframeColor={setWireframeColor}
-          viewMode={viewMode} setViewMode={setViewMode}
+          viewMode={viewMode} setViewMode={switchView}
           showTexture={showTexture} setShowTexture={setShowTexture}
           grainOpacity={grainOpacity} setGrainOpacity={setGrainOpacity}
           vignetteOpacity={vignetteOpacity} setVignetteOpacity={setVignetteOpacity}
@@ -768,7 +781,7 @@ You are not trying to be understood. You are trying to respond to what you think
 
           {phase === 'entry' && (
             <div className="flex flex-col items-center gap-8">
-              <p className="font-mono text-black/60 text-[11px] tracking-[0.2em] uppercase">
+              <p className="font-mono text-black/60 text-[11px] tracking-[0.2em] uppercase text-center">
                 this interactive audio piece is best experienced with sound on
               </p>
               <div className="flex items-center gap-6">

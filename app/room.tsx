@@ -230,12 +230,15 @@ export default function RoomCanvas({ posts }: { posts: Post[] }) {
   const [dims, setDims] = useState<Dims | null>(null)
 
   useEffect(() => {
+    setDims(null)
     if (posts.length === 0) { setDims({}); return }
     const result: Dims = {}
     let count = 0
+    let cancelled = false
     posts.forEach(post => {
       const img = new window.Image()
       const done = () => {
+        if (cancelled) return
         result[post.id] = img.naturalWidth && img.naturalHeight
           ? { w: img.naturalWidth, h: img.naturalHeight }
           : { w: 1, h: 1 }
@@ -244,6 +247,7 @@ export default function RoomCanvas({ posts }: { posts: Post[] }) {
       img.onload = done; img.onerror = done
       img.src = post.image_url
     })
+    return () => { cancelled = true }
   }, [posts])
 
   if (!dims) return (
