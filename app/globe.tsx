@@ -113,6 +113,103 @@ function TileOutward({ post, index, total, tileSize }: { post: Post; index: numb
   )
 }
 
+const noiseGlob = /* glsl */`
+  float hash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+  float noise(vec3 p) {
+    vec3 i = floor(p); vec3 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
+               mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);
+  }
+  float fbm(vec3 p) {
+    float v = 0.0; float a = 0.5;
+    for (int i = 0; i < 6; i++) { v += a * noise(p); p = p * 2.1 + vec3(31.41); a *= 0.5; }
+    return v;
+  }
+`
+
+const noiseVert = `
+  uniform float time;
+  uniform float volume;
+  uniform float noiseScale;
+  varying vec3 vNorm;
+  ${noiseGlob}
+  void main() {
+    vNorm = normal;
+    float n = fbm(normal * 2.0 * noiseScale + time * 0.3);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position + normal * n * volume * 0.6, 1.0);
+  }
+`
+
+const noiseFrag = `
+  uniform float time;
+  uniform float volume;
+  uniform float noiseScale;
+  uniform vec3 color1;
+  uniform vec3 color2;
+  varying vec3 vNorm;
+  ${noiseGlob}
+  void main() {
+    float n = fbm(vNorm * 3.5 * noiseScale + time * 0.2);
+    vec3 col = mix(color1, color2, n);
+    col = mix(col, vec3(1.0, 0.95, 1.0), n * n * volume * 1.4);
+    float alpha = (0.35 + n * 0.5) * (0.15 + volume * 0.85);
+    gl_FragColor = vec4(col, clamp(alpha, 0.0, 1.0));
+  }
+`
+
+function NoiseGlobe({ audioVolume, analyserRef, noiseColor1, noiseColor2, noiseSpeed, noiseScale }: {
+  audioVolume: number
+  analyserRef: { current: AnalyserNode | null }
+  noiseColor1: string
+  noiseColor2: string
+  noiseSpeed: number
+  noiseScale: number
+}) {
+  const matRef = useRef<THREE.ShaderMaterial>(null)
+  const dataArrRef = useRef<Uint8Array | null>(null)
+
+  useFrame((_, delta) => {
+    if (!matRef.current) return
+    matRef.current.uniforms.time.value += delta * noiseSpeed
+    matRef.current.uniforms.noiseScale.value = noiseScale
+    matRef.current.uniforms.color1.value.set(noiseColor1)
+    matRef.current.uniforms.color2.value.set(noiseColor2)
+
+    let vol = audioVolume
+    if (analyserRef.current) {
+      const analyser = analyserRef.current
+      if (!dataArrRef.current || dataArrRef.current.length !== analyser.frequencyBinCount) {
+        dataArrRef.current = new Uint8Array(analyser.frequencyBinCount)
+      }
+      analyser.getByteFrequencyData(dataArrRef.current as Uint8Array<ArrayBuffer>)
+      let sum = 0
+      for (let i = 0; i < dataArrRef.current.length; i++) sum += dataArrRef.current[i]
+      vol = Math.min((sum / dataArrRef.current.length / 255) * 5, 1)
+    }
+    matRef.current.uniforms.volume.value = vol
+  })
+
+  return (
+    <mesh>
+      <sphereGeometry args={[1.3, 64, 64]} />
+      <shaderMaterial
+        ref={matRef}
+        uniforms={{
+          time: { value: 0 },
+          volume: { value: audioVolume },
+          noiseScale: { value: noiseScale },
+          color1: { value: new THREE.Color(noiseColor1) },
+          color2: { value: new THREE.Color(noiseColor2) },
+        }}
+        vertexShader={noiseVert}
+        fragmentShader={noiseFrag}
+        transparent
+        depthWrite={false}
+      />
+    </mesh>
+  )
+}
+
 // Custom controls: rotates the globe group directly (no polar clamping), scroll to zoom, inertia on release
 function GlobeControls({ groupRef, rotateSpeed }: { groupRef: React.RefObject<THREE.Group | null>; rotateSpeed: number }) {
   const { gl, camera } = useThree()
@@ -181,7 +278,7 @@ function GlobeControls({ groupRef, rotateSpeed }: { groupRef: React.RefObject<TH
   return null
 }
 
-function Scene({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle, showNames, nameSize, showWireframe, wireframeSegments, wireframeOpacity, wireframeColor }: {
+function Scene({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle, showNames, nameSize, showWireframe, wireframeSegments, wireframeOpacity, wireframeColor, showNoiseGlobe, audioVolume, analyserRef, noiseColor1, noiseColor2, noiseSpeed, noiseScale }: {
   posts: Post[]
   rotateSpeed: number
   scale: number
@@ -195,6 +292,13 @@ function Scene({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle,
   wireframeSegments: number
   wireframeOpacity: number
   wireframeColor: string
+  showNoiseGlobe: boolean
+  audioVolume: number
+  analyserRef: { current: AnalyserNode | null }
+  noiseColor1: string
+  noiseColor2: string
+  noiseSpeed: number
+  noiseScale: number
 }) {
   const groupRef = useRef<THREE.Group>(null)
   const Tile = tileStyle === 'billboard' ? TileBillboard : TileOutward
@@ -203,6 +307,7 @@ function Scene({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle,
     <>
       <GlobeControls groupRef={groupRef} rotateSpeed={rotateSpeed} />
       <group ref={groupRef} scale={[scale * scaleX, scale * scaleY, scale]}>
+        {showNoiseGlobe && <NoiseGlobe audioVolume={audioVolume} analyserRef={analyserRef} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} />}
         {showWireframe && (
           <mesh>
             <sphereGeometry args={[RADIUS, wireframeSegments, wireframeSegments]} />
@@ -222,7 +327,7 @@ function Scene({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle,
   )
 }
 
-export default function GlobeCanvas({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle, showNames, nameSize, showWireframe, wireframeSegments, wireframeOpacity, wireframeColor }: {
+export default function GlobeCanvas({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle, showNames, nameSize, showWireframe, wireframeSegments, wireframeOpacity, wireframeColor, showNoiseGlobe, audioVolume, analyserRef, noiseColor1, noiseColor2, noiseSpeed, noiseScale }: {
   posts: Post[]
   rotateSpeed: number
   scale: number
@@ -236,10 +341,17 @@ export default function GlobeCanvas({ posts, rotateSpeed, scale, scaleX, scaleY,
   wireframeSegments: number
   wireframeOpacity: number
   wireframeColor: string
+  showNoiseGlobe: boolean
+  audioVolume: number
+  analyserRef: { current: AnalyserNode | null }
+  noiseColor1: string
+  noiseColor2: string
+  noiseSpeed: number
+  noiseScale: number
 }) {
   return (
     <Canvas camera={{ position: [0, 0, 7.5], fov: 50 }} dpr={[1, 2]} style={{ width: '100%', height: '100%', touchAction: 'none' }}>
-      <Scene posts={posts} rotateSpeed={rotateSpeed} scale={scale} scaleX={scaleX} scaleY={scaleY} tileSize={tileSize} tileStyle={tileStyle} showNames={showNames} nameSize={nameSize} showWireframe={showWireframe} wireframeSegments={wireframeSegments} wireframeOpacity={wireframeOpacity} wireframeColor={wireframeColor} />
+      <Scene posts={posts} rotateSpeed={rotateSpeed} scale={scale} scaleX={scaleX} scaleY={scaleY} tileSize={tileSize} tileStyle={tileStyle} showNames={showNames} nameSize={nameSize} showWireframe={showWireframe} wireframeSegments={wireframeSegments} wireframeOpacity={wireframeOpacity} wireframeColor={wireframeColor} showNoiseGlobe={showNoiseGlobe} audioVolume={audioVolume} analyserRef={analyserRef} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} />
     </Canvas>
   )
 }

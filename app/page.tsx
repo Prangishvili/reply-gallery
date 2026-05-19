@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic'
 import { Post } from '@/lib/supabase'
 
 const GlobeCanvas = dynamic(() => import('./globe'), { ssr: false })
+const RoomCanvas  = dynamic(() => import('./room'),  { ssr: false })
 
 type ImageItem = { file: File; preview: string; caption: string }
 
@@ -105,13 +106,24 @@ function AdminPanel({
   nameSize, setNameSize,
   scaleX, setScaleX,
   scaleY, setScaleY,
+  showNoiseGlobe, setShowNoiseGlobe,
+  noiseColor1, setNoiseColor1,
+  noiseColor2, setNoiseColor2,
+  noiseSpeed, setNoiseSpeed,
+  noiseScale, setNoiseScale,
   showWireframe, setShowWireframe,
   wireframeSegments, setWireframeSegments,
   wireframeOpacity, setWireframeOpacity,
   wireframeColor, setWireframeColor,
+  viewMode, setViewMode,
   timebombActive, setTimebombActive,
   hiddenCount, resetTimebomb,
+  showTexture, setShowTexture,
+  grainOpacity, setGrainOpacity,
+  vignetteOpacity, setVignetteOpacity,
+  wobbleScale, setWobbleScale,
   phase,
+  hidden,
 }: {
   rotateSpeed: number; setRotateSpeed: (v: number) => void
   globeScale: number; setGlobeScale: (v: number) => void
@@ -122,19 +134,31 @@ function AdminPanel({
   nameSize: number; setNameSize: (v: number) => void
   scaleX: number; setScaleX: (v: number) => void
   scaleY: number; setScaleY: (v: number) => void
+  showNoiseGlobe: boolean; setShowNoiseGlobe: (v: boolean) => void
+  noiseColor1: string; setNoiseColor1: (v: string) => void
+  noiseColor2: string; setNoiseColor2: (v: string) => void
+  noiseSpeed: number; setNoiseSpeed: (v: number) => void
+  noiseScale: number; setNoiseScale: (v: number) => void
   showWireframe: boolean; setShowWireframe: (v: boolean) => void
   wireframeSegments: number; setWireframeSegments: (v: number) => void
   wireframeOpacity: number; setWireframeOpacity: (v: number) => void
   wireframeColor: string; setWireframeColor: (v: string) => void
+  viewMode: 'globe' | 'room'; setViewMode: (v: 'globe' | 'room') => void
   timebombActive: boolean; setTimebombActive: (v: boolean) => void
   hiddenCount: number; resetTimebomb: () => void
+  showTexture: boolean; setShowTexture: (v: boolean) => void
+  grainOpacity: number; setGrainOpacity: (v: number) => void
+  vignetteOpacity: number; setVignetteOpacity: (v: number) => void
+  wobbleScale: number; setWobbleScale: (v: number) => void
   phase: Phase
+  hidden: boolean
 }) {
   return (
     <div style={{
       position: 'fixed', top: 0, right: 0, bottom: 0, width: 280, zIndex: 100,
       background: P.surface, borderLeft: `1px solid ${P.border}`,
       overflowY: 'auto', fontFamily: P.font, userSelect: 'none',
+      display: hidden ? 'none' : undefined,
     }}>
       {/* Header */}
       <div style={{
@@ -152,6 +176,14 @@ function AdminPanel({
           {phase.toUpperCase()}
         </div>
       </div>
+
+      <PanelSection title="View">
+        <PanelToggle
+          options={[{ label: 'Globe', value: 'globe' }, { label: 'Room', value: 'room' }]}
+          value={viewMode}
+          onChange={v => setViewMode(v as 'globe' | 'room')}
+        />
+      </PanelSection>
 
       <PanelSection title="Audio">
         <PanelSlider label="Volume" value={audioVolume} min={0} max={1} step={0.01} decimals={2} onChange={setAudioVolume} />
@@ -186,6 +218,32 @@ function AdminPanel({
               onChange={e => setWireframeColor(e.target.value)}
               style={{ width: 24, height: 16, border: `1px solid ${P.borderStrong}`, background: 'transparent', cursor: 'pointer', padding: 0 }}
             />
+          </div>
+        </div>
+      </PanelSection>
+
+      <PanelSection title="Noise">
+        <PanelToggle
+          options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
+          value={showNoiseGlobe ? 'show' : 'hide'}
+          onChange={v => setShowNoiseGlobe(v === 'show')}
+        />
+        <PanelSlider label="Speed" value={noiseSpeed} min={0.05} max={3} step={0.05} decimals={2} onChange={setNoiseSpeed} />
+        <PanelSlider label="Scale" value={noiseScale} min={0.2} max={5} step={0.1} decimals={1} onChange={setNoiseScale} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', marginTop: 4 }}>
+          <span style={{ fontSize: 11, color: P.text }}>Base color</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 10, color: P.dim }}>{noiseColor1.toUpperCase()}</span>
+            <input type="color" value={noiseColor1} onChange={e => setNoiseColor1(e.target.value)}
+              style={{ width: 24, height: 16, border: `1px solid ${P.borderStrong}`, background: 'transparent', cursor: 'pointer', padding: 0 }} />
+          </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
+          <span style={{ fontSize: 11, color: P.text }}>Glow color</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 10, color: P.dim }}>{noiseColor2.toUpperCase()}</span>
+            <input type="color" value={noiseColor2} onChange={e => setNoiseColor2(e.target.value)}
+              style={{ width: 24, height: 16, border: `1px solid ${P.borderStrong}`, background: 'transparent', cursor: 'pointer', padding: 0 }} />
           </div>
         </div>
       </PanelSection>
@@ -236,6 +294,17 @@ function AdminPanel({
         </div>
       </PanelSection>
 
+      <PanelSection title="Texture">
+        <PanelToggle
+          options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
+          value={showTexture ? 'show' : 'hide'}
+          onChange={v => setShowTexture(v === 'show')}
+        />
+        <PanelSlider label="Grain intensity" value={grainOpacity} min={0} max={0.15} step={0.005} decimals={3} onChange={setGrainOpacity} />
+        <PanelSlider label="Vignette intensity" value={vignetteOpacity} min={0} max={1} step={0.05} decimals={2} onChange={setVignetteOpacity} />
+        <PanelSlider label="Wobble scale" value={wobbleScale} min={0} max={12} step={0.5} decimals={1} onChange={setWobbleScale} />
+      </PanelSection>
+
       <PanelSection title="About">
         <div style={{ fontSize: 10, color: P.low, lineHeight: 1.7 }}>
           <strong style={{ color: P.dim }}>URL</strong> ?admin=true<br />
@@ -256,6 +325,7 @@ function HomeInner() {
   const [fadeOut, setFadeOut] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const bgAudioRef = useRef<HTMLAudioElement | null>(null)
+  const analyserRef = useRef<AnalyserNode | null>(null)
 
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
@@ -274,8 +344,13 @@ function HomeInner() {
   const [audioVolume, setAudioVolume] = useState(0.10)
   const [showNames, setShowNames] = useState(true)
   const [nameSize, setNameSize] = useState(10)
-  const [scaleX, setScaleX] = useState(1.3)
+  const [scaleX, setScaleX] = useState(1.0)
   const [scaleY, setScaleY] = useState(1.0)
+  const [showNoiseGlobe, setShowNoiseGlobe] = useState(false)
+  const [noiseColor1, setNoiseColor1] = useState('#08003a')
+  const [noiseColor2, setNoiseColor2] = useState('#8c1aff')
+  const [noiseSpeed, setNoiseSpeed] = useState(0.5)
+  const [noiseScale, setNoiseScale] = useState(1.0)
   const [showWireframe, setShowWireframe] = useState(false)
   const [wireframeSegments, setWireframeSegments] = useState(16)
   const [wireframeOpacity, setWireframeOpacity] = useState(0.15)
@@ -283,7 +358,32 @@ function HomeInner() {
   const [timebombActive, setTimebombActive] = useState(false)
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set())
 
+  const [viewMode, setViewMode] = useState<'globe' | 'room'>('globe')
+
+  const grainRef = useRef<SVGFETurbulenceElement>(null)
+  const [showTexture, setShowTexture] = useState(false)
+  const [grainOpacity, setGrainOpacity] = useState(0.055)
+  const [vignetteOpacity, setVignetteOpacity] = useState(0.6)
+  const [wobbleScale, setWobbleScale] = useState(4)
+  const [panelHidden, setPanelHidden] = useState(false)
+
   const isAdmin = useSearchParams().get('admin') === 'true'
+
+  // H key toggles admin panel; enabling texture when hiding
+  useEffect(() => {
+    if (!isAdmin) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'h' || e.key === 'H') {
+        setPanelHidden(prev => {
+          const hiding = !prev
+          if (hiding) setShowTexture(false)
+          return hiding
+        })
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isAdmin])
 
   // Sync audio volume live
   useEffect(() => {
@@ -303,6 +403,16 @@ function HomeInner() {
     }, 2000)
     return () => clearInterval(timer)
   }, [timebombActive, posts])
+
+  useEffect(() => {
+    if (!showTexture) return
+    let s = 0
+    const id = setInterval(() => {
+      s = (s + 1) % 100
+      grainRef.current?.setAttribute('seed', String(s))
+    }, 100)
+    return () => clearInterval(id)
+  }, [showTexture])
 
   const [barDone, setBarDone] = useState(false)
   const [videoReady, setVideoReady] = useState(false)
@@ -341,6 +451,16 @@ function HomeInner() {
     const audio = new Audio('/fx_bg.mp3')
     audio.loop = true
     audio.volume = audioVolume
+    try {
+      const ctx = new AudioContext()
+      const source = ctx.createMediaElementSource(audio)
+      const analyser = ctx.createAnalyser()
+      analyser.fftSize = 256
+      analyser.smoothingTimeConstant = 0.8
+      source.connect(analyser)
+      analyser.connect(ctx.destination)
+      analyserRef.current = analyser
+    } catch {}
     audio.play().catch(() => {})
     bgAudioRef.current = audio
   }
@@ -413,8 +533,45 @@ function HomeInner() {
         <img src="/logo.svg" alt="Reply" className="h-10 w-auto" />
       </div>
 
-      {/* Globe */}
-      <div className="absolute inset-0" style={isAdmin ? { right: 280 } : {}}>
+      {/* View toggle */}
+      {phase === 'gallery' && !loading && posts.length > 0 && (
+        <div
+          className="fixed top-6 z-20"
+          style={{ right: isAdmin && !panelHidden ? 296 : 16 }}
+        >
+          <div style={{ display: 'flex', gap: 14 }}>
+            {(['globe', 'room'] as const).map(mode => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                style={{
+                  fontFamily: 'ui-monospace, monospace', fontSize: 9, letterSpacing: 1.5,
+                  padding: 0, border: 'none', cursor: 'pointer', textTransform: 'uppercase',
+                  background: 'transparent',
+                  color: viewMode === mode ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.3)',
+                  transition: 'color 0.15s',
+                }}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Uni logo */}
+      <a
+        href="https://www.freeuni.edu.ge/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 z-20"
+        style={isAdmin && !panelHidden ? { right: 286 } : {}}
+      >
+        <img src="/UNI.svg" alt="Free University of Tbilisi" className="h-12 w-auto" />
+      </a>
+
+      {/* View */}
+      <div className="absolute inset-0" style={{ ...(isAdmin && !panelHidden ? { right: 280 } : {}), ...(isAdmin && showTexture && wobbleScale > 0 ? { filter: 'url(#hand-drawn-filter)' } : {}) }}>
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center">
             <span className="font-mono text-gray-300 text-sm animate-pulse">loading…</span>
@@ -425,7 +582,10 @@ function HomeInner() {
             <span className="font-mono text-gray-300 text-sm">nothing here yet — be first.</span>
           </div>
         )}
-        {!loading && posts.length > 0 && (
+        {!loading && posts.length > 0 && viewMode === 'room' && (
+          <RoomCanvas posts={posts.filter(p => !hiddenIds.has(p.id))} />
+        )}
+        {!loading && posts.length > 0 && viewMode === 'globe' && (
           <GlobeCanvas
             posts={posts.filter(p => !hiddenIds.has(p.id))}
             rotateSpeed={rotateSpeed}
@@ -440,9 +600,50 @@ function HomeInner() {
             wireframeSegments={wireframeSegments}
             wireframeOpacity={wireframeOpacity}
             wireframeColor={wireframeColor}
+            showNoiseGlobe={showNoiseGlobe}
+            audioVolume={audioVolume}
+            analyserRef={analyserRef}
+            noiseColor1={noiseColor1}
+            noiseColor2={noiseColor2}
+            noiseSpeed={noiseSpeed}
+            noiseScale={noiseScale}
           />
         )}
       </div>
+
+      {/* Texture overlays */}
+      {isAdmin && showTexture && (<>
+        <svg style={{ display: 'none', position: 'absolute' }} aria-hidden="true">
+          <defs>
+            <filter id="hand-drawn-filter">
+              <feTurbulence type="turbulence" baseFrequency="0.025" numOctaves="3" seed="7" stitchTiles="stitch" result="noise" />
+              <feDisplacementMap in="SourceGraphic" in2="noise" scale={wobbleScale} xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+          </defs>
+        </svg>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 55, pointerEvents: 'none', opacity: 0.18, mixBlendMode: 'multiply' } as React.CSSProperties}>
+          <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="paper-fiber-filter" x="0%" y="0%" width="100%" height="100%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.65 0.08" numOctaves="5" seed="3" stitchTiles="stitch" />
+                <feColorMatrix type="saturate" values="0" />
+              </filter>
+            </defs>
+            <rect width="100%" height="100%" filter="url(#paper-fiber-filter)" fill="#8B7355" />
+          </svg>
+        </div>
+        <div style={{ position: 'fixed', inset: '-50%', zIndex: 56, width: '200%', height: '200%', pointerEvents: 'none', opacity: grainOpacity, mixBlendMode: 'overlay' } as React.CSSProperties}>
+          <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="grain-filter" x="0%" y="0%" width="100%" height="100%">
+                <feTurbulence ref={grainRef} type="fractalNoise" baseFrequency="0.85" numOctaves="4" seed="0" stitchTiles="stitch" />
+              </filter>
+            </defs>
+            <rect width="100%" height="100%" filter="url(#grain-filter)" />
+          </svg>
+        </div>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 57, pointerEvents: 'none', background: `radial-gradient(ellipse at center, transparent 30%, rgba(10,5,0,${vignetteOpacity}) 100%)` }} />
+      </>)}
 
       {/* Upload FAB — admin only */}
       {isAdmin && (
@@ -459,8 +660,11 @@ function HomeInner() {
       {/* Admin panel */}
       {isAdmin && (
         <AdminPanel
+          hidden={panelHidden}
           rotateSpeed={rotateSpeed} setRotateSpeed={setRotateSpeed}
           globeScale={globeScale} setGlobeScale={setGlobeScale}
+          scaleX={scaleX} setScaleX={setScaleX}
+          scaleY={scaleY} setScaleY={setScaleY}
           tileSize={tileSize} setTileSize={setTileSize}
           tileStyle={tileStyle} setTileStyle={setTileStyle}
           audioVolume={audioVolume} setAudioVolume={setAudioVolume}
@@ -468,6 +672,20 @@ function HomeInner() {
           nameSize={nameSize} setNameSize={setNameSize}
           timebombActive={timebombActive} setTimebombActive={setTimebombActive}
           hiddenCount={hiddenIds.size} resetTimebomb={() => setHiddenIds(new Set())}
+          showNoiseGlobe={showNoiseGlobe} setShowNoiseGlobe={setShowNoiseGlobe}
+          noiseColor1={noiseColor1} setNoiseColor1={setNoiseColor1}
+          noiseColor2={noiseColor2} setNoiseColor2={setNoiseColor2}
+          noiseSpeed={noiseSpeed} setNoiseSpeed={setNoiseSpeed}
+          noiseScale={noiseScale} setNoiseScale={setNoiseScale}
+          showWireframe={showWireframe} setShowWireframe={setShowWireframe}
+          wireframeSegments={wireframeSegments} setWireframeSegments={setWireframeSegments}
+          wireframeOpacity={wireframeOpacity} setWireframeOpacity={setWireframeOpacity}
+          wireframeColor={wireframeColor} setWireframeColor={setWireframeColor}
+          viewMode={viewMode} setViewMode={setViewMode}
+          showTexture={showTexture} setShowTexture={setShowTexture}
+          grainOpacity={grainOpacity} setGrainOpacity={setGrainOpacity}
+          vignetteOpacity={vignetteOpacity} setVignetteOpacity={setVignetteOpacity}
+          wobbleScale={wobbleScale} setWobbleScale={setWobbleScale}
           phase={phase}
         />
       )}
@@ -475,8 +693,8 @@ function HomeInner() {
       {/* Intro overlay */}
       {phase !== 'gallery' && (
         <div
-          className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center"
-          style={{ opacity: fadeOut ? 0 : 1, transition: 'opacity 0.6s ease', right: isAdmin ? 280 : 0 }}
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center"
+          style={{ background: '#ffffff', opacity: fadeOut ? 0 : 1, transition: 'opacity 0.6s ease', right: isAdmin && !panelHidden ? 280 : 0 }}
         >
           {/* Video element lives here from entry onwards so iOS gesture unlock works */}
           <video
@@ -530,9 +748,6 @@ function HomeInner() {
                   style={{ width: `${barWidth}%`, transition: 'width 2.6s cubic-bezier(0.4,0,0.2,1)' }}
                 />
               </div>
-              <p className="mt-10 font-mono text-black/60 text-[11px] tracking-[0.2em] uppercase">
-                for full experience turn the sound on
-              </p>
             </>
           )}
 
@@ -551,7 +766,7 @@ function HomeInner() {
 
       {/* Upload Modal */}
       {showUpload && (
-        <div className="fixed inset-0 z-30 flex items-end sm:items-center justify-center" style={isAdmin ? { right: 280 } : {}}>
+        <div className="fixed inset-0 z-30 flex items-end sm:items-center justify-center" style={isAdmin && !panelHidden ? { right: 280 } : {}}>
           <div className="absolute inset-0 bg-black/25 backdrop-blur-sm" onClick={closeModal} />
           <div className="relative bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between mb-4 shrink-0">
