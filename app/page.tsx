@@ -357,6 +357,7 @@ function HomeInner() {
   const [wireframeColor, setWireframeColor] = useState('#000000')
   const [timebombActive, setTimebombActive] = useState(false)
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set())
+  const [showAbout, setShowAbout] = useState(false)
 
   const [viewMode, setViewMode] = useState<'globe' | 'room'>('globe')
 
@@ -559,6 +560,54 @@ function HomeInner() {
         </div>
       )}
 
+      {/* About button */}
+      {phase === 'gallery' && (
+        <button
+          onClick={() => setShowAbout(v => !v)}
+          style={{
+            position: 'fixed', top: 24, left: 24, zIndex: 60,
+            fontFamily: 'ui-monospace, monospace', fontSize: 9, letterSpacing: 1.5,
+            textTransform: 'uppercase', background: 'transparent', border: 'none',
+            cursor: 'pointer', padding: 0,
+            color: showAbout ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.3)',
+            transition: 'color 0.15s',
+          }}
+        >
+          about
+        </button>
+      )}
+
+      {/* About overlay */}
+      {showAbout && phase === 'gallery' && (
+        <div
+          onClick={() => setShowAbout(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 55,
+            backdropFilter: 'blur(18px)',
+            background: 'rgba(255,255,255,0.55)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '40px 24px',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ maxWidth: 580, width: '100%' }}
+          >
+            <p style={{
+              fontFamily: 'ui-monospace, monospace', fontSize: 12, lineHeight: 2,
+              color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em',
+              whiteSpace: 'pre-line',
+            }}>{`Language is useful, but it's also a kind of grid we drop our thoughts into, by the time an idea has been put into words, it has already been shaped by what words are available. Inventing a system from scratch forces a different relationship: you have to ask what thoughts actually look like, what rhythm or weight or color they carry, before any of that gets flattened into vocabulary.
+
+For the final work, you will hold a written conversation with one of your classmates using only your invented languages. Neither of you may explain your system. Neither of you may translate. You will exchange three messages each, six pieces in total. Each message is a response to the one before it.
+
+The strongest version of "dialogue" here isn't successful communication. It's the attempt, the misreadings, the inferences, the moments where one responds to what they thought another was saying. That gap is where the real artwork lives, and it's the only place where the original idea (language as a limit) actually gets tested.
+
+You are not trying to be understood. You are trying to respond to what you think the other person said.`}</p>
+          </div>
+        </div>
+      )}
+
       {/* Uni logo */}
       <a
         href="https://www.freeuni.edu.ge/"
@@ -571,7 +620,13 @@ function HomeInner() {
       </a>
 
       {/* View */}
-      <div className="absolute inset-0" style={{ ...(isAdmin && !panelHidden ? { right: 280 } : {}), ...(isAdmin && showTexture && wobbleScale > 0 ? { filter: 'url(#hand-drawn-filter)' } : {}) }}>
+      <div className="absolute inset-0" style={{
+        ...(isAdmin && !panelHidden ? { right: 280 } : {}),
+        filter: [
+          isAdmin && showTexture && wobbleScale > 0 ? 'url(#hand-drawn-filter)' : '',
+          phase === 'entry' ? 'blur(42.5px)' : '',
+        ].filter(Boolean).join(' ') || undefined,
+      }}>
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center">
             <span className="font-mono text-gray-300 text-sm animate-pulse">loading…</span>
@@ -607,6 +662,7 @@ function HomeInner() {
             noiseColor2={noiseColor2}
             noiseSpeed={noiseSpeed}
             noiseScale={noiseScale}
+            blurNames={showAbout}
           />
         )}
       </div>
@@ -694,7 +750,8 @@ function HomeInner() {
       {phase !== 'gallery' && (
         <div
           className="fixed inset-0 z-50 flex flex-col items-center justify-center"
-          style={{ background: '#ffffff', opacity: fadeOut ? 0 : 1, transition: 'opacity 0.6s ease', right: isAdmin && !panelHidden ? 280 : 0 }}
+          style={{ background: phase === 'entry' ? 'transparent' : '#ffffff', opacity: fadeOut ? 0 : 1, transition: 'opacity 0.6s ease', right: isAdmin && !panelHidden ? 280 : 0 }}
+          onClick={phase === 'video' ? goToGallery : undefined}
         >
           {/* Video element lives here from entry onwards so iOS gesture unlock works */}
           <video
@@ -712,7 +769,7 @@ function HomeInner() {
           {phase === 'entry' && (
             <div className="flex flex-col items-center gap-8">
               <p className="font-mono text-black/60 text-[11px] tracking-[0.2em] uppercase">
-                play with sound?
+                this interactive audio piece is best experienced with sound on
               </p>
               <div className="flex items-center gap-6">
                 <button
@@ -724,7 +781,7 @@ function HomeInner() {
                   }}
                   className="font-mono text-[11px] tracking-[0.2em] uppercase text-black border border-black px-5 py-2.5 hover:bg-black hover:text-white transition-colors"
                 >
-                  yes
+                  enable sound
                 </button>
                 <button
                   onClick={() => {
@@ -734,7 +791,7 @@ function HomeInner() {
                   }}
                   className="font-mono text-[11px] tracking-[0.2em] uppercase text-black/40 hover:text-black transition-colors"
                 >
-                  no
+                  disable sound
                 </button>
               </div>
             </div>

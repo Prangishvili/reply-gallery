@@ -25,7 +25,7 @@ function spherePoint(index: number, total: number, radius = RADIUS): THREE.Vecto
   ).multiplyScalar(radius)
 }
 
-function NameTag({ name, index, nameSize }: { name: string; index: number; nameSize: number }) {
+function NameTag({ name, index, nameSize, blur }: { name: string; index: number; nameSize: number; blur: boolean }) {
   const pos = spherePoint(index, NAMES.length, INNER_RADIUS)
   return (
     <Html center position={pos.toArray() as [number, number, number]} style={{ pointerEvents: 'none' }}>
@@ -37,6 +37,8 @@ function NameTag({ name, index, nameSize }: { name: string; index: number; nameS
         color: 'rgba(0,0,0,0.55)',
         whiteSpace: 'nowrap',
         textShadow: '0 0 12px rgba(255,255,255,0.9)',
+        filter: blur ? 'blur(6px)' : undefined,
+        transition: 'filter 0.3s',
       }}>
         {name}
       </div>
@@ -278,7 +280,7 @@ function GlobeControls({ groupRef, rotateSpeed }: { groupRef: React.RefObject<TH
   return null
 }
 
-function Scene({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle, showNames, nameSize, showWireframe, wireframeSegments, wireframeOpacity, wireframeColor, showNoiseGlobe, audioVolume, analyserRef, noiseColor1, noiseColor2, noiseSpeed, noiseScale }: {
+function Scene({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle, showNames, nameSize, showWireframe, wireframeSegments, wireframeOpacity, wireframeColor, showNoiseGlobe, audioVolume, analyserRef, noiseColor1, noiseColor2, noiseSpeed, noiseScale, blurNames }: {
   posts: Post[]
   rotateSpeed: number
   scale: number
@@ -299,6 +301,7 @@ function Scene({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle,
   noiseColor2: string
   noiseSpeed: number
   noiseScale: number
+  blurNames: boolean
 }) {
   const groupRef = useRef<THREE.Group>(null)
   const Tile = tileStyle === 'billboard' ? TileBillboard : TileOutward
@@ -320,14 +323,14 @@ function Scene({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle,
           </Suspense>
         ))}
         {showNames && NAMES.map((name, i) => (
-          <NameTag key={name} name={name} index={i} nameSize={nameSize} />
+          <NameTag key={name} name={name} index={i} nameSize={nameSize} blur={blurNames} />
         ))}
       </group>
     </>
   )
 }
 
-export default function GlobeCanvas({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle, showNames, nameSize, showWireframe, wireframeSegments, wireframeOpacity, wireframeColor, showNoiseGlobe, audioVolume, analyserRef, noiseColor1, noiseColor2, noiseSpeed, noiseScale }: {
+export default function GlobeCanvas({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle, showNames, nameSize, showWireframe, wireframeSegments, wireframeOpacity, wireframeColor, showNoiseGlobe, audioVolume, analyserRef, noiseColor1, noiseColor2, noiseSpeed, noiseScale, blurNames }: {
   posts: Post[]
   rotateSpeed: number
   scale: number
@@ -348,10 +351,11 @@ export default function GlobeCanvas({ posts, rotateSpeed, scale, scaleX, scaleY,
   noiseColor2: string
   noiseSpeed: number
   noiseScale: number
+  blurNames: boolean
 }) {
   return (
     <Canvas camera={{ position: [0, 0, 7.5], fov: 50 }} dpr={[1, 2]} style={{ width: '100%', height: '100%', touchAction: 'none' }}>
-      <Scene posts={posts} rotateSpeed={rotateSpeed} scale={scale} scaleX={scaleX} scaleY={scaleY} tileSize={tileSize} tileStyle={tileStyle} showNames={showNames} nameSize={nameSize} showWireframe={showWireframe} wireframeSegments={wireframeSegments} wireframeOpacity={wireframeOpacity} wireframeColor={wireframeColor} showNoiseGlobe={showNoiseGlobe} audioVolume={audioVolume} analyserRef={analyserRef} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} />
+      <Scene posts={posts} rotateSpeed={rotateSpeed} scale={scale} scaleX={scaleX} scaleY={scaleY} tileSize={tileSize} tileStyle={tileStyle} showNames={showNames} nameSize={nameSize} showWireframe={showWireframe} wireframeSegments={wireframeSegments} wireframeOpacity={wireframeOpacity} wireframeColor={wireframeColor} showNoiseGlobe={showNoiseGlobe} audioVolume={audioVolume} analyserRef={analyserRef} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} blurNames={blurNames} />
     </Canvas>
   )
 }
