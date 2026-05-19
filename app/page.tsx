@@ -103,6 +103,12 @@ function AdminPanel({
   audioVolume, setAudioVolume,
   showNames, setShowNames,
   nameSize, setNameSize,
+  scaleX, setScaleX,
+  scaleY, setScaleY,
+  showWireframe, setShowWireframe,
+  wireframeSegments, setWireframeSegments,
+  wireframeOpacity, setWireframeOpacity,
+  wireframeColor, setWireframeColor,
   timebombActive, setTimebombActive,
   hiddenCount, resetTimebomb,
   phase,
@@ -114,6 +120,12 @@ function AdminPanel({
   audioVolume: number; setAudioVolume: (v: number) => void
   showNames: boolean; setShowNames: (v: boolean) => void
   nameSize: number; setNameSize: (v: number) => void
+  scaleX: number; setScaleX: (v: number) => void
+  scaleY: number; setScaleY: (v: number) => void
+  showWireframe: boolean; setShowWireframe: (v: boolean) => void
+  wireframeSegments: number; setWireframeSegments: (v: number) => void
+  wireframeOpacity: number; setWireframeOpacity: (v: number) => void
+  wireframeColor: string; setWireframeColor: (v: string) => void
   timebombActive: boolean; setTimebombActive: (v: boolean) => void
   hiddenCount: number; resetTimebomb: () => void
   phase: Phase
@@ -149,6 +161,33 @@ function AdminPanel({
         <PanelSlider label="Rotation speed" value={rotateSpeed} min={0} max={5} step={0.1} decimals={1} onChange={setRotateSpeed} />
         <PanelSlider label="Globe scale" value={globeScale} min={0.4} max={2} step={0.05} decimals={2} onChange={setGlobeScale} />
         <PanelSlider label="Tile size" value={tileSize} min={0.3} max={1.8} step={0.05} decimals={2} onChange={setTileSize} />
+      </PanelSection>
+
+      <PanelSection title="Shape">
+        <PanelSlider label="Horizontal stretch" value={scaleX} min={0.5} max={3} step={0.05} decimals={2} onChange={setScaleX} />
+        <PanelSlider label="Vertical stretch" value={scaleY} min={0.5} max={3} step={0.05} decimals={2} onChange={setScaleY} />
+      </PanelSection>
+
+      <PanelSection title="Wireframe">
+        <div style={{ fontSize: 11, color: P.dim, marginBottom: 8 }}>Visibility</div>
+        <PanelToggle
+          options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
+          value={showWireframe ? 'show' : 'hide'}
+          onChange={v => setShowWireframe(v === 'show')}
+        />
+        <PanelSlider label="Opacity" value={wireframeOpacity} min={0} max={1} step={0.01} decimals={2} onChange={setWireframeOpacity} />
+        <PanelSlider label="Segments" value={wireframeSegments} min={4} max={32} step={2} decimals={0} onChange={setWireframeSegments} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
+          <span style={{ fontSize: 11, color: P.text }}>Color</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 10, color: P.dim }}>{wireframeColor.toUpperCase()}</span>
+            <input
+              type="color" value={wireframeColor}
+              onChange={e => setWireframeColor(e.target.value)}
+              style={{ width: 24, height: 16, border: `1px solid ${P.borderStrong}`, background: 'transparent', cursor: 'pointer', padding: 0 }}
+            />
+          </div>
+        </div>
       </PanelSection>
 
       <PanelSection title="Tiles">
@@ -235,6 +274,12 @@ function HomeInner() {
   const [audioVolume, setAudioVolume] = useState(0.10)
   const [showNames, setShowNames] = useState(true)
   const [nameSize, setNameSize] = useState(10)
+  const [scaleX, setScaleX] = useState(1.3)
+  const [scaleY, setScaleY] = useState(1.0)
+  const [showWireframe, setShowWireframe] = useState(false)
+  const [wireframeSegments, setWireframeSegments] = useState(16)
+  const [wireframeOpacity, setWireframeOpacity] = useState(0.15)
+  const [wireframeColor, setWireframeColor] = useState('#000000')
   const [timebombActive, setTimebombActive] = useState(false)
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set())
 
@@ -389,6 +434,12 @@ function HomeInner() {
             tileStyle={tileStyle}
             showNames={showNames}
             nameSize={nameSize}
+            scaleX={scaleX}
+            scaleY={scaleY}
+            showWireframe={showWireframe}
+            wireframeSegments={wireframeSegments}
+            wireframeOpacity={wireframeOpacity}
+            wireframeColor={wireframeColor}
           />
         )}
       </div>

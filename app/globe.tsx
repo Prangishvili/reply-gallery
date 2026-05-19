@@ -181,14 +181,20 @@ function GlobeControls({ groupRef, rotateSpeed }: { groupRef: React.RefObject<TH
   return null
 }
 
-function Scene({ posts, rotateSpeed, scale, tileSize, tileStyle, showNames, nameSize }: {
+function Scene({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle, showNames, nameSize, showWireframe, wireframeSegments, wireframeOpacity, wireframeColor }: {
   posts: Post[]
   rotateSpeed: number
   scale: number
+  scaleX: number
+  scaleY: number
   tileSize: number
   tileStyle: 'billboard' | 'outward'
   showNames: boolean
   nameSize: number
+  showWireframe: boolean
+  wireframeSegments: number
+  wireframeOpacity: number
+  wireframeColor: string
 }) {
   const groupRef = useRef<THREE.Group>(null)
   const Tile = tileStyle === 'billboard' ? TileBillboard : TileOutward
@@ -196,7 +202,13 @@ function Scene({ posts, rotateSpeed, scale, tileSize, tileStyle, showNames, name
   return (
     <>
       <GlobeControls groupRef={groupRef} rotateSpeed={rotateSpeed} />
-      <group ref={groupRef} scale={scale}>
+      <group ref={groupRef} scale={[scale * scaleX, scale * scaleY, scale]}>
+        {showWireframe && (
+          <mesh>
+            <sphereGeometry args={[RADIUS, wireframeSegments, wireframeSegments]} />
+            <meshBasicMaterial wireframe color={wireframeColor} opacity={wireframeOpacity} transparent />
+          </mesh>
+        )}
         {posts.map((post, i) => (
           <Suspense key={post.id} fallback={null}>
             <Tile post={post} index={i} total={posts.length} tileSize={tileSize} />
@@ -210,18 +222,24 @@ function Scene({ posts, rotateSpeed, scale, tileSize, tileStyle, showNames, name
   )
 }
 
-export default function GlobeCanvas({ posts, rotateSpeed, scale, tileSize, tileStyle, showNames, nameSize }: {
+export default function GlobeCanvas({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle, showNames, nameSize, showWireframe, wireframeSegments, wireframeOpacity, wireframeColor }: {
   posts: Post[]
   rotateSpeed: number
   scale: number
+  scaleX: number
+  scaleY: number
   tileSize: number
   tileStyle: 'billboard' | 'outward'
   showNames: boolean
   nameSize: number
+  showWireframe: boolean
+  wireframeSegments: number
+  wireframeOpacity: number
+  wireframeColor: string
 }) {
   return (
     <Canvas camera={{ position: [0, 0, 7.5], fov: 50 }} dpr={[1, 2]} style={{ width: '100%', height: '100%', touchAction: 'none' }}>
-      <Scene posts={posts} rotateSpeed={rotateSpeed} scale={scale} tileSize={tileSize} tileStyle={tileStyle} showNames={showNames} nameSize={nameSize} />
+      <Scene posts={posts} rotateSpeed={rotateSpeed} scale={scale} scaleX={scaleX} scaleY={scaleY} tileSize={tileSize} tileStyle={tileStyle} showNames={showNames} nameSize={nameSize} showWireframe={showWireframe} wireframeSegments={wireframeSegments} wireframeOpacity={wireframeOpacity} wireframeColor={wireframeColor} />
     </Canvas>
   )
 }
