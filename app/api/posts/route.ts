@@ -26,16 +26,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Image and text are required' }, { status: 400 })
   }
 
-  const fileName = `${uuidv4()}.jpg`
+  const isPng = image.type === 'image/png'
+  const ext = isPng ? 'png' : 'jpg'
+  const fileName = `${uuidv4()}.${ext}`
   const arrayBuffer = await image.arrayBuffer()
-  const compressed = await sharp(Buffer.from(arrayBuffer))
+  const pipeline = sharp(Buffer.from(arrayBuffer))
     .resize(1920, 1920, { fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality: 100 })
-    .toBuffer()
+  const compressed = await (isPng ? pipeline.png({ compressionLevel: 8 }) : pipeline.jpeg({ quality: 100 })).toBuffer()
 
   const { error: uploadError } = await supabase.storage
     .from('images')
-    .upload(fileName, compressed, { contentType: 'image/jpeg' })
+    .upload(fileName, compressed, { contentType: isPng ? 'image/png' : 'image/jpeg' })
 
   if (uploadError) {
     return NextResponse.json({ error: uploadError.message }, { status: 500 })

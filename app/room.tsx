@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useTexture, useGLTF } from '@react-three/drei'
 import { Suspense, useEffect, useMemo, useRef } from 'react'
@@ -116,13 +117,18 @@ function sampleVertices(root: THREE.Object3D, count: number): THREE.Vector3[] {
   return result
 }
 
-function FigureVertexImages({ scene, posts, size }: { scene: THREE.Object3D; posts: Post[]; size: number }) {
-  const vertices = useMemo(() => posts.length > 0 ? sampleVertices(scene, posts.length) : [], [scene, posts.length])
+function FigureVertexImages({ scene, posts, size, repeat }: { scene: THREE.Object3D; posts: Post[]; size: number; repeat: number }) {
+  const repeatedPosts = useMemo(() => {
+    const arr: Post[] = []
+    for (let i = 0; i < Math.max(1, repeat); i++) arr.push(...posts)
+    return arr
+  }, [posts, repeat])
+  const vertices = useMemo(() => repeatedPosts.length > 0 ? sampleVertices(scene, repeatedPosts.length) : [], [scene, repeatedPosts.length])
   const urls = useMemo(
     () => vertices.length > 0
-      ? vertices.map((_, i) => posts[i % posts.length].image_url)
+      ? vertices.map((_, i) => repeatedPosts[i % repeatedPosts.length].image_url)
       : [posts[0].image_url],
-    [vertices, posts]
+    [vertices, repeatedPosts, posts]
   )
   const textures = useTexture(urls)
   const texArr = Array.isArray(textures) ? textures : [textures]
@@ -141,7 +147,7 @@ function FigureVertexImages({ scene, posts, size }: { scene: THREE.Object3D; pos
 // ── Wireframe styles ──────────────────────────────────────────────────────────
 export type WireframeStyle = 'edges' | 'dense' | 'dashed' | 'points'
 
-function FigureWireframe({ scene, style, dotSize, dotColor, dotCount }: { scene: THREE.Object3D; style: WireframeStyle; dotSize: number; dotColor: string; dotCount: number }) {
+function FigureWireframe({ scene, style, dotSize, dotColor, dotCount, analyserRef }: { scene: THREE.Object3D; style: WireframeStyle; dotSize: number; dotColor: string; dotCount: number; analyserRef?: React.RefObject<AnalyserNode | null> }) {
   const geo = useMemo(() => {
     scene.updateMatrixWorld(true)
     const rootInv = new THREE.Matrix4().copy(scene.matrixWorld).invert()
@@ -185,14 +191,30 @@ function FigureWireframe({ scene, style, dotSize, dotColor, dotCount }: { scene:
 
   const dashedRef = useRef<THREE.LineSegments>(null)
   const pointsMatRef = useRef<THREE.PointsMaterial>(null)
+  const dataArrRef = useRef<Uint8Array | null>(null)
   useEffect(() => { dashedRef.current?.computeLineDistances() }, [geo])
   useEffect(() => () => { geo.dispose() }, [geo])
   useEffect(() => {
     if (!pointsMatRef.current) return
-    pointsMatRef.current.size = dotSize
     pointsMatRef.current.color.set(dotColor)
     pointsMatRef.current.needsUpdate = true
-  }, [dotSize, dotColor])
+  }, [dotColor])
+  useFrame(() => {
+    if (!pointsMatRef.current) return
+    if (analyserRef?.current) {
+      const a = analyserRef.current
+      if (!dataArrRef.current || dataArrRef.current.length !== a.frequencyBinCount) {
+        dataArrRef.current = new Uint8Array(a.frequencyBinCount)
+      }
+      a.getByteFrequencyData(dataArrRef.current)
+      let sum = 0
+      for (let i = 0; i < dataArrRef.current.length; i++) sum += dataArrRef.current[i]
+      const vol = Math.min((sum / dataArrRef.current.length / 255) * 5, 1)
+      pointsMatRef.current.size = dotSize * (1 + vol * 3)
+    } else {
+      pointsMatRef.current.size = dotSize
+    }
+  })
 
   if (style === 'points') return (
     <points geometry={geo}>
@@ -216,11 +238,12 @@ type FigurePairProps = {
   roomDepth: number; radius: number; speed: number
   x: number; y: number; z: number
   figureScale: number; figureFacing: number; figureWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
-  posts: Post[]; mirrorPosts: Post[]; showVertexImages: boolean; vertexImgSize: number
+  posts: Post[]; mirrorPosts: Post[]; showVertexImages: boolean; vertexImgSize: number; vertexRepeat: number
   orbiting: boolean
   meshTexture: string | null
+  analyserRef?: React.RefObject<AnalyserNode | null>
 }
-function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, posts, mirrorPosts, showVertexImages, vertexImgSize, orbiting, meshTexture }: FigurePairProps) {
+function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, posts, mirrorPosts, showVertexImages, vertexImgSize, vertexRepeat, orbiting, meshTexture, analyserRef }: FigurePairProps) {
   const { scene } = useGLTF('/figure.glb')
 
   const cloneWithMats = (s: THREE.Object3D) => {
@@ -277,20 +300,20 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
     <group ref={groupRef} position={[x, y, -(roomDepth / 2) + z]}>
       <group position={orbiting ? [radius, 0, 0] : [0, 0, 0]} scale={figureScale} rotation={[0, figureFacing, 0]}>
         <primitive object={orig} />
-        {figureWireframe && <FigureWireframe scene={orig} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} />}
+        {figureWireframe && <FigureWireframe scene={orig} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} analyserRef={analyserRef} />}
         {showVertexImages && posts.length > 0 && (
           <Suspense fallback={null}>
-            <FigureVertexImages scene={orig} posts={posts} size={vertexImgSize} />
+            <FigureVertexImages scene={orig} posts={posts} size={vertexImgSize} repeat={vertexRepeat} />
           </Suspense>
         )}
       </group>
       {orbiting && (
         <group position={[-radius, 0, 0]} scale={[-figureScale, figureScale, figureScale]} rotation={[0, -figureFacing, 0]}>
           <primitive object={mirror} />
-          {figureWireframe && <FigureWireframe scene={mirror} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} />}
+          {figureWireframe && <FigureWireframe scene={mirror} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} analyserRef={analyserRef} />}
           {showVertexImages && mirrorPosts.length > 0 && (
             <Suspense fallback={null}>
-              <FigureVertexImages scene={mirror} posts={mirrorPosts} size={vertexImgSize} />
+              <FigureVertexImages scene={mirror} posts={mirrorPosts} size={vertexImgSize} repeat={vertexRepeat} />
             </Suspense>
           )}
         </group>
@@ -312,14 +335,15 @@ type RoomSceneProps = {
   showDoggo: boolean; doggoScale: number; doggoX: number; doggoY: number; doggoZ: number
   showFigure: boolean; figureRadius: number; figureSpeed: number; figureX: number; figureY: number; figureZ: number
   figureScale: number; figureFacing: number; figureWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
-  showVertexImages: boolean; vertexImgSize: number
+  showVertexImages: boolean; vertexImgSize: number; vertexRepeat: number
   figureStudent: string | null; figureStudent2: string | null
   figureOrbiting: boolean
   camX: number; camY: number; camZ: number
   showWalls: boolean
   meshTexture: string | null
+  analyserRef?: React.RefObject<AnalyserNode | null>
 }
-function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, showVertexImages, vertexImgSize, figureStudent, figureStudent2, figureOrbiting, camX, camY, camZ, showWalls, meshTexture }: RoomSceneProps) {
+function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, showVertexImages, vertexImgSize, vertexRepeat, figureStudent, figureStudent2, figureOrbiting, camX, camY, camZ, showWalls, meshTexture, analyserRef }: RoomSceneProps) {
   const match = (a: string | null | undefined, b: string | null) =>
     a != null && b != null && a.trim().toLowerCase() === b.trim().toLowerCase()
   const figurePosts  = figureStudent  ? posts.filter(p => match(p.student_name, figureStudent))  : posts
@@ -359,7 +383,7 @@ function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showF
 
       {showFigure && (
         <Suspense fallback={null}>
-          <FigurePair roomDepth={D} radius={figureRadius} speed={figureSpeed} x={figureX} y={figureY} z={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} posts={figurePosts} mirrorPosts={mirrorPosts} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} orbiting={figureOrbiting} meshTexture={meshTexture} />
+          <FigurePair roomDepth={D} radius={figureRadius} speed={figureSpeed} x={figureX} y={figureY} z={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} posts={figurePosts} mirrorPosts={mirrorPosts} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} orbiting={figureOrbiting} meshTexture={meshTexture} analyserRef={analyserRef} />
         </Suspense>
       )}
 
@@ -368,14 +392,14 @@ function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showF
 }
 
 // ── Entry point — pre-loads image dimensions before mounting scene ─────────────
-export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, doggoX = 0, doggoY = 0, doggoZ = 0, showFigure = true, figureRadius = 5, figureSpeed = 0.5, figureX = 0, figureY = 0, figureZ = 0, figureScale = 1, figureFacing = 0, figureWireframe = true, wireframeStyle = 'edges', dotSize = 0.200, dotColor = '#000000', dotCount = 30000, showVertexImages = false, vertexImgSize = 0.05, figureStudent = null, figureStudent2 = null, figureOrbiting = true, camX = 0, camY = EYE, camZ = 55, showWalls = false, meshTexture = null }: { posts: Post[]; showDoggo?: boolean; doggoScale?: number; doggoX?: number; doggoY?: number; doggoZ?: number; showFigure?: boolean; figureRadius?: number; figureSpeed?: number; figureX?: number; figureY?: number; figureZ?: number; figureScale?: number; figureFacing?: number; figureWireframe?: boolean; wireframeStyle?: WireframeStyle; dotSize?: number; dotColor?: string; dotCount?: number; showVertexImages?: boolean; vertexImgSize?: number; figureStudent?: string | null; figureStudent2?: string | null; figureOrbiting?: boolean; camX?: number; camY?: number; camZ?: number; showWalls?: boolean; meshTexture?: string | null }) {
+export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, doggoX = 0, doggoY = 0, doggoZ = 0, showFigure = true, figureRadius = 5, figureSpeed = 0.5, figureX = 0, figureY = 0, figureZ = 0, figureScale = 1, figureFacing = 0, figureWireframe = true, wireframeStyle = 'edges', dotSize = 0.200, dotColor = '#000000', dotCount = 30000, showVertexImages = false, vertexImgSize = 0.05, vertexRepeat = 1, figureStudent = null, figureStudent2 = null, figureOrbiting = true, camX = 0, camY = EYE, camZ = 55, showWalls = false, meshTexture = null, analyserRef }: { posts: Post[]; showDoggo?: boolean; doggoScale?: number; doggoX?: number; doggoY?: number; doggoZ?: number; showFigure?: boolean; figureRadius?: number; figureSpeed?: number; figureX?: number; figureY?: number; figureZ?: number; figureScale?: number; figureFacing?: number; figureWireframe?: boolean; wireframeStyle?: WireframeStyle; dotSize?: number; dotColor?: string; dotCount?: number; showVertexImages?: boolean; vertexImgSize?: number; vertexRepeat?: number; figureStudent?: string | null; figureStudent2?: string | null; figureOrbiting?: boolean; camX?: number; camY?: number; camZ?: number; showWalls?: boolean; meshTexture?: string | null; analyserRef?: React.RefObject<AnalyserNode | null> }) {
   return (
     <Canvas
       camera={{ position: [camX, camY, camZ], fov: 72 }}
       dpr={[1, 2]}
       style={{ width: '100%', height: '100%', touchAction: 'none', background: '#ffffff' }}
     >
-      <RoomScene posts={posts} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} meshTexture={meshTexture} />
+      <RoomScene posts={posts} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} meshTexture={meshTexture} analyserRef={analyserRef} />
     </Canvas>
   )
 }

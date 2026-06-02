@@ -147,6 +147,7 @@ function AdminPanel({
   meshTexture, setMeshTexture,
   showVertexImages, setShowVertexImages,
   vertexImgSize, setVertexImgSize,
+  vertexRepeat, setVertexRepeat,
   camX, setCamX,
   camY, setCamY,
   camZ, setCamZ,
@@ -200,6 +201,7 @@ function AdminPanel({
   meshTexture: string | null; setMeshTexture: (v: string | null) => void
   showVertexImages: boolean; setShowVertexImages: (v: boolean) => void
   vertexImgSize: number; setVertexImgSize: (v: number) => void
+  vertexRepeat: number; setVertexRepeat: (v: number) => void
   camX: number; setCamX: (v: number) => void
   camY: number; setCamY: (v: number) => void
   camZ: number; setCamZ: (v: number) => void
@@ -426,7 +428,8 @@ function AdminPanel({
           value={showVertexImages ? 'show' : 'hide'}
           onChange={v => setShowVertexImages(v === 'show')}
         />
-        <PanelSlider label="Image size"  value={vertexImgSize} min={0.05} max={3} step={0.05} decimals={2} onChange={setVertexImgSize} />
+        <PanelSlider label="Image size"   value={vertexImgSize}  min={0.005} max={3}  step={0.005} decimals={3} onChange={setVertexImgSize} />
+        <PanelSlider label="Image repeat" value={vertexRepeat}   min={1}     max={50} step={1}     decimals={0} onChange={setVertexRepeat} />
         <PanelSlider label="Center X"   value={figureX}      min={-200} max={200} step={2}    decimals={0} onChange={setFigureX} />
         <PanelSlider label="Center Y"   value={figureY}      min={-100} max={100} step={1}    decimals={0} onChange={setFigureY} />
         <PanelSlider label="Center Z"   value={figureZ}      min={-100} max={100} step={2}    decimals={0} onChange={setFigureZ} />
@@ -578,13 +581,13 @@ function HomeInner() {
   const [doggoY, setDoggoY] = useState(0)
   const [doggoZ, setDoggoZ] = useState(0)
   const [showFigure, setShowFigure] = useState(true)
-  const [figureRadius, setFigureRadius] = useState(17.5)
+  const [figureRadius, setFigureRadius] = useState(145.5)
   const [figureSpeed, setFigureSpeed] = useState(0.05)
   const [figureX, setFigureX] = useState(0)
   const [figureY, setFigureY] = useState(-10)
   const [figureZ, setFigureZ] = useState(0)
   const [figureScale, setFigureScale] = useState(200)
-  const [figureFacing, setFigureFacing] = useState(1.45)
+  const [figureFacing, setFigureFacing] = useState(4.65)
   const [figureWireframe, setFigureWireframe] = useState(true)
   const [wireframeStyle, setWireframeStyle] = useState<WireframeStyle>('points')
   const [dotSize, setDotSize] = useState(0.400)
@@ -594,6 +597,7 @@ function HomeInner() {
   const [showWalls, setShowWalls] = useState(false)
   const [showVertexImages, setShowVertexImages] = useState(true)
   const [vertexImgSize, setVertexImgSize] = useState(0.025)
+  const [vertexRepeat, setVertexRepeat] = useState(1)
   const [selectedStudents, setSelectedStudents] = useState<string[]>([])
   const figureStudent  = selectedStudents[0] ?? null
   const figureStudent2 = selectedStudents[1] ?? null
@@ -923,7 +927,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           </div>
         )}
         {!loading && posts.length > 0 && mountedView === 'room' && !selectedStudent && (
-          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} meshTexture={meshTexture} />
+          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} meshTexture={meshTexture} analyserRef={analyserRef} />
         )}
         {!loading && posts.length > 0 && mountedView === 'globe' && !selectedStudent && (
           <GlobeCanvas
@@ -955,7 +959,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
 
         {/* Personal student room */}
         {mountedStudent && (
-          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} meshTexture={meshTexture} />
+          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} meshTexture={meshTexture} analyserRef={analyserRef} />
         )}
       </div>
 
@@ -1083,6 +1087,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           meshTexture={meshTexture} setMeshTexture={setMeshTexture}
           showVertexImages={showVertexImages} setShowVertexImages={setShowVertexImages}
           vertexImgSize={vertexImgSize} setVertexImgSize={setVertexImgSize}
+          vertexRepeat={vertexRepeat} setVertexRepeat={setVertexRepeat}
           camX={camX} setCamX={setCamX}
           camY={camY} setCamY={setCamY}
           camZ={camZ} setCamZ={setCamZ}
