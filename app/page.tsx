@@ -533,6 +533,7 @@ function HomeInner() {
   const [fadeOut, setFadeOut] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const bgAudioRef = useRef<HTMLAudioElement | null>(null)
+  const audioCtxRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
 
   const [posts, setPosts] = useState<Post[]>([])
@@ -675,7 +676,13 @@ function HomeInner() {
       if (e.key === 'z' || e.key === 'Z') {
         const audio = bgAudioRef.current
         if (!audio) return
-        if (audio.paused) { audio.play().catch(() => {}) } else { audio.pause() }
+        if (audio.paused) {
+          const ctx = audioCtxRef.current
+          const resume = ctx && ctx.state === 'suspended' ? ctx.resume() : Promise.resolve()
+          resume.then(() => audio.play()).catch(() => {})
+        } else {
+          audio.pause()
+        }
       }
     }
     window.addEventListener('keydown', onKey)
@@ -750,6 +757,7 @@ function HomeInner() {
     audio.volume = audioVolume
     try {
       const ctx = new AudioContext()
+      audioCtxRef.current = ctx
       const source = ctx.createMediaElementSource(audio)
       const analyser = ctx.createAnalyser()
       analyser.fftSize = 256
