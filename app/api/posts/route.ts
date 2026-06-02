@@ -35,17 +35,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Image and text are required' }, { status: 400 })
   }
 
+  const isSvg = image.type === 'image/svg+xml'
   const isPng = image.type === 'image/png'
-  const ext = isPng ? 'png' : 'jpg'
+  const ext = isSvg ? 'svg' : isPng ? 'png' : 'jpg'
   const fileName = `${uuidv4()}.${ext}`
   const arrayBuffer = await image.arrayBuffer()
-  const pipeline = sharp(Buffer.from(arrayBuffer))
-    .resize(1920, 1920, { fit: 'inside', withoutEnlargement: true })
-  const compressed = await (isPng ? pipeline.png({ compressionLevel: 8 }) : pipeline.jpeg({ quality: 100 })).toBuffer()
+
+  let uploadBuffer: Buffer
+  let contentType: string
+  if (isSvg) {
+    uploadBuffer = Buffer.from(arrayBuffer)
+    contentType = 'image/svg+xml'
+  } else {
+    const pipeline = sharp(Buffer.from(arrayBuffer))
+      .resize(1920, 1920, { fit: 'inside', withoutEnlargement: true })
+    uploadBuffer = await (isPng ? pipeline.png({ compressionLevel: 8 }) : pipeline.jpeg({ quality: 100 })).toBuffer()
+    contentType = isPng ? 'image/png' : 'image/jpeg'
+  }
 
   const { error: uploadError } = await supabase.storage
     .from('images')
-    .upload(fileName, compressed, { contentType: isPng ? 'image/png' : 'image/jpeg' })
+    .upload(fileName, uploadBuffer, { contentType })
 
   if (uploadError) {
     return NextResponse.json({ error: uploadError.message }, { status: 500 })

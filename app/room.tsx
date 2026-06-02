@@ -117,7 +117,7 @@ function sampleVertices(root: THREE.Object3D, count: number): THREE.Vector3[] {
   return result
 }
 
-function FigureVertexImages({ scene, posts, size, repeat }: { scene: THREE.Object3D; posts: Post[]; size: number; repeat: number }) {
+function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene: THREE.Object3D; posts: Post[]; size: number; repeat: number; analyserRef?: React.RefObject<AnalyserNode | null> }) {
   const repeatedPosts = useMemo(() => {
     const arr: Post[] = []
     for (let i = 0; i < Math.max(1, repeat); i++) arr.push(...posts)
@@ -132,14 +132,43 @@ function FigureVertexImages({ scene, posts, size, repeat }: { scene: THREE.Objec
   )
   const textures = useTexture(urls)
   const texArr = Array.isArray(textures) ? textures : [textures]
+  const spriteRefs = useRef<(THREE.Sprite | null)[]>([])
+  const dataArrRef = useRef<Uint8Array | null>(null)
+
+  useFrame(() => {
+    const sprites = spriteRefs.current
+    if (!sprites.length) return
+    let vol = 0
+    if (analyserRef?.current) {
+      const a = analyserRef.current
+      if (!dataArrRef.current || dataArrRef.current.length !== a.frequencyBinCount) {
+        dataArrRef.current = new Uint8Array(a.frequencyBinCount)
+      }
+      a.getByteFrequencyData(dataArrRef.current as Uint8Array<ArrayBuffer>)
+      let sum = 0
+      for (let i = 0; i < dataArrRef.current.length; i++) sum += dataArrRef.current[i]
+      vol = Math.min((sum / dataArrRef.current.length / 255) * 5, 1)
+    }
+    sprites.forEach((sprite, i) => {
+      if (!sprite) return
+      const tex = texArr[i % texArr.length]
+      const aspect = tex.image ? tex.image.width / tex.image.height : 1
+      const s = size * (1 + vol * 3)
+      sprite.scale.set(s * aspect, s, 1)
+    })
+  })
 
   return vertices.length === 0 ? null : (
     <>
-      {vertices.map((v, i) => (
-        <sprite key={i} position={[v.x, v.y, v.z]} scale={size}>
-          <spriteMaterial map={texArr[i]} sizeAttenuation />
-        </sprite>
-      ))}
+      {vertices.map((v, i) => {
+        const tex = texArr[i % texArr.length]
+        const aspect = tex.image ? tex.image.width / tex.image.height : 1
+        return (
+          <sprite key={i} ref={el => { spriteRefs.current[i] = el }} position={[v.x, v.y, v.z]} scale={[size * aspect, size, 1]}>
+            <spriteMaterial map={tex} sizeAttenuation />
+          </sprite>
+        )
+      })}
     </>
   )
 }
@@ -147,7 +176,7 @@ function FigureVertexImages({ scene, posts, size, repeat }: { scene: THREE.Objec
 // ── Wireframe styles ──────────────────────────────────────────────────────────
 export type WireframeStyle = 'edges' | 'dense' | 'dashed' | 'points'
 
-function FigureWireframe({ scene, style, dotSize, dotColor, dotCount, analyserRef }: { scene: THREE.Object3D; style: WireframeStyle; dotSize: number; dotColor: string; dotCount: number; analyserRef?: React.RefObject<AnalyserNode | null> }) {
+function FigureWireframe({ scene, style, dotSize, dotColor, dotCount }: { scene: THREE.Object3D; style: WireframeStyle; dotSize: number; dotColor: string; dotCount: number }) {
   const geo = useMemo(() => {
     scene.updateMatrixWorld(true)
     const rootInv = new THREE.Matrix4().copy(scene.matrixWorld).invert()
@@ -191,30 +220,14 @@ function FigureWireframe({ scene, style, dotSize, dotColor, dotCount, analyserRe
 
   const dashedRef = useRef<THREE.LineSegments>(null)
   const pointsMatRef = useRef<THREE.PointsMaterial>(null)
-  const dataArrRef = useRef<Uint8Array | null>(null)
   useEffect(() => { dashedRef.current?.computeLineDistances() }, [geo])
   useEffect(() => () => { geo.dispose() }, [geo])
   useEffect(() => {
     if (!pointsMatRef.current) return
+    pointsMatRef.current.size = dotSize
     pointsMatRef.current.color.set(dotColor)
     pointsMatRef.current.needsUpdate = true
-  }, [dotColor])
-  useFrame(() => {
-    if (!pointsMatRef.current) return
-    if (analyserRef?.current) {
-      const a = analyserRef.current
-      if (!dataArrRef.current || dataArrRef.current.length !== a.frequencyBinCount) {
-        dataArrRef.current = new Uint8Array(a.frequencyBinCount)
-      }
-      a.getByteFrequencyData(dataArrRef.current as Uint8Array<ArrayBuffer>)
-      let sum = 0
-      for (let i = 0; i < dataArrRef.current.length; i++) sum += dataArrRef.current[i]
-      const vol = Math.min((sum / dataArrRef.current.length / 255) * 5, 1)
-      pointsMatRef.current.size = dotSize * (1 + vol * 3)
-    } else {
-      pointsMatRef.current.size = dotSize
-    }
-  })
+  }, [dotSize, dotColor])
 
   if (style === 'points') return (
     <points geometry={geo}>
@@ -300,20 +313,20 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
     <group ref={groupRef} position={[x, y, -(roomDepth / 2) + z]}>
       <group position={orbiting ? [radius, 0, 0] : [0, 0, 0]} scale={figureScale} rotation={[0, figureFacing, 0]}>
         <primitive object={orig} />
-        {figureWireframe && <FigureWireframe scene={orig} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} analyserRef={analyserRef} />}
+        {figureWireframe && <FigureWireframe scene={orig} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} />}
         {showVertexImages && posts.length > 0 && (
           <Suspense fallback={null}>
-            <FigureVertexImages scene={orig} posts={posts} size={vertexImgSize} repeat={vertexRepeat} />
+            <FigureVertexImages scene={orig} posts={posts} size={vertexImgSize} repeat={vertexRepeat} analyserRef={analyserRef} />
           </Suspense>
         )}
       </group>
       {orbiting && (
         <group position={[-radius, 0, 0]} scale={[-figureScale, figureScale, figureScale]} rotation={[0, -figureFacing, 0]}>
           <primitive object={mirror} />
-          {figureWireframe && <FigureWireframe scene={mirror} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} analyserRef={analyserRef} />}
+          {figureWireframe && <FigureWireframe scene={mirror} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} />}
           {showVertexImages && mirrorPosts.length > 0 && (
             <Suspense fallback={null}>
-              <FigureVertexImages scene={mirror} posts={mirrorPosts} size={vertexImgSize} repeat={vertexRepeat} />
+              <FigureVertexImages scene={mirror} posts={mirrorPosts} size={vertexImgSize} repeat={vertexRepeat} analyserRef={analyserRef} />
             </Suspense>
           )}
         </group>

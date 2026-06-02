@@ -10,7 +10,7 @@ const GlobeCanvas = dynamic(() => import('./globe'), { ssr: false })
 const RoomCanvas  = dynamic(() => import('./room'),  { ssr: false })
 import type { WireframeStyle } from './room'
 
-const STUDENTS = ['Nodar Gogichaishvili','Sesili Gurgenidze','Dominika Davshrishovi','Nutsa Kavtelishvili','Ketevan Lomiashvili','Ana Mamniashvili','Sergi Sarajevi','Natali Chixelidze','Salome Shalvashvili','Bako Shengelaia','Mariam Wulaia','Mariam Qsovreli']
+const STUDENTS = ['Nodar Gogichaishvili','Sesili Gurgenidze','Dominika Davshrishovi','Nutsa Kavtelishvili','Ketevan Lomiashvili','Ana Mamniashvili','Sergi Sarajevi','Natali Chixelidze','Salome Shalvashvili','Bako Shengelia','Mariam Wulaia','Mariam Qsovreli']
 
 type ImageItem = { file: File; preview: string; caption: string }
 
@@ -669,6 +669,19 @@ function HomeInner() {
     return () => window.removeEventListener('keydown', onKey)
   }, [isAdmin])
 
+  // Z key toggles sound on/off
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'z' || e.key === 'Z') {
+        const audio = bgAudioRef.current
+        if (!audio) return
+        if (audio.paused) audio.play().catch(() => {}) else audio.pause()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   // Sync audio volume live
   useEffect(() => {
     if (bgAudioRef.current) bgAudioRef.current.volume = audioVolume
@@ -1233,7 +1246,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
                 <p className="font-mono text-xs text-gray-400">
                   {items.length > 0 ? '+ add more images' : 'drop images or click to browse'}
                 </p>
-                <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = '' }} />
+                <input ref={fileInputRef} type="file" accept="image/*,image/svg+xml" multiple className="hidden" onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = '' }} />
               </div>
 
               {/* Student name selector */}
