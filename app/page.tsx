@@ -153,6 +153,8 @@ function AdminPanel({
   camZ, setCamZ,
   phase,
   hidden,
+  posts,
+  onDeletePost,
 }: {
   rotateSpeed: number; setRotateSpeed: (v: number) => void
   globeScale: number; setGlobeScale: (v: number) => void
@@ -207,6 +209,8 @@ function AdminPanel({
   camZ: number; setCamZ: (v: number) => void
   phase: Phase
   hidden: boolean
+  posts: Post[]
+  onDeletePost: (id: string) => Promise<void>
 }) {
   return (
     <div style={{
@@ -479,6 +483,36 @@ function AdminPanel({
         <PanelSlider label="Z" value={camZ} min={-480} max={100} step={1} decimals={0} onChange={setCamZ} />
       </PanelSection>
 
+      <PanelSection title="Posts">
+        <div style={{ maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {posts.length === 0 && <div style={{ fontSize: 10, color: P.low }}>No posts yet</div>}
+          {posts.map(post => (
+            <div key={post.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <img src={post.image_url} style={{ width: 36, height: 36, objectFit: 'cover', flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 9, color: P.dim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {post.student_name ?? '—'}
+                </div>
+                <div style={{ fontSize: 9, color: P.low, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {post.text}
+                </div>
+              </div>
+              <button
+                onClick={() => onDeletePost(post.id)}
+                style={{
+                  flexShrink: 0, fontFamily: P.font, fontSize: 10,
+                  padding: '3px 7px', background: 'transparent',
+                  color: '#cc4444', border: `1px solid #cc4444`,
+                  cursor: 'pointer', lineHeight: 1,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      </PanelSection>
+
       <PanelSection title="About">
         <div style={{ fontSize: 10, color: P.low, lineHeight: 1.7 }}>
           <strong style={{ color: P.dim }}>URL</strong> ?admin=true<br />
@@ -740,6 +774,11 @@ function HomeInner() {
 
   function updateCaption(index: number, caption: string) {
     setItems(prev => prev.map((item, i) => i === index ? { ...item, caption } : item))
+  }
+
+  async function handleDeletePost(id: string) {
+    await fetch(`/api/posts?id=${id}`, { method: 'DELETE' })
+    setPosts(prev => prev.filter(p => p.id !== id))
   }
 
   function closeModal() {
@@ -1092,6 +1131,8 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           camY={camY} setCamY={setCamY}
           camZ={camZ} setCamZ={setCamZ}
           phase={phase}
+          posts={posts}
+          onDeletePost={handleDeletePost}
         />
       )}
 
