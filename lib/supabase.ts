@@ -10,4 +10,5 @@ export type Post = {
   text: string
   image_url: string
   created_at: string
+  student_name: string | null
 }

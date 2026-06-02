@@ -9,6 +9,8 @@ import { Post } from '@/lib/supabase'
 const GlobeCanvas = dynamic(() => import('./globe'), { ssr: false })
 const RoomCanvas  = dynamic(() => import('./room'),  { ssr: false })
 
+const STUDENTS = ['Nodar Gogichaishvili','Sesili Gurgenidze','Dominika Davshrishovi','Nutsa Kavtelishvili','Ketevan Lomiashvili','Ana Mamniashvili','Sergi Sarajevi','Natali Chixelidze','Salome Shalvashvili','Bako Shengelaia','Mariam Wulaia','Mariam Qsovreli']
+
 type ImageItem = { file: File; preview: string; caption: string }
 
 function fileToCaption(file: File): string {
@@ -122,6 +124,25 @@ function AdminPanel({
   grainOpacity, setGrainOpacity,
   vignetteOpacity, setVignetteOpacity,
   wobbleScale, setWobbleScale,
+  showDoggo, setShowDoggo,
+  doggoScale, setDoggoScale,
+  doggoX, setDoggoX,
+  doggoY, setDoggoY,
+  doggoZ, setDoggoZ,
+  showFigure, setShowFigure,
+  figureRadius, setFigureRadius,
+  figureSpeed, setFigureSpeed,
+  figureX, setFigureX,
+  figureY, setFigureY,
+  figureZ, setFigureZ,
+  figureScale, setFigureScale,
+  figureFacing, setFigureFacing,
+  figureWireframe, setFigureWireframe,
+  showVertexImages, setShowVertexImages,
+  vertexImgSize, setVertexImgSize,
+  camX, setCamX,
+  camY, setCamY,
+  camZ, setCamZ,
   phase,
   hidden,
 }: {
@@ -150,6 +171,25 @@ function AdminPanel({
   grainOpacity: number; setGrainOpacity: (v: number) => void
   vignetteOpacity: number; setVignetteOpacity: (v: number) => void
   wobbleScale: number; setWobbleScale: (v: number) => void
+  showDoggo: boolean; setShowDoggo: (v: boolean) => void
+  doggoScale: number; setDoggoScale: (v: number) => void
+  doggoX: number; setDoggoX: (v: number) => void
+  doggoY: number; setDoggoY: (v: number) => void
+  doggoZ: number; setDoggoZ: (v: number) => void
+  showFigure: boolean; setShowFigure: (v: boolean) => void
+  figureRadius: number; setFigureRadius: (v: number) => void
+  figureSpeed: number; setFigureSpeed: (v: number) => void
+  figureX: number; setFigureX: (v: number) => void
+  figureY: number; setFigureY: (v: number) => void
+  figureZ: number; setFigureZ: (v: number) => void
+  figureScale: number; setFigureScale: (v: number) => void
+  figureFacing: number; setFigureFacing: (v: number) => void
+  figureWireframe: boolean; setFigureWireframe: (v: boolean) => void
+  showVertexImages: boolean; setShowVertexImages: (v: boolean) => void
+  vertexImgSize: number; setVertexImgSize: (v: number) => void
+  camX: number; setCamX: (v: number) => void
+  camY: number; setCamY: (v: number) => void
+  camZ: number; setCamZ: (v: number) => void
   phase: Phase
   hidden: boolean
 }) {
@@ -305,6 +345,51 @@ function AdminPanel({
         <PanelSlider label="Wobble scale" value={wobbleScale} min={0} max={12} step={0.5} decimals={1} onChange={setWobbleScale} />
       </PanelSection>
 
+      <PanelSection title="Doggo">
+        <PanelToggle
+          options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
+          value={showDoggo ? 'show' : 'hide'}
+          onChange={v => setShowDoggo(v === 'show')}
+        />
+        <PanelSlider label="Scale"      value={doggoScale} min={0.1} max={200} step={0.5}  decimals={1} onChange={setDoggoScale} />
+        <PanelSlider label="Position X" value={doggoX}     min={-200} max={200} step={2}    decimals={0} onChange={setDoggoX} />
+        <PanelSlider label="Position Y" value={doggoY}     min={-10}  max={60}  step={0.5}  decimals={1} onChange={setDoggoY} />
+        <PanelSlider label="Position Z" value={doggoZ}     min={-100} max={100} step={2}    decimals={0} onChange={setDoggoZ} />
+      </PanelSection>
+
+      <PanelSection title="Figure">
+        <PanelToggle
+          options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
+          value={showFigure ? 'show' : 'hide'}
+          onChange={v => setShowFigure(v === 'show')}
+        />
+        <PanelSlider label="Scale"      value={figureScale}  min={0.1}  max={200}  step={0.5}  decimals={1} onChange={setFigureScale} />
+        <PanelSlider label="Radius"     value={figureRadius} min={0.5}  max={200}  step={1}    decimals={1} onChange={setFigureRadius} />
+        <PanelSlider label="Speed"      value={figureSpeed}  min={0}    max={5}    step={0.05} decimals={2} onChange={setFigureSpeed} />
+        <PanelSlider label="Facing"     value={figureFacing} min={0}    max={6.28} step={0.05} decimals={2} onChange={setFigureFacing} />
+        <PanelToggle
+          options={[{ label: 'Solid', value: 'solid' }, { label: 'Wireframe', value: 'wire' }]}
+          value={figureWireframe ? 'wire' : 'solid'}
+          onChange={v => setFigureWireframe(v === 'wire')}
+        />
+        <div style={{ fontSize: 11, color: P.dim, marginBottom: 8 }}>Vertex images</div>
+        <PanelToggle
+          options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
+          value={showVertexImages ? 'show' : 'hide'}
+          onChange={v => setShowVertexImages(v === 'show')}
+        />
+        <PanelSlider label="Image size"  value={vertexImgSize} min={0.05} max={3} step={0.05} decimals={2} onChange={setVertexImgSize} />
+        <PanelSlider label="Center X"   value={figureX}      min={-200} max={200} step={2}    decimals={0} onChange={setFigureX} />
+        <PanelSlider label="Center Y"   value={figureY}      min={-100} max={100} step={1}    decimals={0} onChange={setFigureY} />
+        <PanelSlider label="Center Z"   value={figureZ}      min={-100} max={100} step={2}    decimals={0} onChange={setFigureZ} />
+      </PanelSection>
+
+      <PanelSection title="Camera">
+        <PanelSlider label="X" value={camX} min={-240} max={240} step={1} decimals={0} onChange={setCamX} />
+        <PanelSlider label="Y" value={camY} min={0}    max={400} step={1} decimals={0} onChange={setCamY} />
+        <PanelSlider label="Z" value={camZ} min={-480} max={100} step={1} decimals={0} onChange={setCamZ} />
+      </PanelSection>
+
       <PanelSection title="About">
         <div style={{ fontSize: 10, color: P.low, lineHeight: 1.7 }}>
           <strong style={{ color: P.dim }}>URL</strong> ?admin=true<br />
@@ -331,6 +416,7 @@ function HomeInner() {
   const [loading, setLoading] = useState(true)
   const [showUpload, setShowUpload] = useState(false)
   const [items, setItems] = useState<ImageItem[]>([])
+  const [uploadStudentName, setUploadStudentName] = useState<string>('')
   const [submitting, setSubmitting] = useState(false)
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -361,9 +447,22 @@ function HomeInner() {
   const [showAbout, setShowAbout] = useState(false)
 
   const [viewMode, setViewMode] = useState<'globe' | 'room'>('globe')
+  const [selectedStudent, setSelectedStudent] = useState<string | null>(null)
+  const [personalRoomKey, setPersonalRoomKey] = useState(0)
+
   const switchView = (v: 'globe' | 'room') => {
     if (v === 'room') setRoomKey(k => k + 1)
+    setSelectedStudent(null)
     setViewMode(v)
+  }
+
+  const openStudentRoom = (name: string) => {
+    setPersonalRoomKey(k => k + 1)
+    setSelectedStudent(name)
+  }
+
+  const closeStudentRoom = () => {
+    setSelectedStudent(null)
   }
 
   // Delay mounting the room canvas so the GPU can release the globe context first
@@ -374,11 +473,52 @@ function HomeInner() {
     return () => clearTimeout(id)
   }, [viewMode])
 
+  // Delay mounting personal room canvas too
+  const [mountedStudent, setMountedStudent] = useState<string | null>(null)
+  useEffect(() => {
+    if (!selectedStudent) { setMountedStudent(null); return }
+    const id = setTimeout(() => setMountedStudent(selectedStudent), 200)
+    return () => clearTimeout(id)
+  }, [selectedStudent])
+
   const grainRef = useRef<SVGFETurbulenceElement>(null)
   const [showTexture, setShowTexture] = useState(false)
   const [grainOpacity, setGrainOpacity] = useState(0.055)
   const [vignetteOpacity, setVignetteOpacity] = useState(0.6)
   const [wobbleScale, setWobbleScale] = useState(4)
+  const [showDoggo, setShowDoggo] = useState(false)
+  const [doggoScale, setDoggoScale] = useState(40)
+  const [doggoX, setDoggoX] = useState(0)
+  const [doggoY, setDoggoY] = useState(0)
+  const [doggoZ, setDoggoZ] = useState(0)
+  const [showFigure, setShowFigure] = useState(true)
+  const [figureRadius, setFigureRadius] = useState(5)
+  const [figureSpeed, setFigureSpeed] = useState(0.05)
+  const [figureX, setFigureX] = useState(0)
+  const [figureY, setFigureY] = useState(-10)
+  const [figureZ, setFigureZ] = useState(0)
+  const [figureScale, setFigureScale] = useState(180)
+  const [figureFacing, setFigureFacing] = useState(1.45)
+  const [figureWireframe, setFigureWireframe] = useState(true)
+  const [showVertexImages, setShowVertexImages] = useState(true)
+  const [vertexImgSize, setVertexImgSize] = useState(0.05)
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([])
+  const figureStudent  = selectedStudents[0] ?? null
+  const figureStudent2 = selectedStudents[1] ?? null
+  const figureOrbiting = selectedStudents.length !== 1
+
+  const handleStudentSelect = (name: string) => {
+    setSelectedStudents(prev => {
+      const idx = prev.indexOf(name)
+      if (idx !== -1) return prev.filter(s => s !== name)
+      if (prev.length < 2) return [...prev, name]
+      return [prev[1], name]
+    })
+  }
+
+  const [camX, setCamX] = useState(0)
+  const [camY, setCamY] = useState(260)
+  const [camZ, setCamZ] = useState(-35)
   const [panelHidden, setPanelHidden] = useState(false)
 
   const isAdmin = useSearchParams().get('admin') === 'true'
@@ -509,6 +649,7 @@ function HomeInner() {
   function closeModal() {
     setShowUpload(false)
     setItems([])
+    setUploadStudentName('')
     setError(null)
     setProgress(null)
   }
@@ -525,6 +666,7 @@ function HomeInner() {
       const fd = new FormData()
       fd.append('image', item.file)
       fd.append('text', item.caption.trim() || fileToCaption(item.file))
+      if (uploadStudentName) fd.append('student_name', uploadStudentName)
       const res = await fetch('/api/posts', { method: 'POST', body: fd })
       if (res.ok) newPosts.push(await res.json())
       setProgress(p => p ? { ...p, done: p.done + 1 } : null)
@@ -548,7 +690,7 @@ function HomeInner() {
       </div>
 
       {/* View toggle */}
-      {phase === 'gallery' && !loading && posts.length > 0 && (
+      {phase === 'gallery' && !loading && posts.length > 0 && !selectedStudent && (
         <div
           className="fixed top-6 z-20"
           style={{ right: isAdmin && !panelHidden ? 296 : 16 }}
@@ -574,7 +716,7 @@ function HomeInner() {
       )}
 
       {/* About button */}
-      {phase === 'gallery' && (
+      {phase === 'gallery' && !selectedStudent && (
         <button
           onClick={() => setShowAbout(v => !v)}
           style={{
@@ -610,13 +752,15 @@ function HomeInner() {
               fontFamily: 'ui-monospace, monospace', fontSize: 12, lineHeight: 2,
               color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em',
               whiteSpace: 'pre-line',
-            }}>{`Language is useful, but it's also a kind of grid we drop our thoughts into, by the time an idea has been put into words, it has already been shaped by what words are available. Inventing a system from scratch forces a different relationship: you have to ask what thoughts actually look like, what rhythm or weight or color they carry, before any of that gets flattened into vocabulary.
+            }}>{`Reply is a concept rooted in the constant communication of the digital world, a collaborative work by students of the Free University of Georgia, and a dialogue between selves and their relationships.
 
-For the final work, you will hold a written conversation with one of your classmates using only your invented languages. Neither of you may explain your system. Neither of you may translate. You will exchange three messages each, six pieces in total. Each message is a response to the one before it.
+While the physical self can be expressed in countless ways, Reply explores our virtual identities, the endless demands of digital presence, and the fragmented versions of ourselves we perform across platforms.
 
-The strongest version of "dialogue" here isn't successful communication. It's the attempt, the misreadings, the inferences, the moments where one responds to what they thought another was saying. That gap is where the real artwork lives, and it's the only place where the original idea (language as a limit) actually gets tested.
+Each platform demands a different self, the visual one, the political one, the informed one, the one who dances. Not one of them leaves room for the self that simply is.
 
-You are not trying to be understood. You are trying to respond to what you think the other person said.`}</p>
+To explore this idea further, the students created their own writing systems, ways of saying what they truly feel, without being observed, evaluated, or judged. Only felt.
+
+Reply is a virtual art exhibition that challenges the limits of natural language as a form of communication, and instead invites visitors to experience each person through a unique visual representation of who they are.`}</p>
           </div>
         </div>
       )}
@@ -631,6 +775,42 @@ You are not trying to be understood. You are trying to respond to what you think
       >
         <img src="/UNI.svg" alt="Free University of Tbilisi" className="h-12 w-auto" />
       </a>
+
+      {/* Student selector — left panel, room view only */}
+      {phase === 'gallery' && mountedView === 'room' && !selectedStudent && (
+        <div style={{
+          position: 'fixed', left: 0, top: 0, bottom: 0, zIndex: 20,
+          width: 160,
+          display: 'flex', flexDirection: 'column', justifyContent: 'center',
+          padding: '32px 0',
+          fontFamily: 'ui-monospace, monospace',
+          overflowY: 'auto',
+        }}>
+          {STUDENTS.map(name => {
+            const isSelected = selectedStudents.includes(name)
+            return (
+              <button
+                key={name}
+                onClick={() => handleStudentSelect(name)}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  padding: '5px 16px',
+                  textAlign: 'left',
+                }}
+              >
+                <span style={{
+                  fontSize: 10, lineHeight: 1.4,
+                  color: '#000000',
+                  opacity: isSelected ? 1 : 0.35,
+                  transition: 'opacity 0.15s',
+                }}>
+                  {name}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* View */}
       <div className="absolute inset-0" style={{
@@ -650,10 +830,10 @@ You are not trying to be understood. You are trying to respond to what you think
             <span className="font-mono text-gray-300 text-sm">nothing here yet — be first.</span>
           </div>
         )}
-        {!loading && posts.length > 0 && mountedView === 'room' && (
-          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} />
+        {!loading && posts.length > 0 && mountedView === 'room' && !selectedStudent && (
+          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} />
         )}
-        {!loading && posts.length > 0 && mountedView === 'globe' && (
+        {!loading && posts.length > 0 && mountedView === 'globe' && !selectedStudent && (
           <GlobeCanvas
             posts={posts.filter(p => !hiddenIds.has(p.id))}
             rotateSpeed={rotateSpeed}
@@ -676,9 +856,43 @@ You are not trying to be understood. You are trying to respond to what you think
             noiseSpeed={noiseSpeed}
             noiseScale={noiseScale}
             blurNames={showAbout}
+            onNameClick={openStudentRoom}
+            namesClickable={phase === 'gallery'}
           />
         )}
+
+        {/* Personal student room */}
+        {mountedStudent && (
+          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} />
+        )}
       </div>
+
+      {/* Student room back button */}
+      {selectedStudent && (
+        <button
+          onClick={closeStudentRoom}
+          style={{
+            position: 'fixed', top: 24, left: 24, zIndex: 60,
+            fontFamily: 'ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5,
+            textTransform: 'uppercase', background: 'transparent', border: 'none',
+            cursor: 'pointer', padding: 0, color: 'rgba(255,255,255,0.7)',
+            transition: 'color 0.15s',
+          }}
+        >
+          ← back
+        </button>
+      )}
+
+      {/* Student name label */}
+      {selectedStudent && (
+        <div style={{
+          position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 60,
+          fontFamily: 'ui-monospace, monospace', fontSize: 11, letterSpacing: 2,
+          textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', pointerEvents: 'none',
+        }}>
+          {selectedStudent}
+        </div>
+      )}
 
       {/* Texture overlays */}
       {isAdmin && showTexture && (<>
@@ -714,8 +928,8 @@ You are not trying to be understood. You are trying to respond to what you think
         <div style={{ position: 'fixed', inset: 0, zIndex: 57, pointerEvents: 'none', background: `radial-gradient(ellipse at center, transparent 30%, rgba(10,5,0,${vignetteOpacity}) 100%)` }} />
       </>)}
 
-      {/* Upload FAB — admin only */}
-      {isAdmin && (
+      {/* Upload FAB */}
+      {phase === 'gallery' && (
         <button
           onClick={() => setShowUpload(true)}
           className="fixed bottom-9 left-1/2 -translate-x-1/2 z-20 bg-white shadow-md rounded-full px-7 py-[18px] font-mono text-black text-xl leading-none hover:shadow-lg transition-shadow border border-gray-100"
@@ -755,6 +969,25 @@ You are not trying to be understood. You are trying to respond to what you think
           grainOpacity={grainOpacity} setGrainOpacity={setGrainOpacity}
           vignetteOpacity={vignetteOpacity} setVignetteOpacity={setVignetteOpacity}
           wobbleScale={wobbleScale} setWobbleScale={setWobbleScale}
+          showDoggo={showDoggo} setShowDoggo={setShowDoggo}
+          doggoScale={doggoScale} setDoggoScale={setDoggoScale}
+          doggoX={doggoX} setDoggoX={setDoggoX}
+          doggoY={doggoY} setDoggoY={setDoggoY}
+          doggoZ={doggoZ} setDoggoZ={setDoggoZ}
+          showFigure={showFigure} setShowFigure={setShowFigure}
+          figureRadius={figureRadius} setFigureRadius={setFigureRadius}
+          figureSpeed={figureSpeed} setFigureSpeed={setFigureSpeed}
+          figureX={figureX} setFigureX={setFigureX}
+          figureY={figureY} setFigureY={setFigureY}
+          figureZ={figureZ} setFigureZ={setFigureZ}
+          figureScale={figureScale} setFigureScale={setFigureScale}
+          figureFacing={figureFacing} setFigureFacing={setFigureFacing}
+          figureWireframe={figureWireframe} setFigureWireframe={setFigureWireframe}
+          showVertexImages={showVertexImages} setShowVertexImages={setShowVertexImages}
+          vertexImgSize={vertexImgSize} setVertexImgSize={setVertexImgSize}
+          camX={camX} setCamX={setCamX}
+          camY={camY} setCamY={setCamY}
+          camZ={camZ} setCamZ={setCamZ}
           phase={phase}
         />
       )}
@@ -857,6 +1090,20 @@ You are not trying to be understood. You are trying to respond to what you think
                   {items.length > 0 ? '+ add more images' : 'drop images or click to browse'}
                 </p>
                 <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = '' }} />
+              </div>
+
+              {/* Student name selector */}
+              <div className="shrink-0">
+                <select
+                  value={uploadStudentName}
+                  onChange={e => setUploadStudentName(e.target.value)}
+                  className="w-full font-mono text-xs border border-gray-200 rounded-lg px-3 py-2 focus:border-black outline-none bg-white"
+                >
+                  <option value="">— select your name —</option>
+                  {STUDENTS.map(n => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
               </div>
 
               {items.length > 0 && (

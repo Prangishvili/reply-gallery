@@ -5,8 +5,12 @@ create table posts (
   id uuid primary key default gen_random_uuid(),
   text text not null,
   image_url text not null,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  student_name text
 );
+
+-- Migration (run if table already exists):
+-- alter table posts add column if not exists student_name text;
 
 -- 2. Allow anyone to read and insert posts (no auth required)
 alter table posts enable row level security;

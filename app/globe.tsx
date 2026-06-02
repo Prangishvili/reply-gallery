@@ -25,21 +25,29 @@ function spherePoint(index: number, total: number, radius = RADIUS): THREE.Vecto
   ).multiplyScalar(radius)
 }
 
-function NameTag({ name, index, nameSize, blur }: { name: string; index: number; nameSize: number; blur: boolean }) {
+function NameTag({ name, index, nameSize, blur, onClick, clickable }: { name: string; index: number; nameSize: number; blur: boolean; onClick: (name: string) => void; clickable: boolean }) {
   const pos = spherePoint(index, NAMES.length, INNER_RADIUS)
+  const [hovered, setHovered] = useState(false)
   return (
-    <Html center position={pos.toArray() as [number, number, number]} style={{ pointerEvents: 'none' }}>
-      <div style={{
-        fontFamily: 'ui-monospace, "JetBrains Mono", monospace',
-        fontSize: `${nameSize}px`,
-        fontWeight: 500,
-        letterSpacing: '0.08em',
-        color: 'rgba(0,0,0,0.55)',
-        whiteSpace: 'nowrap',
-        textShadow: '0 0 12px rgba(255,255,255,0.9)',
-        filter: blur ? 'blur(6px)' : undefined,
-        transition: 'filter 0.3s',
-      }}>
+    <Html center position={pos.toArray() as [number, number, number]} style={{ pointerEvents: clickable ? 'auto' : 'none' }}>
+      <div
+        onClick={clickable ? () => onClick(name) : undefined}
+        onMouseEnter={clickable ? () => setHovered(true) : undefined}
+        onMouseLeave={clickable ? () => setHovered(false) : undefined}
+        style={{
+          fontFamily: 'ui-monospace, "JetBrains Mono", monospace',
+          fontSize: `${nameSize}px`,
+          fontWeight: 500,
+          letterSpacing: '0.08em',
+          color: hovered ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.55)',
+          whiteSpace: 'nowrap',
+          textShadow: '0 0 12px rgba(255,255,255,0.9)',
+          filter: blur ? 'blur(6px)' : undefined,
+          transition: 'filter 0.3s, color 0.15s',
+          cursor: clickable ? 'pointer' : 'default',
+          userSelect: 'none',
+        }}
+      >
         {name}
       </div>
     </Html>
@@ -280,7 +288,7 @@ function GlobeControls({ groupRef, rotateSpeed }: { groupRef: React.RefObject<TH
   return null
 }
 
-function Scene({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle, showNames, nameSize, showWireframe, wireframeSegments, wireframeOpacity, wireframeColor, showNoiseGlobe, audioVolume, analyserRef, noiseColor1, noiseColor2, noiseSpeed, noiseScale, blurNames }: {
+function Scene({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle, showNames, nameSize, showWireframe, wireframeSegments, wireframeOpacity, wireframeColor, showNoiseGlobe, audioVolume, analyserRef, noiseColor1, noiseColor2, noiseSpeed, noiseScale, blurNames, onNameClick, namesClickable }: {
   posts: Post[]
   rotateSpeed: number
   scale: number
@@ -302,6 +310,8 @@ function Scene({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle,
   noiseSpeed: number
   noiseScale: number
   blurNames: boolean
+  onNameClick: (name: string) => void
+  namesClickable: boolean
 }) {
   const groupRef = useRef<THREE.Group>(null)
   const Tile = tileStyle === 'billboard' ? TileBillboard : TileOutward
@@ -323,14 +333,14 @@ function Scene({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle,
           </Suspense>
         ))}
         {showNames && NAMES.map((name, i) => (
-          <NameTag key={name} name={name} index={i} nameSize={nameSize} blur={blurNames} />
+          <NameTag key={name} name={name} index={i} nameSize={nameSize} blur={blurNames} onClick={onNameClick} clickable={namesClickable} />
         ))}
       </group>
     </>
   )
 }
 
-export default function GlobeCanvas({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle, showNames, nameSize, showWireframe, wireframeSegments, wireframeOpacity, wireframeColor, showNoiseGlobe, audioVolume, analyserRef, noiseColor1, noiseColor2, noiseSpeed, noiseScale, blurNames }: {
+export default function GlobeCanvas({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle, showNames, nameSize, showWireframe, wireframeSegments, wireframeOpacity, wireframeColor, showNoiseGlobe, audioVolume, analyserRef, noiseColor1, noiseColor2, noiseSpeed, noiseScale, blurNames, onNameClick, namesClickable }: {
   posts: Post[]
   rotateSpeed: number
   scale: number
@@ -352,10 +362,12 @@ export default function GlobeCanvas({ posts, rotateSpeed, scale, scaleX, scaleY,
   noiseSpeed: number
   noiseScale: number
   blurNames: boolean
+  onNameClick: (name: string) => void
+  namesClickable: boolean
 }) {
   return (
     <Canvas camera={{ position: [0, 0, 7.5], fov: 50 }} dpr={[1, 2]} style={{ width: '100%', height: '100%', touchAction: 'none' }}>
-      <Scene posts={posts} rotateSpeed={rotateSpeed} scale={scale} scaleX={scaleX} scaleY={scaleY} tileSize={tileSize} tileStyle={tileStyle} showNames={showNames} nameSize={nameSize} showWireframe={showWireframe} wireframeSegments={wireframeSegments} wireframeOpacity={wireframeOpacity} wireframeColor={wireframeColor} showNoiseGlobe={showNoiseGlobe} audioVolume={audioVolume} analyserRef={analyserRef} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} blurNames={blurNames} />
+      <Scene posts={posts} rotateSpeed={rotateSpeed} scale={scale} scaleX={scaleX} scaleY={scaleY} tileSize={tileSize} tileStyle={tileStyle} showNames={showNames} nameSize={nameSize} showWireframe={showWireframe} wireframeSegments={wireframeSegments} wireframeOpacity={wireframeOpacity} wireframeColor={wireframeColor} showNoiseGlobe={showNoiseGlobe} audioVolume={audioVolume} analyserRef={analyserRef} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} blurNames={blurNames} onNameClick={onNameClick} namesClickable={namesClickable} />
     </Canvas>
   )
 }
