@@ -141,7 +141,7 @@ function FigureVertexImages({ scene, posts, size }: { scene: THREE.Object3D; pos
 // ── Wireframe styles ──────────────────────────────────────────────────────────
 export type WireframeStyle = 'edges' | 'dense' | 'dashed' | 'points'
 
-function FigureWireframe({ scene, style }: { scene: THREE.Object3D; style: WireframeStyle }) {
+function FigureWireframe({ scene, style, dotSize, dotColor, dotCount }: { scene: THREE.Object3D; style: WireframeStyle; dotSize: number; dotColor: string; dotCount: number }) {
   const geo = useMemo(() => {
     scene.updateMatrixWorld(true)
     const rootInv = new THREE.Matrix4().copy(scene.matrixWorld).invert()
@@ -162,26 +162,41 @@ function FigureWireframe({ scene, style }: { scene: THREE.Object3D; style: Wiref
       }
 
       const pos = srcGeo.getAttribute('position')
-      const count = style === 'points' ? pos.count : pos.count
-      for (let i = 0; i < count; i++) {
+      for (let i = 0; i < pos.count; i++) {
         const v = new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(rel)
         pts.push(v.x, v.y, v.z)
       }
       if (style !== 'points') srcGeo.dispose()
     })
 
+    let finalPts = pts
+    if (style === 'points' && dotCount < pts.length / 3) {
+      const stride = Math.max(1, Math.floor(pts.length / 3 / dotCount))
+      finalPts = []
+      for (let i = 0; i < pts.length / 3 && finalPts.length / 3 < dotCount; i += stride) {
+        finalPts.push(pts[i * 3], pts[i * 3 + 1], pts[i * 3 + 2])
+      }
+    }
+
     const g = new THREE.BufferGeometry()
-    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts), 3))
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(finalPts), 3))
     return g
-  }, [scene, style])
+  }, [scene, style, dotCount])
 
   const dashedRef = useRef<THREE.LineSegments>(null)
+  const pointsMatRef = useRef<THREE.PointsMaterial>(null)
   useEffect(() => { dashedRef.current?.computeLineDistances() }, [geo])
   useEffect(() => () => { geo.dispose() }, [geo])
+  useEffect(() => {
+    if (!pointsMatRef.current) return
+    pointsMatRef.current.size = dotSize
+    pointsMatRef.current.color.set(dotColor)
+    pointsMatRef.current.needsUpdate = true
+  }, [dotSize, dotColor])
 
   if (style === 'points') return (
     <points geometry={geo}>
-      <pointsMaterial color="#000000" size={0.008} sizeAttenuation />
+      <pointsMaterial ref={pointsMatRef} color={dotColor} size={dotSize} sizeAttenuation />
     </points>
   )
   if (style === 'dashed') return (
@@ -200,11 +215,11 @@ function FigureWireframe({ scene, style }: { scene: THREE.Object3D; style: Wiref
 type FigurePairProps = {
   roomDepth: number; radius: number; speed: number
   x: number; y: number; z: number
-  figureScale: number; figureFacing: number; figureWireframe: boolean; wireframeStyle: WireframeStyle
+  figureScale: number; figureFacing: number; figureWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
   posts: Post[]; mirrorPosts: Post[]; showVertexImages: boolean; vertexImgSize: number
   orbiting: boolean
 }
-function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFacing, figureWireframe, wireframeStyle, posts, mirrorPosts, showVertexImages, vertexImgSize, orbiting }: FigurePairProps) {
+function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, posts, mirrorPosts, showVertexImages, vertexImgSize, orbiting }: FigurePairProps) {
   const { scene } = useGLTF('/figure.glb')
 
   const cloneWithMats = (s: THREE.Object3D) => {
@@ -238,7 +253,7 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
     <group ref={groupRef} position={[x, y, -(roomDepth / 2) + z]}>
       <group position={orbiting ? [radius, 0, 0] : [0, 0, 0]} scale={figureScale} rotation={[0, figureFacing, 0]}>
         <primitive object={orig} />
-        {figureWireframe && <FigureWireframe scene={orig} style={wireframeStyle} />}
+        {figureWireframe && <FigureWireframe scene={orig} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} />}
         {showVertexImages && posts.length > 0 && (
           <Suspense fallback={null}>
             <FigureVertexImages scene={orig} posts={posts} size={vertexImgSize} />
@@ -248,7 +263,7 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
       {orbiting && (
         <group position={[-radius, 0, 0]} scale={[-figureScale, figureScale, figureScale]} rotation={[0, -figureFacing, 0]}>
           <primitive object={mirror} />
-          {figureWireframe && <FigureWireframe scene={mirror} style={wireframeStyle} />}
+          {figureWireframe && <FigureWireframe scene={mirror} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} />}
           {showVertexImages && mirrorPosts.length > 0 && (
             <Suspense fallback={null}>
               <FigureVertexImages scene={mirror} posts={mirrorPosts} size={vertexImgSize} />
@@ -272,39 +287,42 @@ type RoomSceneProps = {
   posts: Post[]
   showDoggo: boolean; doggoScale: number; doggoX: number; doggoY: number; doggoZ: number
   showFigure: boolean; figureRadius: number; figureSpeed: number; figureX: number; figureY: number; figureZ: number
-  figureScale: number; figureFacing: number; figureWireframe: boolean; wireframeStyle: WireframeStyle
+  figureScale: number; figureFacing: number; figureWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
   showVertexImages: boolean; vertexImgSize: number
   figureStudent: string | null; figureStudent2: string | null
   figureOrbiting: boolean
   camX: number; camY: number; camZ: number
+  showWalls: boolean
 }
-function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing, figureWireframe, wireframeStyle, showVertexImages, vertexImgSize, figureStudent, figureStudent2, figureOrbiting, camX, camY, camZ }: RoomSceneProps) {
+function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, showVertexImages, vertexImgSize, figureStudent, figureStudent2, figureOrbiting, camX, camY, camZ, showWalls }: RoomSceneProps) {
   const figurePosts  = figureStudent  ? posts.filter(p => p.student_name === figureStudent)  : posts
   const mirrorPosts  = figureStudent2 ? posts.filter(p => p.student_name === figureStudent2) : posts
 
   return (
     <>
       <RoomControls camX={camX} camY={camY} camZ={camZ} />
-      {/* Back wall */}
-      <mesh position={[0, H / 2, -D]}>
-        <planeGeometry args={[W, H]} /><meshBasicMaterial color="#dddddd" />
-      </mesh>
-      {/* Left wall */}
-      <mesh position={[-W / 2, H / 2, -D / 2]} rotation={[0, Math.PI / 2, 0]}>
-        <planeGeometry args={[D, H]} /><meshBasicMaterial color="#d2d2d2" />
-      </mesh>
-      {/* Right wall */}
-      <mesh position={[W / 2, H / 2, -D / 2]} rotation={[0, -Math.PI / 2, 0]}>
-        <planeGeometry args={[D, H]} /><meshBasicMaterial color="#d2d2d2" />
-      </mesh>
-      {/* Floor */}
-      <mesh position={[0, 0, -D / 2]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[W, D]} /><meshBasicMaterial color="#ffffff" />
-      </mesh>
-      {/* Ceiling */}
-      <mesh position={[0, H, -D / 2]} rotation={[Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[W, D]} /><meshBasicMaterial color="#f1f1f1" />
-      </mesh>
+      {showWalls && (<>
+        {/* Back wall */}
+        <mesh position={[0, H / 2, -D]}>
+          <planeGeometry args={[W, H]} /><meshBasicMaterial color="#dddddd" />
+        </mesh>
+        {/* Left wall */}
+        <mesh position={[-W / 2, H / 2, -D / 2]} rotation={[0, Math.PI / 2, 0]}>
+          <planeGeometry args={[D, H]} /><meshBasicMaterial color="#d2d2d2" />
+        </mesh>
+        {/* Right wall */}
+        <mesh position={[W / 2, H / 2, -D / 2]} rotation={[0, -Math.PI / 2, 0]}>
+          <planeGeometry args={[D, H]} /><meshBasicMaterial color="#d2d2d2" />
+        </mesh>
+        {/* Floor */}
+        <mesh position={[0, 0, -D / 2]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[W, D]} /><meshBasicMaterial color="#ffffff" />
+        </mesh>
+        {/* Ceiling */}
+        <mesh position={[0, H, -D / 2]} rotation={[Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[W, D]} /><meshBasicMaterial color="#f1f1f1" />
+        </mesh>
+      </>)}
 
       {showDoggo && (
         <Suspense fallback={null}>
@@ -314,7 +332,7 @@ function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showF
 
       {showFigure && (
         <Suspense fallback={null}>
-          <FigurePair roomDepth={D} radius={figureRadius} speed={figureSpeed} x={figureX} y={figureY} z={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} posts={figurePosts} mirrorPosts={mirrorPosts} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} orbiting={figureOrbiting} />
+          <FigurePair roomDepth={D} radius={figureRadius} speed={figureSpeed} x={figureX} y={figureY} z={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} posts={figurePosts} mirrorPosts={mirrorPosts} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} orbiting={figureOrbiting} />
         </Suspense>
       )}
 
@@ -323,14 +341,14 @@ function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showF
 }
 
 // ── Entry point — pre-loads image dimensions before mounting scene ─────────────
-export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, doggoX = 0, doggoY = 0, doggoZ = 0, showFigure = true, figureRadius = 5, figureSpeed = 0.5, figureX = 0, figureY = 0, figureZ = 0, figureScale = 1, figureFacing = 0, figureWireframe = false, wireframeStyle = 'edges', showVertexImages = false, vertexImgSize = 0.05, figureStudent = null, figureStudent2 = null, figureOrbiting = true, camX = 0, camY = EYE, camZ = 55 }: { posts: Post[]; showDoggo?: boolean; doggoScale?: number; doggoX?: number; doggoY?: number; doggoZ?: number; showFigure?: boolean; figureRadius?: number; figureSpeed?: number; figureX?: number; figureY?: number; figureZ?: number; figureScale?: number; figureFacing?: number; figureWireframe?: boolean; wireframeStyle?: WireframeStyle; showVertexImages?: boolean; vertexImgSize?: number; figureStudent?: string | null; figureStudent2?: string | null; figureOrbiting?: boolean; camX?: number; camY?: number; camZ?: number }) {
+export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, doggoX = 0, doggoY = 0, doggoZ = 0, showFigure = true, figureRadius = 5, figureSpeed = 0.5, figureX = 0, figureY = 0, figureZ = 0, figureScale = 1, figureFacing = 0, figureWireframe = false, wireframeStyle = 'edges', dotSize = 0.100, dotColor = '#000000', dotCount = 30000, showVertexImages = false, vertexImgSize = 0.05, figureStudent = null, figureStudent2 = null, figureOrbiting = true, camX = 0, camY = EYE, camZ = 55, showWalls = false }: { posts: Post[]; showDoggo?: boolean; doggoScale?: number; doggoX?: number; doggoY?: number; doggoZ?: number; showFigure?: boolean; figureRadius?: number; figureSpeed?: number; figureX?: number; figureY?: number; figureZ?: number; figureScale?: number; figureFacing?: number; figureWireframe?: boolean; wireframeStyle?: WireframeStyle; dotSize?: number; dotColor?: string; dotCount?: number; showVertexImages?: boolean; vertexImgSize?: number; figureStudent?: string | null; figureStudent2?: string | null; figureOrbiting?: boolean; camX?: number; camY?: number; camZ?: number; showWalls?: boolean }) {
   return (
     <Canvas
       camera={{ position: [camX, camY, camZ], fov: 72 }}
       dpr={[1, 2]}
       style={{ width: '100%', height: '100%', touchAction: 'none', background: '#ffffff' }}
     >
-      <RoomScene posts={posts} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} />
+      <RoomScene posts={posts} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} />
     </Canvas>
   )
 }

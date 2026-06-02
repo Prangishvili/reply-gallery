@@ -140,6 +140,10 @@ function AdminPanel({
   figureFacing, setFigureFacing,
   figureWireframe, setFigureWireframe,
   wireframeStyle, setWireframeStyle,
+  dotSize, setDotSize,
+  dotColor, setDotColor,
+  dotCount, setDotCount,
+  showWalls, setShowWalls,
   showVertexImages, setShowVertexImages,
   vertexImgSize, setVertexImgSize,
   camX, setCamX,
@@ -188,6 +192,10 @@ function AdminPanel({
   figureFacing: number; setFigureFacing: (v: number) => void
   figureWireframe: boolean; setFigureWireframe: (v: boolean) => void
   wireframeStyle: WireframeStyle; setWireframeStyle: (v: WireframeStyle) => void
+  dotSize: number; setDotSize: (v: number) => void
+  dotColor: string; setDotColor: (v: string) => void
+  dotCount: number; setDotCount: (v: number) => void
+  showWalls: boolean; setShowWalls: (v: boolean) => void
   showVertexImages: boolean; setShowVertexImages: (v: boolean) => void
   vertexImgSize: number; setVertexImgSize: (v: number) => void
   camX: number; setCamX: (v: number) => void
@@ -376,17 +384,40 @@ function AdminPanel({
           onChange={v => setFigureWireframe(v === 'wire')}
         />
         {figureWireframe && (
-          <PanelToggle
-            options={[
-              { label: 'Edges', value: 'edges' },
-              { label: 'Dense', value: 'dense' },
-              { label: 'Dash',  value: 'dashed' },
-              { label: 'Dots',  value: 'points' },
-            ]}
-            value={wireframeStyle}
-            onChange={v => setWireframeStyle(v as WireframeStyle)}
-          />
+          <>
+            <PanelToggle
+              options={[
+                { label: 'Edges', value: 'edges' },
+                { label: 'Dense', value: 'dense' },
+                { label: 'Dash',  value: 'dashed' },
+                { label: 'Dots',  value: 'points' },
+              ]}
+              value={wireframeStyle}
+              onChange={v => setWireframeStyle(v as WireframeStyle)}
+            />
+            {wireframeStyle === 'points' && (
+              <>
+                <PanelSlider label="Dot count" value={dotCount} min={100} max={50000} step={100} decimals={0} onChange={setDotCount} />
+                <PanelSlider label="Dot size"  value={dotSize}  min={0.001} max={0.1} step={0.001} decimals={3} onChange={setDotSize} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0 8px' }}>
+                  <span style={{ fontSize: 11, color: P.dim }}>Dot color</span>
+                  <input
+                    type="color"
+                    value={dotColor}
+                    onChange={e => setDotColor(e.target.value)}
+                    style={{ width: 32, height: 22, border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}
+                  />
+                </div>
+              </>
+            )}
+          </>
         )}
+        <div style={{ fontSize: 11, color: P.dim, marginBottom: 8 }}>Walls</div>
+        <PanelToggle
+          options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
+          value={showWalls ? 'show' : 'hide'}
+          onChange={v => setShowWalls(v === 'show')}
+        />
         <div style={{ fontSize: 11, color: P.dim, marginBottom: 8 }}>Vertex images</div>
         <PanelToggle
           options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
@@ -461,7 +492,7 @@ function HomeInner() {
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set())
   const [showAbout, setShowAbout] = useState(false)
 
-  const [viewMode, setViewMode] = useState<'globe' | 'room'>('globe')
+  const [viewMode, setViewMode] = useState<'globe' | 'room'>('room')
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null)
   const [personalRoomKey, setPersonalRoomKey] = useState(0)
 
@@ -481,7 +512,7 @@ function HomeInner() {
   }
 
   // Delay mounting the room canvas so the GPU can release the globe context first
-  const [mountedView, setMountedView] = useState<'globe' | 'room'>('globe')
+  const [mountedView, setMountedView] = useState<'globe' | 'room'>('room')
   useEffect(() => {
     if (viewMode === 'globe') { setMountedView('globe'); return }
     const id = setTimeout(() => setMountedView('room'), 200)
@@ -516,6 +547,10 @@ function HomeInner() {
   const [figureFacing, setFigureFacing] = useState(1.45)
   const [figureWireframe, setFigureWireframe] = useState(true)
   const [wireframeStyle, setWireframeStyle] = useState<WireframeStyle>('points')
+  const [dotSize, setDotSize] = useState(0.100)
+  const [dotColor, setDotColor] = useState('#000000')
+  const [dotCount, setDotCount] = useState(30000)
+  const [showWalls, setShowWalls] = useState(false)
   const [showVertexImages, setShowVertexImages] = useState(true)
   const [vertexImgSize, setVertexImgSize] = useState(0.05)
   const [selectedStudents, setSelectedStudents] = useState<string[]>([])
@@ -847,7 +882,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           </div>
         )}
         {!loading && posts.length > 0 && mountedView === 'room' && !selectedStudent && (
-          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} />
+          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} />
         )}
         {!loading && posts.length > 0 && mountedView === 'globe' && !selectedStudent && (
           <GlobeCanvas
@@ -879,7 +914,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
 
         {/* Personal student room */}
         {mountedStudent && (
-          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} />
+          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} />
         )}
       </div>
 
@@ -1000,6 +1035,10 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           figureFacing={figureFacing} setFigureFacing={setFigureFacing}
           figureWireframe={figureWireframe} setFigureWireframe={setFigureWireframe}
           wireframeStyle={wireframeStyle} setWireframeStyle={setWireframeStyle}
+          dotSize={dotSize} setDotSize={setDotSize}
+          dotColor={dotColor} setDotColor={setDotColor}
+          dotCount={dotCount} setDotCount={setDotCount}
+          showWalls={showWalls} setShowWalls={setShowWalls}
           showVertexImages={showVertexImages} setShowVertexImages={setShowVertexImages}
           vertexImgSize={vertexImgSize} setVertexImgSize={setVertexImgSize}
           camX={camX} setCamX={setCamX}
