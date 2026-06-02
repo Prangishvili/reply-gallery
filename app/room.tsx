@@ -152,7 +152,8 @@ function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene
     sprites.forEach((sprite, i) => {
       if (!sprite) return
       const tex = texArr[i % texArr.length]
-      const aspect = tex.image ? tex.image.width / tex.image.height : 1
+      const img = tex.image as { width?: number; height?: number } | null
+      const aspect = img?.width && img?.height ? img.width / img.height : 1
       const s = size * (1 + vol * 3)
       sprite.scale.set(s * aspect, s, 1)
     })
@@ -162,7 +163,8 @@ function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene
     <>
       {vertices.map((v, i) => {
         const tex = texArr[i % texArr.length]
-        const aspect = tex.image ? tex.image.width / tex.image.height : 1
+        const img2 = tex.image as { width?: number; height?: number } | null
+        const aspect = img2?.width && img2?.height ? img2.width / img2.height : 1
         return (
           <sprite key={i} ref={el => { spriteRefs.current[i] = el }} position={[v.x, v.y, v.z]} scale={[size * aspect, size, 1]}>
             <spriteMaterial map={tex} sizeAttenuation />
