@@ -398,7 +398,7 @@ function AdminPanel({
             {wireframeStyle === 'points' && (
               <>
                 <PanelSlider label="Dot count" value={dotCount} min={100} max={50000} step={100} decimals={0} onChange={setDotCount} />
-                <PanelSlider label="Dot size"  value={dotSize}  min={0.001} max={0.1} step={0.001} decimals={3} onChange={setDotSize} />
+                <PanelSlider label="Dot size"  value={dotSize}  min={0.001} max={1} step={0.001} decimals={3} onChange={setDotSize} />
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0 8px' }}>
                   <span style={{ fontSize: 11, color: P.dim }}>Dot color</span>
                   <input
@@ -546,8 +546,8 @@ function HomeInner() {
   const [figureScale, setFigureScale] = useState(180)
   const [figureFacing, setFigureFacing] = useState(1.45)
   const [figureWireframe, setFigureWireframe] = useState(true)
-  const [wireframeStyle, setWireframeStyle] = useState<WireframeStyle>('points')
-  const [dotSize, setDotSize] = useState(0.100)
+  const [wireframeStyle, setWireframeStyle] = useState<WireframeStyle>('edges')
+  const [dotSize, setDotSize] = useState(0.400)
   const [dotColor, setDotColor] = useState('#000000')
   const [dotCount, setDotCount] = useState(30000)
   const [showWalls, setShowWalls] = useState(false)
