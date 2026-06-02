@@ -206,7 +206,7 @@ function FigureWireframe({ scene, style, dotSize, dotColor, dotCount, analyserRe
       if (!dataArrRef.current || dataArrRef.current.length !== a.frequencyBinCount) {
         dataArrRef.current = new Uint8Array(a.frequencyBinCount)
       }
-      a.getByteFrequencyData(dataArrRef.current)
+      a.getByteFrequencyData(dataArrRef.current as Uint8Array<ArrayBuffer>)
       let sum = 0
       for (let i = 0; i < dataArrRef.current.length; i++) sum += dataArrRef.current[i]
       const vol = Math.min((sum / dataArrRef.current.length / 255) * 5, 1)
