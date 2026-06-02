@@ -675,7 +675,7 @@ function HomeInner() {
       if (e.key === 'z' || e.key === 'Z') {
         const audio = bgAudioRef.current
         if (!audio) return
-        if (audio.paused) audio.play().catch(() => {}) else audio.pause()
+        if (audio.paused) { audio.play().catch(() => {}) } else { audio.pause() }
       }
     }
     window.addEventListener('keydown', onKey)
