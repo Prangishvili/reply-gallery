@@ -8,6 +8,7 @@ import { Post } from '@/lib/supabase'
 
 const GlobeCanvas = dynamic(() => import('./globe'), { ssr: false })
 const RoomCanvas  = dynamic(() => import('./room'),  { ssr: false })
+import type { WireframeStyle } from './room'
 
 const STUDENTS = ['Nodar Gogichaishvili','Sesili Gurgenidze','Dominika Davshrishovi','Nutsa Kavtelishvili','Ketevan Lomiashvili','Ana Mamniashvili','Sergi Sarajevi','Natali Chixelidze','Salome Shalvashvili','Bako Shengelaia','Mariam Wulaia','Mariam Qsovreli']
 
@@ -138,6 +139,7 @@ function AdminPanel({
   figureScale, setFigureScale,
   figureFacing, setFigureFacing,
   figureWireframe, setFigureWireframe,
+  wireframeStyle, setWireframeStyle,
   showVertexImages, setShowVertexImages,
   vertexImgSize, setVertexImgSize,
   camX, setCamX,
@@ -185,6 +187,7 @@ function AdminPanel({
   figureScale: number; setFigureScale: (v: number) => void
   figureFacing: number; setFigureFacing: (v: number) => void
   figureWireframe: boolean; setFigureWireframe: (v: boolean) => void
+  wireframeStyle: WireframeStyle; setWireframeStyle: (v: WireframeStyle) => void
   showVertexImages: boolean; setShowVertexImages: (v: boolean) => void
   vertexImgSize: number; setVertexImgSize: (v: number) => void
   camX: number; setCamX: (v: number) => void
@@ -372,6 +375,18 @@ function AdminPanel({
           value={figureWireframe ? 'wire' : 'solid'}
           onChange={v => setFigureWireframe(v === 'wire')}
         />
+        {figureWireframe && (
+          <PanelToggle
+            options={[
+              { label: 'Edges', value: 'edges' },
+              { label: 'Dense', value: 'dense' },
+              { label: 'Dash',  value: 'dashed' },
+              { label: 'Dots',  value: 'points' },
+            ]}
+            value={wireframeStyle}
+            onChange={v => setWireframeStyle(v as WireframeStyle)}
+          />
+        )}
         <div style={{ fontSize: 11, color: P.dim, marginBottom: 8 }}>Vertex images</div>
         <PanelToggle
           options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
@@ -500,6 +515,7 @@ function HomeInner() {
   const [figureScale, setFigureScale] = useState(180)
   const [figureFacing, setFigureFacing] = useState(1.45)
   const [figureWireframe, setFigureWireframe] = useState(true)
+  const [wireframeStyle, setWireframeStyle] = useState<WireframeStyle>('points')
   const [showVertexImages, setShowVertexImages] = useState(true)
   const [vertexImgSize, setVertexImgSize] = useState(0.05)
   const [selectedStudents, setSelectedStudents] = useState<string[]>([])
@@ -831,7 +847,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           </div>
         )}
         {!loading && posts.length > 0 && mountedView === 'room' && !selectedStudent && (
-          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} />
+          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} />
         )}
         {!loading && posts.length > 0 && mountedView === 'globe' && !selectedStudent && (
           <GlobeCanvas
@@ -863,7 +879,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
 
         {/* Personal student room */}
         {mountedStudent && (
-          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} />
+          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} />
         )}
       </div>
 
@@ -983,6 +999,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           figureScale={figureScale} setFigureScale={setFigureScale}
           figureFacing={figureFacing} setFigureFacing={setFigureFacing}
           figureWireframe={figureWireframe} setFigureWireframe={setFigureWireframe}
+          wireframeStyle={wireframeStyle} setWireframeStyle={setWireframeStyle}
           showVertexImages={showVertexImages} setShowVertexImages={setShowVertexImages}
           vertexImgSize={vertexImgSize} setVertexImgSize={setVertexImgSize}
           camX={camX} setCamX={setCamX}

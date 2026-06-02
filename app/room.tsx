@@ -138,15 +138,73 @@ function FigureVertexImages({ scene, posts, size }: { scene: THREE.Object3D; pos
   )
 }
 
+// ── Wireframe styles ──────────────────────────────────────────────────────────
+export type WireframeStyle = 'edges' | 'dense' | 'dashed' | 'points'
+
+function FigureWireframe({ scene, style }: { scene: THREE.Object3D; style: WireframeStyle }) {
+  const geo = useMemo(() => {
+    scene.updateMatrixWorld(true)
+    const rootInv = new THREE.Matrix4().copy(scene.matrixWorld).invert()
+    const pts: number[] = []
+
+    scene.traverse(obj => {
+      const mesh = obj as THREE.Mesh
+      if (!mesh.isMesh) return
+      const rel = new THREE.Matrix4().copy(mesh.matrixWorld).premultiply(rootInv)
+      let srcGeo: THREE.BufferGeometry
+
+      if (style === 'dense') {
+        srcGeo = new THREE.WireframeGeometry(mesh.geometry)
+      } else if (style === 'edges' || style === 'dashed') {
+        srcGeo = new THREE.EdgesGeometry(mesh.geometry, 20)
+      } else {
+        srcGeo = mesh.geometry
+      }
+
+      const pos = srcGeo.getAttribute('position')
+      const count = style === 'points' ? pos.count : pos.count
+      for (let i = 0; i < count; i++) {
+        const v = new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(rel)
+        pts.push(v.x, v.y, v.z)
+      }
+      if (style !== 'points') srcGeo.dispose()
+    })
+
+    const g = new THREE.BufferGeometry()
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts), 3))
+    return g
+  }, [scene, style])
+
+  const dashedRef = useRef<THREE.LineSegments>(null)
+  useEffect(() => { dashedRef.current?.computeLineDistances() }, [geo])
+  useEffect(() => () => { geo.dispose() }, [geo])
+
+  if (style === 'points') return (
+    <points geometry={geo}>
+      <pointsMaterial color="#000000" size={0.008} sizeAttenuation />
+    </points>
+  )
+  if (style === 'dashed') return (
+    <lineSegments ref={dashedRef} geometry={geo}>
+      <lineDashedMaterial color="#000000" dashSize={0.04} gapSize={0.04} />
+    </lineSegments>
+  )
+  return (
+    <lineSegments geometry={geo}>
+      <lineBasicMaterial color="#000000" />
+    </lineSegments>
+  )
+}
+
 // ── Orbiting figure pair (original + mirror) ──────────────────────────────────
 type FigurePairProps = {
   roomDepth: number; radius: number; speed: number
   x: number; y: number; z: number
-  figureScale: number; figureFacing: number; figureWireframe: boolean
+  figureScale: number; figureFacing: number; figureWireframe: boolean; wireframeStyle: WireframeStyle
   posts: Post[]; mirrorPosts: Post[]; showVertexImages: boolean; vertexImgSize: number
   orbiting: boolean
 }
-function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFacing, figureWireframe, posts, mirrorPosts, showVertexImages, vertexImgSize, orbiting }: FigurePairProps) {
+function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFacing, figureWireframe, wireframeStyle, posts, mirrorPosts, showVertexImages, vertexImgSize, orbiting }: FigurePairProps) {
   const { scene } = useGLTF('/figure.glb')
 
   const cloneWithMats = (s: THREE.Object3D) => {
@@ -168,7 +226,7 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
       const m = o as THREE.Mesh
       if (!m.isMesh) return
       const mats = Array.isArray(m.material) ? m.material : [m.material as THREE.Material]
-      mats.forEach((mt: THREE.Material) => { (mt as THREE.MeshStandardMaterial).wireframe = figureWireframe })
+      mats.forEach((mt: THREE.Material) => { mt.visible = !figureWireframe })
     }))
   }, [orig, mirror, figureWireframe])
 
@@ -180,6 +238,7 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
     <group ref={groupRef} position={[x, y, -(roomDepth / 2) + z]}>
       <group position={orbiting ? [radius, 0, 0] : [0, 0, 0]} scale={figureScale} rotation={[0, figureFacing, 0]}>
         <primitive object={orig} />
+        {figureWireframe && <FigureWireframe scene={orig} style={wireframeStyle} />}
         {showVertexImages && posts.length > 0 && (
           <Suspense fallback={null}>
             <FigureVertexImages scene={orig} posts={posts} size={vertexImgSize} />
@@ -189,6 +248,7 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
       {orbiting && (
         <group position={[-radius, 0, 0]} scale={[-figureScale, figureScale, figureScale]} rotation={[0, -figureFacing, 0]}>
           <primitive object={mirror} />
+          {figureWireframe && <FigureWireframe scene={mirror} style={wireframeStyle} />}
           {showVertexImages && mirrorPosts.length > 0 && (
             <Suspense fallback={null}>
               <FigureVertexImages scene={mirror} posts={mirrorPosts} size={vertexImgSize} />
@@ -212,13 +272,13 @@ type RoomSceneProps = {
   posts: Post[]
   showDoggo: boolean; doggoScale: number; doggoX: number; doggoY: number; doggoZ: number
   showFigure: boolean; figureRadius: number; figureSpeed: number; figureX: number; figureY: number; figureZ: number
-  figureScale: number; figureFacing: number; figureWireframe: boolean
+  figureScale: number; figureFacing: number; figureWireframe: boolean; wireframeStyle: WireframeStyle
   showVertexImages: boolean; vertexImgSize: number
   figureStudent: string | null; figureStudent2: string | null
   figureOrbiting: boolean
   camX: number; camY: number; camZ: number
 }
-function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing, figureWireframe, showVertexImages, vertexImgSize, figureStudent, figureStudent2, figureOrbiting, camX, camY, camZ }: RoomSceneProps) {
+function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing, figureWireframe, wireframeStyle, showVertexImages, vertexImgSize, figureStudent, figureStudent2, figureOrbiting, camX, camY, camZ }: RoomSceneProps) {
   const figurePosts  = figureStudent  ? posts.filter(p => p.student_name === figureStudent)  : posts
   const mirrorPosts  = figureStudent2 ? posts.filter(p => p.student_name === figureStudent2) : posts
 
@@ -254,7 +314,7 @@ function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showF
 
       {showFigure && (
         <Suspense fallback={null}>
-          <FigurePair roomDepth={D} radius={figureRadius} speed={figureSpeed} x={figureX} y={figureY} z={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} posts={figurePosts} mirrorPosts={mirrorPosts} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} orbiting={figureOrbiting} />
+          <FigurePair roomDepth={D} radius={figureRadius} speed={figureSpeed} x={figureX} y={figureY} z={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} posts={figurePosts} mirrorPosts={mirrorPosts} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} orbiting={figureOrbiting} />
         </Suspense>
       )}
 
@@ -263,14 +323,14 @@ function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showF
 }
 
 // ── Entry point — pre-loads image dimensions before mounting scene ─────────────
-export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, doggoX = 0, doggoY = 0, doggoZ = 0, showFigure = true, figureRadius = 5, figureSpeed = 0.5, figureX = 0, figureY = 0, figureZ = 0, figureScale = 1, figureFacing = 0, figureWireframe = false, showVertexImages = false, vertexImgSize = 0.05, figureStudent = null, figureStudent2 = null, figureOrbiting = true, camX = 0, camY = EYE, camZ = 55 }: { posts: Post[]; showDoggo?: boolean; doggoScale?: number; doggoX?: number; doggoY?: number; doggoZ?: number; showFigure?: boolean; figureRadius?: number; figureSpeed?: number; figureX?: number; figureY?: number; figureZ?: number; figureScale?: number; figureFacing?: number; figureWireframe?: boolean; showVertexImages?: boolean; vertexImgSize?: number; figureStudent?: string | null; figureStudent2?: string | null; figureOrbiting?: boolean; camX?: number; camY?: number; camZ?: number }) {
+export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, doggoX = 0, doggoY = 0, doggoZ = 0, showFigure = true, figureRadius = 5, figureSpeed = 0.5, figureX = 0, figureY = 0, figureZ = 0, figureScale = 1, figureFacing = 0, figureWireframe = false, wireframeStyle = 'edges', showVertexImages = false, vertexImgSize = 0.05, figureStudent = null, figureStudent2 = null, figureOrbiting = true, camX = 0, camY = EYE, camZ = 55 }: { posts: Post[]; showDoggo?: boolean; doggoScale?: number; doggoX?: number; doggoY?: number; doggoZ?: number; showFigure?: boolean; figureRadius?: number; figureSpeed?: number; figureX?: number; figureY?: number; figureZ?: number; figureScale?: number; figureFacing?: number; figureWireframe?: boolean; wireframeStyle?: WireframeStyle; showVertexImages?: boolean; vertexImgSize?: number; figureStudent?: string | null; figureStudent2?: string | null; figureOrbiting?: boolean; camX?: number; camY?: number; camZ?: number }) {
   return (
     <Canvas
       camera={{ position: [camX, camY, camZ], fov: 72 }}
       dpr={[1, 2]}
       style={{ width: '100%', height: '100%', touchAction: 'none', background: '#ffffff' }}
     >
-      <RoomScene posts={posts} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} />
+      <RoomScene posts={posts} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} />
     </Canvas>
   )
 }
