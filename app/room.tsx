@@ -218,8 +218,9 @@ type FigurePairProps = {
   figureScale: number; figureFacing: number; figureWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
   posts: Post[]; mirrorPosts: Post[]; showVertexImages: boolean; vertexImgSize: number
   orbiting: boolean
+  meshTexture: string | null
 }
-function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, posts, mirrorPosts, showVertexImages, vertexImgSize, orbiting }: FigurePairProps) {
+function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, posts, mirrorPosts, showVertexImages, vertexImgSize, orbiting, meshTexture }: FigurePairProps) {
   const { scene } = useGLTF('/figure.glb')
 
   const cloneWithMats = (s: THREE.Object3D) => {
@@ -236,14 +237,37 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
   const mirror = useMemo(() => cloneWithMats(scene), [scene])
   const groupRef = useRef<THREE.Group>(null)
 
+  // Mesh visibility: always show when texture applied, otherwise hide when wireframe on
   useEffect(() => {
     ;[orig, mirror].forEach(s => s.traverse(o => {
       const m = o as THREE.Mesh
       if (!m.isMesh) return
       const mats = Array.isArray(m.material) ? m.material : [m.material as THREE.Material]
-      mats.forEach((mt: THREE.Material) => { mt.visible = !figureWireframe })
+      mats.forEach((mt: THREE.Material) => { mt.visible = meshTexture ? true : !figureWireframe })
     }))
-  }, [orig, mirror, figureWireframe])
+  }, [orig, mirror, figureWireframe, meshTexture])
+
+  // Mesh texture: load and apply to all cloned materials
+  useEffect(() => {
+    const applyMap = (map: THREE.Texture | null) => {
+      ;[orig, mirror].forEach(root => root.traverse(o => {
+        const m = o as THREE.Mesh
+        if (!m.isMesh) return
+        const mats = Array.isArray(m.material) ? m.material : [m.material as THREE.Material]
+        mats.forEach(mt => {
+          ;(mt as THREE.MeshStandardMaterial).map = map
+          mt.needsUpdate = true
+        })
+      }))
+    }
+    if (!meshTexture) { applyMap(null); return }
+    let cancelled = false
+    new THREE.TextureLoader().load(meshTexture, tex => {
+      if (cancelled) { tex.dispose(); return }
+      applyMap(tex)
+    })
+    return () => { cancelled = true }
+  }, [meshTexture, orig, mirror])
 
   useFrame((_, delta) => {
     if (groupRef.current && orbiting) groupRef.current.rotation.y += speed * delta
@@ -293,8 +317,9 @@ type RoomSceneProps = {
   figureOrbiting: boolean
   camX: number; camY: number; camZ: number
   showWalls: boolean
+  meshTexture: string | null
 }
-function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, showVertexImages, vertexImgSize, figureStudent, figureStudent2, figureOrbiting, camX, camY, camZ, showWalls }: RoomSceneProps) {
+function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, showVertexImages, vertexImgSize, figureStudent, figureStudent2, figureOrbiting, camX, camY, camZ, showWalls, meshTexture }: RoomSceneProps) {
   const match = (a: string | null | undefined, b: string | null) =>
     a != null && b != null && a.trim().toLowerCase() === b.trim().toLowerCase()
   const figurePosts  = figureStudent  ? posts.filter(p => match(p.student_name, figureStudent))  : posts
@@ -334,7 +359,7 @@ function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showF
 
       {showFigure && (
         <Suspense fallback={null}>
-          <FigurePair roomDepth={D} radius={figureRadius} speed={figureSpeed} x={figureX} y={figureY} z={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} posts={figurePosts} mirrorPosts={mirrorPosts} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} orbiting={figureOrbiting} />
+          <FigurePair roomDepth={D} radius={figureRadius} speed={figureSpeed} x={figureX} y={figureY} z={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} posts={figurePosts} mirrorPosts={mirrorPosts} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} orbiting={figureOrbiting} meshTexture={meshTexture} />
         </Suspense>
       )}
 
@@ -343,14 +368,14 @@ function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showF
 }
 
 // ── Entry point — pre-loads image dimensions before mounting scene ─────────────
-export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, doggoX = 0, doggoY = 0, doggoZ = 0, showFigure = true, figureRadius = 5, figureSpeed = 0.5, figureX = 0, figureY = 0, figureZ = 0, figureScale = 1, figureFacing = 0, figureWireframe = true, wireframeStyle = 'edges', dotSize = 0.200, dotColor = '#000000', dotCount = 30000, showVertexImages = false, vertexImgSize = 0.05, figureStudent = null, figureStudent2 = null, figureOrbiting = true, camX = 0, camY = EYE, camZ = 55, showWalls = false }: { posts: Post[]; showDoggo?: boolean; doggoScale?: number; doggoX?: number; doggoY?: number; doggoZ?: number; showFigure?: boolean; figureRadius?: number; figureSpeed?: number; figureX?: number; figureY?: number; figureZ?: number; figureScale?: number; figureFacing?: number; figureWireframe?: boolean; wireframeStyle?: WireframeStyle; dotSize?: number; dotColor?: string; dotCount?: number; showVertexImages?: boolean; vertexImgSize?: number; figureStudent?: string | null; figureStudent2?: string | null; figureOrbiting?: boolean; camX?: number; camY?: number; camZ?: number; showWalls?: boolean }) {
+export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, doggoX = 0, doggoY = 0, doggoZ = 0, showFigure = true, figureRadius = 5, figureSpeed = 0.5, figureX = 0, figureY = 0, figureZ = 0, figureScale = 1, figureFacing = 0, figureWireframe = true, wireframeStyle = 'edges', dotSize = 0.200, dotColor = '#000000', dotCount = 30000, showVertexImages = false, vertexImgSize = 0.05, figureStudent = null, figureStudent2 = null, figureOrbiting = true, camX = 0, camY = EYE, camZ = 55, showWalls = false, meshTexture = null }: { posts: Post[]; showDoggo?: boolean; doggoScale?: number; doggoX?: number; doggoY?: number; doggoZ?: number; showFigure?: boolean; figureRadius?: number; figureSpeed?: number; figureX?: number; figureY?: number; figureZ?: number; figureScale?: number; figureFacing?: number; figureWireframe?: boolean; wireframeStyle?: WireframeStyle; dotSize?: number; dotColor?: string; dotCount?: number; showVertexImages?: boolean; vertexImgSize?: number; figureStudent?: string | null; figureStudent2?: string | null; figureOrbiting?: boolean; camX?: number; camY?: number; camZ?: number; showWalls?: boolean; meshTexture?: string | null }) {
   return (
     <Canvas
       camera={{ position: [camX, camY, camZ], fov: 72 }}
       dpr={[1, 2]}
       style={{ width: '100%', height: '100%', touchAction: 'none', background: '#ffffff' }}
     >
-      <RoomScene posts={posts} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} />
+      <RoomScene posts={posts} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} meshTexture={meshTexture} />
     </Canvas>
   )
 }

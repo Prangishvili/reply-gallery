@@ -144,6 +144,7 @@ function AdminPanel({
   dotColor, setDotColor,
   dotCount, setDotCount,
   showWalls, setShowWalls,
+  meshTexture, setMeshTexture,
   showVertexImages, setShowVertexImages,
   vertexImgSize, setVertexImgSize,
   camX, setCamX,
@@ -196,6 +197,7 @@ function AdminPanel({
   dotColor: string; setDotColor: (v: string) => void
   dotCount: number; setDotCount: (v: number) => void
   showWalls: boolean; setShowWalls: (v: boolean) => void
+  meshTexture: string | null; setMeshTexture: (v: string | null) => void
   showVertexImages: boolean; setShowVertexImages: (v: boolean) => void
   vertexImgSize: number; setVertexImgSize: (v: number) => void
   camX: number; setCamX: (v: number) => void
@@ -430,6 +432,44 @@ function AdminPanel({
         <PanelSlider label="Center Z"   value={figureZ}      min={-100} max={100} step={2}    decimals={0} onChange={setFigureZ} />
       </PanelSection>
 
+      <PanelSection title="Mesh texture">
+        {meshTexture ? (
+          <div style={{ marginBottom: 10 }}>
+            <img src={meshTexture} style={{ width: '100%', height: 80, objectFit: 'cover', display: 'block', marginBottom: 8 }} />
+            <button
+              onClick={() => { URL.revokeObjectURL(meshTexture); setMeshTexture(null) }}
+              style={{
+                fontFamily: P.font, fontSize: 10, letterSpacing: 0.5, width: '100%',
+                padding: '5px 0', background: 'transparent', color: P.dim,
+                border: `1px solid ${P.border}`, cursor: 'pointer',
+              }}
+            >
+              Remove texture
+            </button>
+          </div>
+        ) : (
+          <div style={{ fontSize: 10, color: P.low, marginBottom: 10 }}>No texture applied</div>
+        )}
+        <label style={{
+          display: 'block', fontFamily: P.font, fontSize: 10, letterSpacing: 0.5,
+          padding: '7px 0', textAlign: 'center' as const,
+          border: `1px solid ${P.border}`, color: P.dim, cursor: 'pointer',
+        }}>
+          {meshTexture ? 'Replace image' : 'Upload image'}
+          <input
+            type="file" accept="image/*"
+            style={{ display: 'none' }}
+            onChange={e => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              if (meshTexture) URL.revokeObjectURL(meshTexture)
+              setMeshTexture(URL.createObjectURL(file))
+              e.target.value = ''
+            }}
+          />
+        </label>
+      </PanelSection>
+
       <PanelSection title="Camera">
         <PanelSlider label="X" value={camX} min={-240} max={240} step={1} decimals={0} onChange={setCamX} />
         <PanelSlider label="Y" value={camY} min={0}    max={400} step={1} decimals={0} onChange={setCamY} />
@@ -538,25 +578,26 @@ function HomeInner() {
   const [doggoY, setDoggoY] = useState(0)
   const [doggoZ, setDoggoZ] = useState(0)
   const [showFigure, setShowFigure] = useState(true)
-  const [figureRadius, setFigureRadius] = useState(5)
+  const [figureRadius, setFigureRadius] = useState(17.5)
   const [figureSpeed, setFigureSpeed] = useState(0.05)
   const [figureX, setFigureX] = useState(0)
   const [figureY, setFigureY] = useState(-10)
   const [figureZ, setFigureZ] = useState(0)
-  const [figureScale, setFigureScale] = useState(180)
+  const [figureScale, setFigureScale] = useState(200)
   const [figureFacing, setFigureFacing] = useState(1.45)
   const [figureWireframe, setFigureWireframe] = useState(true)
   const [wireframeStyle, setWireframeStyle] = useState<WireframeStyle>('points')
-  const [dotSize, setDotSize] = useState(0.200)
+  const [dotSize, setDotSize] = useState(0.400)
+  const [meshTexture, setMeshTexture] = useState<string | null>(null)
   const [dotColor, setDotColor] = useState('#000000')
   const [dotCount, setDotCount] = useState(30000)
   const [showWalls, setShowWalls] = useState(false)
   const [showVertexImages, setShowVertexImages] = useState(true)
-  const [vertexImgSize, setVertexImgSize] = useState(0.05)
+  const [vertexImgSize, setVertexImgSize] = useState(0.025)
   const [selectedStudents, setSelectedStudents] = useState<string[]>([])
   const figureStudent  = selectedStudents[0] ?? null
   const figureStudent2 = selectedStudents[1] ?? null
-  const figureOrbiting = selectedStudents.length !== 1
+  const figureOrbiting = selectedStudents.length === 2
 
   const handleStudentSelect = (name: string) => {
     setSelectedStudents(prev => {
@@ -882,7 +923,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           </div>
         )}
         {!loading && posts.length > 0 && mountedView === 'room' && !selectedStudent && (
-          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} />
+          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} meshTexture={meshTexture} />
         )}
         {!loading && posts.length > 0 && mountedView === 'globe' && !selectedStudent && (
           <GlobeCanvas
@@ -914,7 +955,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
 
         {/* Personal student room */}
         {mountedStudent && (
-          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} />
+          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} meshTexture={meshTexture} />
         )}
       </div>
 
@@ -1039,6 +1080,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           dotColor={dotColor} setDotColor={setDotColor}
           dotCount={dotCount} setDotCount={setDotCount}
           showWalls={showWalls} setShowWalls={setShowWalls}
+          meshTexture={meshTexture} setMeshTexture={setMeshTexture}
           showVertexImages={showVertexImages} setShowVertexImages={setShowVertexImages}
           vertexImgSize={vertexImgSize} setVertexImgSize={setVertexImgSize}
           camX={camX} setCamX={setCamX}
