@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
 import { v4 as uuidv4 } from 'uuid'
 import sharp from 'sharp'
+
+function adminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  )
+}
 
 export async function GET() {
   const { data, error } = await supabase
@@ -63,13 +72,15 @@ export async function DELETE(request: NextRequest) {
   const id = new URL(request.url).searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
-  const { data: post } = await supabase.from('posts').select('image_url').eq('id', id).single()
+  const admin = adminClient()
+
+  const { data: post } = await admin.from('posts').select('image_url').eq('id', id).single()
   if (!post) return NextResponse.json({ error: 'not found' }, { status: 404 })
 
   const fileName = post.image_url.split('/').pop() as string
-  await supabase.storage.from('images').remove([fileName])
+  await admin.storage.from('images').remove([fileName])
 
-  const { error } = await supabase.from('posts').delete().eq('id', id)
+  const { error } = await admin.from('posts').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   return NextResponse.json({ ok: true })
