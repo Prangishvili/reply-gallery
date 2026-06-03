@@ -670,8 +670,10 @@ function HomeInner() {
   const [fadeOut, setFadeOut] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const bgAudioRef = useRef<HTMLAudioElement | null>(null)
+  const bgAudioBlobRef = useRef<string | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
+  const soundInputRef = useRef<HTMLInputElement>(null)
 
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
@@ -950,6 +952,33 @@ function HomeInner() {
     bgAudioRef.current = audio
   }
 
+  function replaceBgAudio(file: File) {
+    const old = bgAudioRef.current
+    if (old) { old.pause(); old.src = '' }
+    audioCtxRef.current?.close().catch(() => {})
+    audioCtxRef.current = null
+    analyserRef.current = null
+    if (bgAudioBlobRef.current) URL.revokeObjectURL(bgAudioBlobRef.current)
+    const url = URL.createObjectURL(file)
+    bgAudioBlobRef.current = url
+    const audio = new Audio(url)
+    audio.loop = true
+    audio.volume = audioVolume
+    try {
+      const ctx = new AudioContext()
+      audioCtxRef.current = ctx
+      const source = ctx.createMediaElementSource(audio)
+      const analyser = ctx.createAnalyser()
+      analyser.fftSize = 256
+      analyser.smoothingTimeConstant = 0.8
+      source.connect(analyser)
+      analyser.connect(ctx.destination)
+      analyserRef.current = analyser
+    } catch {}
+    audio.play().catch(() => {})
+    bgAudioRef.current = audio
+  }
+
   function goToGallery() {
     setFadeOut(true)
     setTimeout(() => setPhase('gallery'), 600)
@@ -998,6 +1027,7 @@ function HomeInner() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (items.length === 0) { setError('Add at least one image.'); return }
+    if (!uploadStudentName.trim()) { setError('Please select your name.'); return }
     setSubmitting(true)
     setError(null)
 
@@ -1021,7 +1051,7 @@ function HomeInner() {
       </div>
 
       {/* View toggle */}
-      {phase === 'gallery' && !loading && posts.length > 0 && !selectedStudent && (
+      {phase === 'gallery' && !loading && !selectedStudent && (
         <div
           className="fixed top-6 z-20"
           style={{ right: isAdmin && !panelHidden ? 296 : 16 }}
@@ -1060,12 +1090,13 @@ function HomeInner() {
             <button onClick={() => setActiveEditStudent(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'ui-monospace, monospace', fontSize: 12, color: 'rgba(0,0,0,0.3)', padding: 0, lineHeight: 1 }}>×</button>
           </div>
           {([
-            { label: 'Scale',    key: 'scale',   min: 0.1, max: 5,   step: 0.05, dec: 2 },
-            { label: 'Offset X', key: 'offsetX', min: -1,  max: 1,   step: 0.01, dec: 2 },
-            { label: 'Offset Y', key: 'offsetY', min: -1,  max: 1,   step: 0.01, dec: 2 },
-            { label: 'Rotation', key: 'rotation', min: 0,  max: 360, step: 1,    dec: 0 },
+            { label: 'Scale',    key: 'scale',    min: 0.1, max: 5,   step: 0.05, dec: 2 },
+            { label: 'Repeat',   key: 'repeat',   min: 1,   max: 20,  step: 1,    dec: 0 },
+            { label: 'Offset X', key: 'offsetX',  min: -1,  max: 1,   step: 0.01, dec: 2 },
+            { label: 'Offset Y', key: 'offsetY',  min: -1,  max: 1,   step: 0.01, dec: 2 },
+            { label: 'Rotation', key: 'rotation', min: 0,   max: 360, step: 1,    dec: 0 },
           ] as { label: string; key: keyof TextureMapping; min: number; max: number; step: number; dec: number }[]).map(({ label, key, min, max, step, dec }) => {
-            const val = (studentTextureMappings[activeEditStudent] ?? { scale: 1, offsetX: 0, offsetY: 0, rotation: 0 })[key]
+            const val = (studentTextureMappings[activeEditStudent] ?? { scale: 1, repeat: 1, offsetX: 0, offsetY: 0, rotation: 0 })[key]
             return (
               <div key={key} style={{ marginBottom: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -1075,13 +1106,48 @@ function HomeInner() {
                 <input type="range" min={min} max={max} step={step} value={val}
                   onChange={e => setStudentTextureMappings(prev => ({
                     ...prev,
-                    [activeEditStudent]: { ...(prev[activeEditStudent] ?? { scale: 1, offsetX: 0, offsetY: 0, rotation: 0 }), [key]: Number(e.target.value) }
+                    [activeEditStudent]: { ...(prev[activeEditStudent] ?? { scale: 1, repeat: 1, offsetX: 0, offsetY: 0, rotation: 0 }), [key]: Number(e.target.value) }
                   }))}
                   style={{ width: '100%', accentColor: 'rgba(0,0,0,0.5)', cursor: 'pointer' }}
                 />
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* Image controls overlay — room view, after upload */}
+      {phase === 'gallery' && mountedView === 'room' && !selectedStudent && posts.length > 0 && (
+        <div style={{
+          position: 'fixed', right: isAdmin && !panelHidden ? 296 + 24 : 24,
+          top: '50%', transform: 'translateY(-50%)',
+          zIndex: 30, width: 160, display: 'flex', flexDirection: 'column', gap: 0,
+          pointerEvents: 'auto',
+        }}>
+          {([
+            { label: 'Image size', value: vertexImgSize, min: 0.005, max: 3,  step: 0.005, dec: 3, set: setVertexImgSize },
+            { label: 'Repeat',     value: vertexRepeat,  min: 1,     max: 20, step: 1,     dec: 0, set: setVertexRepeat  },
+          ] as { label: string; value: number; min: number; max: number; step: number; dec: number; set: (v: number) => void }[]).map(({ label, value, min, max, step, dec, set }) => (
+            <div key={label} style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.45)' }}>{label}</span>
+                <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.6)', fontVariantNumeric: 'tabular-nums' }}>{dec === 0 ? value : value.toFixed(dec)}</span>
+              </div>
+              <input type="range" min={min} max={max} step={step} value={value}
+                onChange={e => set(Number(e.target.value))}
+                style={{ width: '100%', accentColor: 'rgba(0,0,0,0.5)', cursor: 'pointer' }}
+              />
+            </div>
+          ))}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 2 }}>
+            <button
+              onClick={() => {
+                posts.filter(p => p.image_url.startsWith('blob:')).forEach(p => URL.revokeObjectURL(p.image_url))
+                setPosts(p => p.filter(post => !post.image_url.startsWith('blob:')))
+              }}
+              style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.4)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            >remove all</button>
+          </div>
         </div>
       )}
 
@@ -1298,14 +1364,28 @@ Reply is a virtual art exhibition that challenges the limits of natural language
 
       {/* Upload FAB */}
       {phase === 'gallery' && (
-        <button
-          onClick={() => setShowUpload(true)}
-          className="fixed bottom-9 left-1/2 -translate-x-1/2 z-20 bg-white shadow-md rounded-full px-7 py-[18px] font-mono text-black text-xl leading-none hover:shadow-lg transition-shadow border border-gray-100"
-          aria-label="Upload"
-          style={{ transform: 'translateX(calc(-50% - 140px))' }}
-        >
-          +
-        </button>
+        <div className="fixed bottom-9 left-1/2 -translate-x-1/2 z-20 flex gap-3">
+          <button
+            onClick={() => setShowUpload(true)}
+            className="bg-white rounded-full px-7 py-[18px] font-mono text-black text-xl leading-none transition-colors hover:bg-black hover:text-white"
+            style={{ border: '1px solid black' }}
+            aria-label="Upload image"
+          >+</button>
+          <button
+            onClick={() => soundInputRef.current?.click()}
+            className="bg-white rounded-full px-5 py-[18px] font-mono text-black text-base leading-none transition-colors hover:bg-black hover:text-white"
+            style={{ border: '1px solid black' }}
+            aria-label="Upload sound"
+            title="Replace background sound"
+          >♫</button>
+          <input
+            ref={soundInputRef}
+            type="file"
+            accept="audio/*"
+            className="hidden"
+            onChange={e => { if (e.target.files?.[0]) replaceBgAudio(e.target.files[0]); e.target.value = '' }}
+          />
+        </div>
       )}
 
       {/* Admin panel */}
@@ -1505,6 +1585,13 @@ Reply is a virtual art exhibition that challenges the limits of natural language
 
               {items.length > 0 && (
                 <div className="overflow-y-auto flex flex-col gap-2 min-h-0">
+                  <div className="flex justify-end shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => { items.forEach(it => URL.revokeObjectURL(it.preview)); setItems([]) }}
+                      className="font-mono text-xs text-gray-400 hover:text-black transition-colors"
+                    >clear all</button>
+                  </div>
                   {items.map((item, i) => (
                     <div key={i} className="flex items-center gap-3 p-2 rounded-xl border border-gray-100 bg-gray-50">
                       <div className="relative shrink-0 w-14 h-14 rounded-lg overflow-hidden bg-gray-200">
@@ -1526,6 +1613,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
                   ))}
                 </div>
               )}
+
 
               {error && <p className="font-mono text-xs text-red-500 shrink-0">{error}</p>}
 

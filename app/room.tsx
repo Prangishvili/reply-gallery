@@ -400,7 +400,7 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
           if ((m.material as THREE.Material).type === 'MeshBasicMaterial') {
             ;(m.material as THREE.Material).dispose()
           }
-          m.material = new THREE.MeshBasicMaterial({ map: tex })
+          m.material = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.01 })
         })
       })
     })
@@ -568,12 +568,12 @@ function CircleNameTag({ student, nameSize, blurNames, onNameClick, namesClickab
   )
 }
 
-function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexImages, vertexImgSize, vertexRepeat, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, meshTexture, texScale, texOffsetX, texOffsetY, texRotation, student, onTextureUpload, analyserRef }: {
+function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexImages, vertexImgSize, vertexRepeat, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, meshTexture, texScale, texRepeat, texOffsetX, texOffsetY, texRotation, student, onTextureUpload, analyserRef }: {
   angle: number; radius: number; figureScale: number; figureY: number
   posts: Post[]; showVertexImages: boolean; vertexImgSize: number; vertexRepeat: number
   showWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
   meshTexture: string | null
-  texScale: number; texOffsetX: number; texOffsetY: number; texRotation: number
+  texScale: number; texRepeat: number; texOffsetX: number; texOffsetY: number; texRotation: number
   student: string; onTextureUpload: (student: string, url: string | null) => void
   analyserRef?: React.RefObject<AnalyserNode | null>
 }) {
@@ -643,7 +643,7 @@ function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexIm
         if ((m.material as THREE.Material).type === 'MeshBasicMaterial') {
           ;(m.material as THREE.Material).dispose()
         }
-        m.material = new THREE.MeshBasicMaterial({ map: tex })
+        m.material = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.01 })
       })
     })
     return () => { cancelled = true }
@@ -652,12 +652,12 @@ function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexIm
   useEffect(() => {
     const tex = loadedTexRef.current
     if (!tex) return
-    tex.repeat.set(texScale, texScale)
+    tex.repeat.set(texScale * texRepeat, texScale * texRepeat)
     tex.offset.set(texOffsetX, texOffsetY)
     tex.rotation = texRotation * (Math.PI / 180)
     tex.center.set(0.5, 0.5)
     tex.needsUpdate = true
-  }, [texScale, texOffsetX, texOffsetY, texRotation])
+  }, [texScale, texRepeat, texOffsetX, texOffsetY, texRotation])
 
   const rotY = 4.65 + angle + Math.PI
 
@@ -698,8 +698,8 @@ function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexIm
 
 type CircleCameraMode = 'perspective' | 'orthographic' | 'panoramic'
 
-type TextureMapping = { scale: number; offsetX: number; offsetY: number; rotation: number }
-const DEFAULT_MAPPING: TextureMapping = { scale: 1, offsetX: 0, offsetY: 0, rotation: 0 }
+type TextureMapping = { scale: number; repeat: number; offsetX: number; offsetY: number; rotation: number }
+const DEFAULT_MAPPING: TextureMapping = { scale: 1, repeat: 1, offsetX: 0, offsetY: 0, rotation: 0 }
 
 function CircleScene({ posts, students, circleRadius, figureScale, figureY, showVertexImages, vertexImgSize, vertexRepeat, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, studentTextures, studentTextureMappings, onTextureUpload, showNoiseGlobe, noiseColor1, noiseColor2, noiseSpeed, noiseScale, audioVolume, cameraMode, camX, camY, camZ, camFov, camZoom, camXLoop, camXLoopSpeed, analyserRef }: {
   posts: Post[]; students: string[]; circleRadius: number; figureScale: number; figureY: number
@@ -746,6 +746,7 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, show
             dotCount={dotCount}
             meshTexture={studentTextures[student] ?? null}
             texScale={(studentTextureMappings[student] ?? DEFAULT_MAPPING).scale}
+            texRepeat={(studentTextureMappings[student] ?? DEFAULT_MAPPING).repeat}
             texOffsetX={(studentTextureMappings[student] ?? DEFAULT_MAPPING).offsetX}
             texOffsetY={(studentTextureMappings[student] ?? DEFAULT_MAPPING).offsetY}
             texRotation={(studentTextureMappings[student] ?? DEFAULT_MAPPING).rotation}
