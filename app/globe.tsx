@@ -167,7 +167,7 @@ const noiseFrag = `
   }
 `
 
-function NoiseGlobe({ audioVolume, analyserRef, noiseColor1, noiseColor2, noiseSpeed, noiseScale }: {
+export function NoiseGlobe({ audioVolume, analyserRef, noiseColor1, noiseColor2, noiseSpeed, noiseScale }: {
   audioVolume: number
   analyserRef: { current: AnalyserNode | null }
   noiseColor1: string

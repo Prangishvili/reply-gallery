@@ -6,9 +6,10 @@ import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import { Post } from '@/lib/supabase'
 
-const GlobeCanvas = dynamic(() => import('./globe'), { ssr: false })
-const RoomCanvas  = dynamic(() => import('./room'),  { ssr: false })
-import type { WireframeStyle } from './room'
+const GlobeCanvas  = dynamic(() => import('./globe'), { ssr: false })
+const RoomCanvas   = dynamic(() => import('./room'),  { ssr: false })
+const CircleCanvas = dynamic(() => import('./room').then(m => ({ default: m.CircleCanvas })), { ssr: false })
+import type { WireframeStyle, CircleCameraMode } from './room'
 
 const STUDENTS = ['Nodar Gogichaishvili','Sesili Gurgenidze','Dominika Davshrishovi','Nutsa Kavtelishvili','Ketevan Lomiashvili','Ana Mamniashvili','Sergi Sarajevi','Natali Chixelidze','Salome Shalvashvili','Bako Shengelia','Mariam Wulaia','Mariam Qsovreli']
 
@@ -145,9 +146,29 @@ function AdminPanel({
   dotCount, setDotCount,
   showWalls, setShowWalls,
   meshTexture, setMeshTexture,
+  texScale, setTexScale,
+  texOffsetX, setTexOffsetX,
+  texOffsetY, setTexOffsetY,
+  texRotation, setTexRotation,
   showVertexImages, setShowVertexImages,
   vertexImgSize, setVertexImgSize,
   vertexRepeat, setVertexRepeat,
+  enableBloom, setEnableBloom,
+  bloomIntensity, setBloomIntensity,
+  enableDOF, setEnableDOF,
+  dofFocus, setDofFocus,
+  dofBokeh, setDofBokeh,
+  enableDissolve, setEnableDissolve,
+  circleRadius, setCircleRadius,
+  circleCameraMode, setCircleCameraMode,
+  circleCamX, setCircleCamX,
+  circleCamY, setCircleCamY,
+  circleCamZ, setCircleCamZ,
+  circleCamFov, setCircleCamFov,
+  circleCamZoom, setCircleCamZoom,
+  circleCamXLoop, setCircleCamXLoop,
+  circleCamXLoopSpeed, setCircleCamXLoopSpeed,
+  studentTextures, setStudentTextures,
   camX, setCamX,
   camY, setCamY,
   camZ, setCamZ,
@@ -174,7 +195,7 @@ function AdminPanel({
   wireframeSegments: number; setWireframeSegments: (v: number) => void
   wireframeOpacity: number; setWireframeOpacity: (v: number) => void
   wireframeColor: string; setWireframeColor: (v: string) => void
-  viewMode: 'globe' | 'room'; setViewMode: (v: 'globe' | 'room') => void
+  viewMode: 'globe' | 'room' | 'circle'; setViewMode: (v: 'globe' | 'room' | 'circle') => void
   timebombActive: boolean; setTimebombActive: (v: boolean) => void
   hiddenCount: number; resetTimebomb: () => void
   showTexture: boolean; setShowTexture: (v: boolean) => void
@@ -201,9 +222,29 @@ function AdminPanel({
   dotCount: number; setDotCount: (v: number) => void
   showWalls: boolean; setShowWalls: (v: boolean) => void
   meshTexture: string | null; setMeshTexture: (v: string | null) => void
+  texScale: number; setTexScale: (v: number) => void
+  texOffsetX: number; setTexOffsetX: (v: number) => void
+  texOffsetY: number; setTexOffsetY: (v: number) => void
+  texRotation: number; setTexRotation: (v: number) => void
   showVertexImages: boolean; setShowVertexImages: (v: boolean) => void
   vertexImgSize: number; setVertexImgSize: (v: number) => void
   vertexRepeat: number; setVertexRepeat: (v: number) => void
+  enableBloom: boolean; setEnableBloom: (v: boolean) => void
+  bloomIntensity: number; setBloomIntensity: (v: number) => void
+  enableDOF: boolean; setEnableDOF: (v: boolean) => void
+  dofFocus: number; setDofFocus: (v: number) => void
+  dofBokeh: number; setDofBokeh: (v: number) => void
+  enableDissolve: boolean; setEnableDissolve: (v: boolean) => void
+  circleRadius: number; setCircleRadius: (v: number) => void
+  circleCameraMode: CircleCameraMode; setCircleCameraMode: (v: CircleCameraMode) => void
+  circleCamX: number; setCircleCamX: (v: number) => void
+  circleCamY: number; setCircleCamY: (v: number) => void
+  circleCamZ: number; setCircleCamZ: (v: number) => void
+  circleCamFov: number; setCircleCamFov: (v: number) => void
+  circleCamZoom: number; setCircleCamZoom: (v: number) => void
+  circleCamXLoop: boolean; setCircleCamXLoop: (v: boolean) => void
+  circleCamXLoopSpeed: number; setCircleCamXLoopSpeed: (v: number) => void
+  studentTextures: Record<string, string | null>; setStudentTextures: React.Dispatch<React.SetStateAction<Record<string, string | null>>>
   camX: number; setCamX: (v: number) => void
   camY: number; setCamY: (v: number) => void
   camZ: number; setCamZ: (v: number) => void
@@ -238,9 +279,9 @@ function AdminPanel({
 
       <PanelSection title="View">
         <PanelToggle
-          options={[{ label: 'Globe', value: 'globe' }, { label: 'Room', value: 'room' }]}
+          options={[{ label: 'Globe', value: 'globe' }, { label: 'Room', value: 'room' }, { label: 'Circle', value: 'circle' }]}
           value={viewMode}
-          onChange={v => setViewMode(v as 'globe' | 'room')}
+          onChange={v => setViewMode(v as 'globe' | 'room' | 'circle')}
         />
       </PanelSection>
 
@@ -426,6 +467,12 @@ function AdminPanel({
           value={showWalls ? 'show' : 'hide'}
           onChange={v => setShowWalls(v === 'show')}
         />
+        <div style={{ fontSize: 11, color: P.dim, marginBottom: 8 }}>Dissolve transition</div>
+        <PanelToggle
+          options={[{ label: 'On', value: 'on' }, { label: 'Off', value: 'off' }]}
+          value={enableDissolve ? 'on' : 'off'}
+          onChange={v => setEnableDissolve(v === 'on')}
+        />
         <div style={{ fontSize: 11, color: P.dim, marginBottom: 8 }}>Vertex images</div>
         <PanelToggle
           options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
@@ -434,9 +481,41 @@ function AdminPanel({
         />
         <PanelSlider label="Image size"   value={vertexImgSize}  min={0.005} max={3}  step={0.005} decimals={3} onChange={setVertexImgSize} />
         <PanelSlider label="Image repeat" value={vertexRepeat}   min={1}     max={50} step={1}     decimals={0} onChange={setVertexRepeat} />
+        <PanelSlider label="Circle R"   value={circleRadius} min={100}  max={1500} step={10}  decimals={0} onChange={setCircleRadius} />
         <PanelSlider label="Center X"   value={figureX}      min={-200} max={200} step={2}    decimals={0} onChange={setFigureX} />
         <PanelSlider label="Center Y"   value={figureY}      min={-100} max={100} step={1}    decimals={0} onChange={setFigureY} />
         <PanelSlider label="Center Z"   value={figureZ}      min={-100} max={100} step={2}    decimals={0} onChange={setFigureZ} />
+      </PanelSection>
+
+      <PanelSection title="Circle camera">
+        <PanelToggle
+          options={[{ label: 'Perspective', value: 'perspective' }, { label: 'Ortho', value: 'orthographic' }, { label: 'Panoramic', value: 'panoramic' }]}
+          value={circleCameraMode}
+          onChange={v => {
+            const mode = v as CircleCameraMode
+            setCircleCameraMode(mode)
+            if (mode === 'panoramic') setCircleCamFov(150)
+            else if (mode === 'perspective') setCircleCamFov(60)
+          }}
+        />
+        <PanelSlider label="Cam X"  value={circleCamX} min={-2000} max={2000} step={10}   decimals={0} onChange={setCircleCamX} />
+        <PanelSlider label="Cam Y"  value={circleCamY} min={-500}  max={2000} step={10}   decimals={0} onChange={setCircleCamY} />
+        <PanelSlider label="Cam Z"  value={circleCamZ} min={-2000} max={2000} step={10}   decimals={0} onChange={setCircleCamZ} />
+        {circleCameraMode !== 'orthographic' && (
+          <PanelSlider label="FOV"  value={circleCamFov} min={10} max={175} step={1} decimals={0} onChange={setCircleCamFov} />
+        )}
+        {circleCameraMode === 'orthographic' && (
+          <PanelSlider label="Zoom" value={circleCamZoom} min={0.1} max={10} step={0.1} decimals={1} onChange={setCircleCamZoom} />
+        )}
+        <div style={{ fontSize: 11, color: P.dim, marginBottom: 8, marginTop: 4 }}>Cam X loop</div>
+        <PanelToggle
+          options={[{ label: 'On', value: 'on' }, { label: 'Off', value: 'off' }]}
+          value={circleCamXLoop ? 'on' : 'off'}
+          onChange={v => setCircleCamXLoop(v === 'on')}
+        />
+        {circleCamXLoop && (
+          <PanelSlider label="Speed" value={circleCamXLoopSpeed} min={0.1} max={10} step={0.1} decimals={1} onChange={setCircleCamXLoopSpeed} />
+        )}
       </PanelSection>
 
       <PanelSection title="Mesh texture">
@@ -457,6 +536,12 @@ function AdminPanel({
         ) : (
           <div style={{ fontSize: 10, color: P.low, marginBottom: 10 }}>No texture applied</div>
         )}
+        {meshTexture && (<>
+          <PanelSlider label="Scale"    value={texScale}   min={0.1} max={5}  step={0.05} decimals={2} onChange={setTexScale} />
+          <PanelSlider label="Offset X" value={texOffsetX} min={-1}  max={1}  step={0.01} decimals={2} onChange={setTexOffsetX} />
+          <PanelSlider label="Offset Y" value={texOffsetY} min={-1}  max={1}  step={0.01} decimals={2} onChange={setTexOffsetY} />
+          <PanelSlider label="Rotation" value={texRotation} min={0}  max={360} step={1}   decimals={0} onChange={setTexRotation} />
+        </>)}
         <label style={{
           display: 'block', fontFamily: P.font, fontSize: 10, letterSpacing: 0.5,
           padding: '7px 0', textAlign: 'center' as const,
@@ -475,6 +560,58 @@ function AdminPanel({
             }}
           />
         </label>
+      </PanelSection>
+
+      <PanelSection title="Student textures">
+        {STUDENTS.map(name => {
+          const tex = studentTextures[name] ?? null
+          return (
+            <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0' }}>
+              {tex && <img src={tex} style={{ width: 22, height: 22, objectFit: 'cover', flexShrink: 0 }} />}
+              <span style={{ fontSize: 10, color: P.dim, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {name.split(' ')[0]}
+              </span>
+              {tex ? (
+                <button
+                  onClick={() => { URL.revokeObjectURL(tex); setStudentTextures(prev => { const n = { ...prev }; delete n[name]; return n }) }}
+                  style={{ fontFamily: P.font, fontSize: 10, padding: '1px 6px', background: 'transparent', border: `1px solid ${P.border}`, color: P.dim, cursor: 'pointer', flexShrink: 0 }}
+                >×</button>
+              ) : (
+                <label style={{ fontFamily: P.font, fontSize: 10, padding: '1px 6px', border: `1px solid ${P.border}`, color: P.low, cursor: 'pointer', flexShrink: 0 }}>
+                  +
+                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    setStudentTextures(prev => ({ ...prev, [name]: URL.createObjectURL(file) }))
+                    e.target.value = ''
+                  }} />
+                </label>
+              )}
+            </div>
+          )
+        })}
+      </PanelSection>
+
+      <PanelSection title="Effects">
+        <div style={{ fontSize: 11, color: P.dim, marginBottom: 8 }}>Bloom</div>
+        <PanelToggle
+          options={[{ label: 'On', value: 'on' }, { label: 'Off', value: 'off' }]}
+          value={enableBloom ? 'on' : 'off'}
+          onChange={v => setEnableBloom(v === 'on')}
+        />
+        {enableBloom && (
+          <PanelSlider label="Intensity" value={bloomIntensity} min={0.1} max={5} step={0.1} decimals={1} onChange={setBloomIntensity} />
+        )}
+        <div style={{ fontSize: 11, color: P.dim, marginBottom: 8, marginTop: 8 }}>Depth of field</div>
+        <PanelToggle
+          options={[{ label: 'On', value: 'on' }, { label: 'Off', value: 'off' }]}
+          value={enableDOF ? 'on' : 'off'}
+          onChange={v => setEnableDOF(v === 'on')}
+        />
+        {enableDOF && (<>
+          <PanelSlider label="Focus"  value={dofFocus}  min={0}   max={0.1} step={0.001} decimals={3} onChange={setDofFocus} />
+          <PanelSlider label="Bokeh"  value={dofBokeh}  min={1}   max={10}  step={0.5}   decimals={1} onChange={setDofBokeh} />
+        </>)}
       </PanelSection>
 
       <PanelSection title="Camera">
@@ -570,12 +707,32 @@ function HomeInner() {
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set())
   const [showAbout, setShowAbout] = useState(false)
 
-  const [viewMode, setViewMode] = useState<'globe' | 'room'>('room')
+  const [viewMode, setViewMode] = useState<'globe' | 'room' | 'circle'>('circle')
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null)
   const [personalRoomKey, setPersonalRoomKey] = useState(0)
+  const [circleKey, setCircleKey] = useState(0)
+  const [circleRadius, setCircleRadius] = useState(300)
+  const [circleCameraMode, setCircleCameraMode] = useState<CircleCameraMode>('orthographic')
+  const [circleCamX, setCircleCamX] = useState(150)
+  const [circleCamY, setCircleCamY] = useState(930)
+  const [circleCamZ, setCircleCamZ] = useState(-1350)
+  const [circleCamFov, setCircleCamFov] = useState(60)
+  const [circleCamZoom, setCircleCamZoom] = useState(1.8)
+  const [circleCamXLoop, setCircleCamXLoop] = useState(true)
+  const [circleCamXLoopSpeed, setCircleCamXLoopSpeed] = useState(0.1)
+  const [studentTextures, setStudentTextures] = useState<Record<string, string | null>>({})
 
-  const switchView = (v: 'globe' | 'room') => {
+  const handleCircleTextureUpload = (student: string, url: string | null) => {
+    setStudentTextures(prev => {
+      const old = prev[student]
+      if (old?.startsWith('blob:')) URL.revokeObjectURL(old)
+      return { ...prev, [student]: url }
+    })
+  }
+
+  const switchView = (v: 'globe' | 'room' | 'circle') => {
     if (v === 'room') setRoomKey(k => k + 1)
+    if (v === 'circle') setCircleKey(k => k + 1)
     setSelectedStudent(null)
     setViewMode(v)
   }
@@ -589,11 +746,11 @@ function HomeInner() {
     setSelectedStudent(null)
   }
 
-  // Delay mounting the room canvas so the GPU can release the globe context first
-  const [mountedView, setMountedView] = useState<'globe' | 'room'>('room')
+  // Delay mounting the room/circle canvas so the GPU can release the globe context first
+  const [mountedView, setMountedView] = useState<'globe' | 'room' | 'circle'>('circle')
   useEffect(() => {
     if (viewMode === 'globe') { setMountedView('globe'); return }
-    const id = setTimeout(() => setMountedView('room'), 200)
+    const id = setTimeout(() => setMountedView(viewMode), 200)
     return () => clearTimeout(id)
   }, [viewMode])
 
@@ -627,13 +784,26 @@ function HomeInner() {
   const [wireframeStyle, setWireframeStyle] = useState<WireframeStyle>('points')
   const [dotSize, setDotSize] = useState(0.400)
   const [meshTexture, setMeshTexture] = useState<string | null>(null)
+  const [texScale, setTexScale] = useState(1)
+  const [texOffsetX, setTexOffsetX] = useState(0)
+  const [texOffsetY, setTexOffsetY] = useState(0)
+  const [texRotation, setTexRotation] = useState(0)
   const [dotColor, setDotColor] = useState('#000000')
   const [dotCount, setDotCount] = useState(30000)
   const [showWalls, setShowWalls] = useState(false)
   const [showVertexImages, setShowVertexImages] = useState(true)
   const [vertexImgSize, setVertexImgSize] = useState(0.025)
   const [vertexRepeat, setVertexRepeat] = useState(1)
-  const [selectedStudents, setSelectedStudents] = useState<string[]>([])
+  const [enableBloom, setEnableBloom] = useState(false)
+  const [bloomIntensity, setBloomIntensity] = useState(1.5)
+  const [enableDOF, setEnableDOF] = useState(false)
+  const [dofFocus, setDofFocus] = useState(0.01)
+  const [dofBokeh, setDofBokeh] = useState(3)
+  const [enableDissolve, setEnableDissolve] = useState(false)
+  const [transitionKey, setTransitionKey] = useState(0)
+  const dissolveInitRef = useRef(false)
+
+  const [selectedStudents, setSelectedStudents] = useState<string[]>(['Salome Shalvashvili', 'Sergi Sarajevi'])
   const figureStudent  = selectedStudents[0] ?? null
   const figureStudent2 = selectedStudents[1] ?? null
   const figureOrbiting = selectedStudents.length === 2
@@ -646,6 +816,12 @@ function HomeInner() {
       return [prev[1], name]
     })
   }
+
+  // Increment transitionKey when student selection changes (skip first render)
+  useEffect(() => {
+    if (!dissolveInitRef.current) { dissolveInitRef.current = true; return }
+    setTransitionKey(k => k + 1)
+  }, [figureStudent, figureStudent2])
 
   const [camX, setCamX] = useState(0)
   const [camY, setCamY] = useState(260)
@@ -852,7 +1028,7 @@ function HomeInner() {
           style={{ right: isAdmin && !panelHidden ? 296 : 16 }}
         >
           <div style={{ display: 'flex', gap: 14 }}>
-            {(['globe', 'room'] as const).map(mode => (
+            {(['room', 'circle'] as const).map(mode => (
               <button
                 key={mode}
                 onClick={() => switchView(mode)}
@@ -987,7 +1163,10 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           </div>
         )}
         {!loading && posts.length > 0 && mountedView === 'room' && !selectedStudent && (
-          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} meshTexture={meshTexture} analyserRef={analyserRef} />
+          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} enableBloom={enableBloom} bloomIntensity={bloomIntensity} enableDOF={enableDOF} dofFocus={dofFocus} dofBokeh={dofBokeh} analyserRef={analyserRef} />
+        )}
+        {!loading && posts.length > 0 && mountedView === 'circle' && !selectedStudent && (
+          <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS} circleRadius={circleRadius} figureScale={figureScale} figureY={figureY} showVertexImages={false} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} studentTextures={studentTextures} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX} camY={circleCamY} camZ={circleCamZ} camFov={circleCamFov} camZoom={circleCamZoom} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} analyserRef={analyserRef} />
         )}
         {!loading && posts.length > 0 && mountedView === 'globe' && !selectedStudent && (
           <GlobeCanvas
@@ -1019,7 +1198,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
 
         {/* Personal student room */}
         {mountedStudent && (
-          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} meshTexture={meshTexture} analyserRef={analyserRef} />
+          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} enableBloom={enableBloom} bloomIntensity={bloomIntensity} enableDOF={enableDOF} dofFocus={dofFocus} dofBokeh={dofBokeh} analyserRef={analyserRef} />
         )}
       </div>
 
@@ -1145,9 +1324,29 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           dotCount={dotCount} setDotCount={setDotCount}
           showWalls={showWalls} setShowWalls={setShowWalls}
           meshTexture={meshTexture} setMeshTexture={setMeshTexture}
+          texScale={texScale} setTexScale={setTexScale}
+          texOffsetX={texOffsetX} setTexOffsetX={setTexOffsetX}
+          texOffsetY={texOffsetY} setTexOffsetY={setTexOffsetY}
+          texRotation={texRotation} setTexRotation={setTexRotation}
           showVertexImages={showVertexImages} setShowVertexImages={setShowVertexImages}
           vertexImgSize={vertexImgSize} setVertexImgSize={setVertexImgSize}
           vertexRepeat={vertexRepeat} setVertexRepeat={setVertexRepeat}
+          enableBloom={enableBloom} setEnableBloom={setEnableBloom}
+          bloomIntensity={bloomIntensity} setBloomIntensity={setBloomIntensity}
+          enableDOF={enableDOF} setEnableDOF={setEnableDOF}
+          dofFocus={dofFocus} setDofFocus={setDofFocus}
+          dofBokeh={dofBokeh} setDofBokeh={setDofBokeh}
+          enableDissolve={enableDissolve} setEnableDissolve={setEnableDissolve}
+          circleRadius={circleRadius} setCircleRadius={setCircleRadius}
+          circleCameraMode={circleCameraMode} setCircleCameraMode={setCircleCameraMode}
+          circleCamX={circleCamX} setCircleCamX={setCircleCamX}
+          circleCamY={circleCamY} setCircleCamY={setCircleCamY}
+          circleCamZ={circleCamZ} setCircleCamZ={setCircleCamZ}
+          circleCamFov={circleCamFov} setCircleCamFov={setCircleCamFov}
+          circleCamZoom={circleCamZoom} setCircleCamZoom={setCircleCamZoom}
+          circleCamXLoop={circleCamXLoop} setCircleCamXLoop={setCircleCamXLoop}
+          circleCamXLoopSpeed={circleCamXLoopSpeed} setCircleCamXLoopSpeed={setCircleCamXLoopSpeed}
+          studentTextures={studentTextures} setStudentTextures={setStudentTextures}
           camX={camX} setCamX={setCamX}
           camY={camY} setCamY={setCamY}
           camZ={camZ} setCamZ={setCamZ}
