@@ -285,30 +285,48 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
     }))
   }, [orig, mirror, figureWireframe, meshTexture])
 
-  // Mesh texture: load and apply to all cloned materials
+  // Mesh texture: swap material to MeshBasicMaterial (no lighting needed) when texture set
   useEffect(() => {
-    const applyMap = (map: THREE.Texture | null) => {
-      ;[orig, mirror].forEach(root => root.traverse(o => {
-        const m = o as THREE.Mesh
-        if (!m.isMesh) return
-        const mats = Array.isArray(m.material) ? m.material : [m.material as THREE.Material]
-        mats.forEach(mt => {
-          const std = mt as THREE.MeshStandardMaterial
-          std.map = map
-          if (map) std.color.set(0xffffff)
-          mt.needsUpdate = true
-        })
-      }))
+    const getMeshes = (root: THREE.Object3D) => {
+      const meshes: THREE.Mesh[] = []
+      root.traverse(o => { if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh) })
+      return meshes
     }
-    if (!meshTexture) { applyMap(null); return }
+
+    if (!meshTexture) {
+      // Restore original cloned materials (dispose any basic mat we added)
+      ;[orig, mirror].forEach((root, ri) => {
+        getMeshes(root).forEach(m => {
+          if ((m.material as THREE.Material).type === 'MeshBasicMaterial') {
+            ;(m.material as THREE.MeshBasicMaterial).map?.dispose()
+            ;(m.material as THREE.Material).dispose()
+            // Re-clone from scene
+            const srcMeshes = getMeshes(ri === 0 ? scene : scene)
+            const match = srcMeshes.find(s => s.name === m.name)
+            if (match) m.material = (match.material as THREE.Material).clone()
+          }
+        })
+      })
+      return
+    }
+
     let cancelled = false
     new THREE.TextureLoader().load(meshTexture, tex => {
       if (cancelled) { tex.dispose(); return }
       tex.colorSpace = THREE.SRGBColorSpace
-      applyMap(tex)
+      ;[orig, mirror].forEach(root => {
+        getMeshes(root).forEach(m => {
+          // Dispose previous basic mat if any
+          if ((m.material as THREE.Material).type === 'MeshBasicMaterial') {
+            ;(m.material as THREE.MeshBasicMaterial).map?.dispose()
+            ;(m.material as THREE.Material).dispose()
+          }
+          m.material = new THREE.MeshBasicMaterial({ map: tex })
+        })
+      })
     })
     return () => { cancelled = true }
-  }, [meshTexture, orig, mirror])
+  }, [meshTexture, orig, mirror, scene])
 
   useFrame((_, delta) => {
     if (groupRef.current && orbiting) groupRef.current.rotation.y += speed * delta
