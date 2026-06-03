@@ -9,7 +9,7 @@ import { Post } from '@/lib/supabase'
 const GlobeCanvas  = dynamic(() => import('./globe'), { ssr: false })
 const RoomCanvas   = dynamic(() => import('./room'),  { ssr: false })
 const CircleCanvas = dynamic(() => import('./room').then(m => ({ default: m.CircleCanvas })), { ssr: false })
-import type { WireframeStyle, CircleCameraMode } from './room'
+import type { WireframeStyle, CircleCameraMode, TextureMapping } from './room'
 
 const STUDENTS = ['Nodar Gogichaishvili','Sesili Gurgenidze','Dominika Davshrishovi','Nutsa Kavtelishvili','Ketevan Lomiashvili','Ana Mamniashvili','Sergi Sarajevi','Natali Chixelidze','Salome Shalvashvili','Bako Shengelia','Mariam Wulaia','Mariam Qsovreli']
 
@@ -721,6 +721,8 @@ function HomeInner() {
   const [circleCamXLoop, setCircleCamXLoop] = useState(true)
   const [circleCamXLoopSpeed, setCircleCamXLoopSpeed] = useState(0.1)
   const [studentTextures, setStudentTextures] = useState<Record<string, string | null>>({})
+  const [studentTextureMappings, setStudentTextureMappings] = useState<Record<string, TextureMapping>>({})
+  const [activeEditStudent, setActiveEditStudent] = useState<string | null>(null)
 
   const handleCircleTextureUpload = (student: string, url: string | null) => {
     setStudentTextures(prev => {
@@ -728,6 +730,8 @@ function HomeInner() {
       if (old?.startsWith('blob:')) URL.revokeObjectURL(old)
       return { ...prev, [student]: url }
     })
+    if (url) setActiveEditStudent(student)
+    else if (activeEditStudent === student) setActiveEditStudent(null)
   }
 
   const switchView = (v: 'globe' | 'room' | 'circle') => {
@@ -1047,6 +1051,45 @@ function HomeInner() {
         </div>
       )}
 
+      {/* Texture mapping overlay — circle view, after upload */}
+      {mountedView === 'circle' && activeEditStudent && studentTextures[activeEditStudent] && (
+        <div style={{
+          position: 'fixed', right: 24, top: '50%', transform: 'translateY(-50%)',
+          zIndex: 30, width: 160, display: 'flex', flexDirection: 'column', gap: 0,
+          pointerEvents: 'auto',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, letterSpacing: 1, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase' }}>
+              {activeEditStudent.split(' ')[0]}
+            </span>
+            <button onClick={() => setActiveEditStudent(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'ui-monospace, monospace', fontSize: 12, color: 'rgba(0,0,0,0.3)', padding: 0, lineHeight: 1 }}>×</button>
+          </div>
+          {([
+            { label: 'Scale',    key: 'scale',   min: 0.1, max: 5,   step: 0.05, dec: 2 },
+            { label: 'Offset X', key: 'offsetX', min: -1,  max: 1,   step: 0.01, dec: 2 },
+            { label: 'Offset Y', key: 'offsetY', min: -1,  max: 1,   step: 0.01, dec: 2 },
+            { label: 'Rotation', key: 'rotation', min: 0,  max: 360, step: 1,    dec: 0 },
+          ] as { label: string; key: keyof TextureMapping; min: number; max: number; step: number; dec: number }[]).map(({ label, key, min, max, step, dec }) => {
+            const val = (studentTextureMappings[activeEditStudent] ?? { scale: 1, offsetX: 0, offsetY: 0, rotation: 0 })[key]
+            return (
+              <div key={key} style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.45)' }}>{label}</span>
+                  <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.6)', fontVariantNumeric: 'tabular-nums' }}>{dec === 0 ? val : (val as number).toFixed(dec)}</span>
+                </div>
+                <input type="range" min={min} max={max} step={step} value={val}
+                  onChange={e => setStudentTextureMappings(prev => ({
+                    ...prev,
+                    [activeEditStudent]: { ...(prev[activeEditStudent] ?? { scale: 1, offsetX: 0, offsetY: 0, rotation: 0 }), [key]: Number(e.target.value) }
+                  }))}
+                  style={{ width: '100%', accentColor: 'rgba(0,0,0,0.5)', cursor: 'pointer' }}
+                />
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       {/* About button */}
       {phase === 'gallery' && !selectedStudent && (
         <button
@@ -1166,7 +1209,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} enableBloom={enableBloom} bloomIntensity={bloomIntensity} enableDOF={enableDOF} dofFocus={dofFocus} dofBokeh={dofBokeh} analyserRef={analyserRef} />
         )}
         {!loading && posts.length > 0 && mountedView === 'circle' && !selectedStudent && (
-          <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS} circleRadius={circleRadius} figureScale={figureScale} figureY={figureY} showVertexImages={false} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} studentTextures={studentTextures} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX} camY={circleCamY} camZ={circleCamZ} camFov={circleCamFov} camZoom={circleCamZoom} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} analyserRef={analyserRef} />
+          <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS} circleRadius={circleRadius} figureScale={figureScale} figureY={figureY} showVertexImages={false} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX} camY={circleCamY} camZ={circleCamZ} camFov={circleCamFov} camZoom={circleCamZoom} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} analyserRef={analyserRef} />
         )}
         {!loading && posts.length > 0 && mountedView === 'globe' && !selectedStudent && (
           <GlobeCanvas

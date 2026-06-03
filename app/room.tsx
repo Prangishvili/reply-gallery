@@ -568,11 +568,12 @@ function CircleNameTag({ student, nameSize, blurNames, onNameClick, namesClickab
   )
 }
 
-function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexImages, vertexImgSize, vertexRepeat, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, meshTexture, student, onTextureUpload, analyserRef }: {
+function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexImages, vertexImgSize, vertexRepeat, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, meshTexture, texScale, texOffsetX, texOffsetY, texRotation, student, onTextureUpload, analyserRef }: {
   angle: number; radius: number; figureScale: number; figureY: number
   posts: Post[]; showVertexImages: boolean; vertexImgSize: number; vertexRepeat: number
   showWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
   meshTexture: string | null
+  texScale: number; texOffsetX: number; texOffsetY: number; texRotation: number
   student: string; onTextureUpload: (student: string, url: string | null) => void
   analyserRef?: React.RefObject<AnalyserNode | null>
 }) {
@@ -648,6 +649,16 @@ function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexIm
     return () => { cancelled = true }
   }, [meshTexture, cloned, raw])
 
+  useEffect(() => {
+    const tex = loadedTexRef.current
+    if (!tex) return
+    tex.repeat.set(texScale, texScale)
+    tex.offset.set(texOffsetX, texOffsetY)
+    tex.rotation = texRotation * (Math.PI / 180)
+    tex.center.set(0.5, 0.5)
+    tex.needsUpdate = true
+  }, [texScale, texOffsetX, texOffsetY, texRotation])
+
   const rotY = 4.65 + angle + Math.PI
 
   return (
@@ -687,11 +698,15 @@ function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexIm
 
 type CircleCameraMode = 'perspective' | 'orthographic' | 'panoramic'
 
-function CircleScene({ posts, students, circleRadius, figureScale, figureY, showVertexImages, vertexImgSize, vertexRepeat, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, studentTextures, onTextureUpload, showNoiseGlobe, noiseColor1, noiseColor2, noiseSpeed, noiseScale, audioVolume, cameraMode, camX, camY, camZ, camFov, camZoom, camXLoop, camXLoopSpeed, analyserRef }: {
+type TextureMapping = { scale: number; offsetX: number; offsetY: number; rotation: number }
+const DEFAULT_MAPPING: TextureMapping = { scale: 1, offsetX: 0, offsetY: 0, rotation: 0 }
+
+function CircleScene({ posts, students, circleRadius, figureScale, figureY, showVertexImages, vertexImgSize, vertexRepeat, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, studentTextures, studentTextureMappings, onTextureUpload, showNoiseGlobe, noiseColor1, noiseColor2, noiseSpeed, noiseScale, audioVolume, cameraMode, camX, camY, camZ, camFov, camZoom, camXLoop, camXLoopSpeed, analyserRef }: {
   posts: Post[]; students: string[]; circleRadius: number; figureScale: number; figureY: number
   showVertexImages: boolean; vertexImgSize: number; vertexRepeat: number
   showWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
   studentTextures: Record<string, string | null>
+  studentTextureMappings: Record<string, TextureMapping>
   onTextureUpload: (student: string, url: string | null) => void
   showNoiseGlobe: boolean; noiseColor1: string; noiseColor2: string; noiseSpeed: number; noiseScale: number; audioVolume: number
   cameraMode: CircleCameraMode; camX: number; camY: number; camZ: number; camFov: number; camZoom: number
@@ -730,6 +745,10 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, show
             dotColor={dotColor}
             dotCount={dotCount}
             meshTexture={studentTextures[student] ?? null}
+            texScale={(studentTextureMappings[student] ?? DEFAULT_MAPPING).scale}
+            texOffsetX={(studentTextureMappings[student] ?? DEFAULT_MAPPING).offsetX}
+            texOffsetY={(studentTextureMappings[student] ?? DEFAULT_MAPPING).offsetY}
+            texRotation={(studentTextureMappings[student] ?? DEFAULT_MAPPING).rotation}
             student={student}
             onTextureUpload={onTextureUpload}
             analyserRef={analyserRef}
@@ -740,14 +759,15 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, show
   )
 }
 
-export type { CircleCameraMode }
+export type { CircleCameraMode, TextureMapping }
 
-export function CircleCanvas({ posts, students, circleRadius = 300, figureScale = 200, figureY = -10, showVertexImages = true, vertexImgSize = 0.025, vertexRepeat = 1, showWireframe = true, wireframeStyle = 'points' as WireframeStyle, dotSize = 0.800, dotColor = '#000000', dotCount = 30000, studentTextures = {}, onTextureUpload = () => {}, showNoiseGlobe = false, noiseColor1 = '#08003a', noiseColor2 = '#8c1aff', noiseSpeed = 0.5, noiseScale = 1.0, audioVolume = 0, cameraMode = 'orthographic' as CircleCameraMode, camX = 150, camY = 930, camZ = -1350, camFov = 60, camZoom = 1.8, camXLoop = false, camXLoopSpeed = 1.0, analyserRef }: {
+export function CircleCanvas({ posts, students, circleRadius = 300, figureScale = 200, figureY = -10, showVertexImages = true, vertexImgSize = 0.025, vertexRepeat = 1, showWireframe = true, wireframeStyle = 'points' as WireframeStyle, dotSize = 0.800, dotColor = '#000000', dotCount = 30000, studentTextures = {}, studentTextureMappings = {}, onTextureUpload = () => {}, showNoiseGlobe = false, noiseColor1 = '#08003a', noiseColor2 = '#8c1aff', noiseSpeed = 0.5, noiseScale = 1.0, audioVolume = 0, cameraMode = 'orthographic' as CircleCameraMode, camX = 150, camY = 930, camZ = -1350, camFov = 60, camZoom = 1.8, camXLoop = false, camXLoopSpeed = 1.0, analyserRef }: {
   posts: Post[]; students: string[]
   circleRadius?: number; figureScale?: number; figureY?: number
   showVertexImages?: boolean; vertexImgSize?: number; vertexRepeat?: number
   showWireframe?: boolean; wireframeStyle?: WireframeStyle; dotSize?: number; dotColor?: string; dotCount?: number
   studentTextures?: Record<string, string | null>
+  studentTextureMappings?: Record<string, TextureMapping>
   onTextureUpload?: (student: string, url: string | null) => void
   showNoiseGlobe?: boolean; noiseColor1?: string; noiseColor2?: string; noiseSpeed?: number; noiseScale?: number; audioVolume?: number
   cameraMode?: CircleCameraMode; camX?: number; camY?: number; camZ?: number; camFov?: number; camZoom?: number
@@ -764,6 +784,7 @@ export function CircleCanvas({ posts, students, circleRadius = 300, figureScale 
         showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat}
         showWireframe={showWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount}
         studentTextures={studentTextures}
+        studentTextureMappings={studentTextureMappings}
         onTextureUpload={onTextureUpload}
         showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume}
         cameraMode={cameraMode} camX={camX} camY={camY} camZ={camZ} camFov={camFov} camZoom={camZoom}
