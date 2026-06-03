@@ -978,7 +978,12 @@ function HomeInner() {
   }
 
   async function handleDeletePost(id: string) {
-    await fetch(`/api/posts?id=${id}`, { method: 'DELETE' })
+    const post = posts.find(p => p.id === id)
+    if (post?.image_url.startsWith('blob:')) {
+      URL.revokeObjectURL(post.image_url)
+    } else {
+      await fetch(`/api/posts?id=${id}`, { method: 'DELETE' })
+    }
     setPosts(prev => prev.filter(p => p.id !== id))
   }
 
@@ -995,25 +1000,15 @@ function HomeInner() {
     if (items.length === 0) { setError('Add at least one image.'); return }
     setSubmitting(true)
     setError(null)
-    setProgress({ done: 0, total: items.length })
 
-    const newPosts: Post[] = []
-    for (const item of items) {
-      const fd = new FormData()
-      fd.append('image', item.file)
-      fd.append('text', item.caption.trim() || fileToCaption(item.file))
-      if (uploadStudentName) fd.append('student_name', uploadStudentName)
-      const res = await fetch('/api/posts', { method: 'POST', body: fd })
-      if (res.ok) newPosts.push(await res.json())
-      setProgress(p => p ? { ...p, done: p.done + 1 } : null)
-    }
-
-    if (newPosts.length > 0) setPosts(p => [...newPosts.reverse(), ...p])
-    if (newPosts.length < items.length) {
-      setError(`${items.length - newPosts.length} image(s) failed to upload.`)
-      setSubmitting(false)
-      return
-    }
+    const newPosts: Post[] = items.map(item => ({
+      id: crypto.randomUUID(),
+      text: item.caption.trim() || fileToCaption(item.file),
+      image_url: item.preview,
+      student_name: uploadStudentName.trim() || null,
+      created_at: new Date().toISOString(),
+    }))
+    setPosts(p => [...newPosts.reverse(), ...p])
     closeModal()
     setSubmitting(false)
   }
@@ -1200,15 +1195,10 @@ Reply is a virtual art exhibition that challenges the limits of natural language
             <span className="font-mono text-gray-300 text-sm animate-pulse">loading…</span>
           </div>
         )}
-        {!loading && posts.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="font-mono text-gray-300 text-sm">nothing here yet — be first.</span>
-          </div>
-        )}
-        {!loading && posts.length > 0 && mountedView === 'room' && !selectedStudent && (
+        {!loading && mountedView === 'room' && !selectedStudent && (
           <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} enableBloom={enableBloom} bloomIntensity={bloomIntensity} enableDOF={enableDOF} dofFocus={dofFocus} dofBokeh={dofBokeh} analyserRef={analyserRef} />
         )}
-        {!loading && posts.length > 0 && mountedView === 'circle' && !selectedStudent && (
+        {!loading && mountedView === 'circle' && !selectedStudent && (
           <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS} circleRadius={circleRadius} figureScale={figureScale} figureY={figureY} showVertexImages={false} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX} camY={circleCamY} camZ={circleCamZ} camFov={circleCamFov} camZoom={circleCamZoom} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} analyserRef={analyserRef} />
         )}
         {!loading && posts.length > 0 && mountedView === 'globe' && !selectedStudent && (
