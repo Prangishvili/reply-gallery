@@ -293,7 +293,9 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
         if (!m.isMesh) return
         const mats = Array.isArray(m.material) ? m.material : [m.material as THREE.Material]
         mats.forEach(mt => {
-          ;(mt as THREE.MeshStandardMaterial).map = map
+          const std = mt as THREE.MeshStandardMaterial
+          std.map = map
+          if (map) std.color.set(0xffffff)
           mt.needsUpdate = true
         })
       }))
@@ -302,6 +304,7 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
     let cancelled = false
     new THREE.TextureLoader().load(meshTexture, tex => {
       if (cancelled) { tex.dispose(); return }
+      tex.colorSpace = THREE.SRGBColorSpace
       applyMap(tex)
     })
     return () => { cancelled = true }
