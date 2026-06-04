@@ -858,12 +858,15 @@ function HomeInner() {
     bgAudioRef.current = audio
   }
 
-  function replaceBgAudio(file: File) {
+  async function replaceBgAudio(file: File) {
     const old = bgAudioRef.current
-    if (old) { old.pause(); old.src = '' }
-    audioCtxRef.current?.close().catch(() => {})
-    audioCtxRef.current = null
+    bgAudioRef.current = null
     analyserRef.current = null
+    if (old) { old.pause(); old.src = '' }
+    const oldCtx = audioCtxRef.current
+    audioCtxRef.current = null
+    if (oldCtx) { try { await oldCtx.close() } catch {} }
+
     if (bgAudioBlobRef.current) URL.revokeObjectURL(bgAudioBlobRef.current)
     const url = URL.createObjectURL(file)
     bgAudioBlobRef.current = url
@@ -873,13 +876,14 @@ function HomeInner() {
     setAudioVolume(1)
     try {
       const ctx = new AudioContext()
-      audioCtxRef.current = ctx
+      if (ctx.state === 'suspended') await ctx.resume()
       const source = ctx.createMediaElementSource(audio)
       const analyser = ctx.createAnalyser()
       analyser.fftSize = 256
       analyser.smoothingTimeConstant = 0.8
       source.connect(analyser)
       analyser.connect(ctx.destination)
+      audioCtxRef.current = ctx
       analyserRef.current = analyser
     } catch {}
     audio.play().catch(() => {})
