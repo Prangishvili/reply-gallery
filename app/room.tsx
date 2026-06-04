@@ -177,15 +177,13 @@ function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene
     [scene, repeatedPosts.length]
   )
 
-  const meshRefs    = useRef<(THREE.Mesh | null)[]>([])
-  const [mats,    setMats   ] = useState<THREE.MeshBasicMaterial[]>([])
-  const [aspects, setAspects] = useState<number[]>([])
-  const [ready,   setReady  ] = useState(false)
+  const spriteRefs = useRef<(THREE.Sprite | null)[]>([])
+  const [texData, setTexData] = useState<{ tex: THREE.Texture; aspect: number }[]>([])
   const dataArrRef = useRef<Uint8Array | null>(null)
 
-  useFrame(({ camera }) => {
-    meshRefs.current.forEach(m => { if (m) m.lookAt(camera.position) })
-    if (!mats.length) return
+  useFrame(() => {
+    const sprites = spriteRefs.current
+    if (!sprites.length || texData.length === 0) return
     let vol = 0
     if (analyserRef?.current) {
       const a = analyserRef.current
@@ -196,10 +194,11 @@ function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene
       for (let i = 0; i < dataArrRef.current.length; i++) sum += dataArrRef.current[i]
       vol = Math.min((sum / dataArrRef.current.length / 255) * 5, 1)
     }
-    meshRefs.current.forEach((mesh, i) => {
-      if (!mesh) return
+    sprites.forEach((sprite, i) => {
+      if (!sprite) return
+      const aspect = texData[i]?.aspect ?? 1
       const s = size * (1 + vol * 3)
-      mesh.scale.set(s * (aspects[i] ?? 1), s, 1)
+      sprite.scale.set(s * aspect, s, 1)
     })
   })
 
@@ -208,13 +207,12 @@ function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene
     let cancelled = false
 
     const init = async () => {
-      // Detect SVG via content-type (same as SELF) — deduplicate to avoid N fetches for N repeats
+      // Detect SVG via content-type fetch (same as SELF), deduplicated per unique URL
       const uniqueUrls = [...new Set(repeatedPosts.map(p => p.image_url))]
       const metaMap = new Map<string, { aspect: number; isSvg: boolean }>()
       await Promise.all(uniqueUrls.map(async url => { metaMap.set(url, await loadImgMeta(url)) }))
       if (cancelled) return
 
-      // One texture per unique URL (shared across sprites)
       const texMap = new Map<string, THREE.Texture>()
       for (const url of uniqueUrls) {
         const meta = metaMap.get(url)!
@@ -231,52 +229,39 @@ function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene
       }
       if (cancelled) return
 
-      const newMats: THREE.MeshBasicMaterial[] = []
-      const newAspects: number[] = []
+      const newTexData: { tex: THREE.Texture; aspect: number }[] = []
       for (let i = 0; i < vertices.length; i++) {
         const url  = repeatedPosts[i % repeatedPosts.length].image_url
         const meta = metaMap.get(url) ?? { aspect: 1, isSvg: false }
-        newMats.push(new THREE.MeshBasicMaterial({ map: texMap.get(url)!, side: THREE.DoubleSide, transparent: true }))
-        newAspects.push(meta.aspect)
+        newTexData.push({ tex: texMap.get(url)!, aspect: meta.aspect })
       }
-
-      meshRefs.current = new Array(vertices.length).fill(null)
-      setMats(newMats)
-      setAspects(newAspects)
-      setReady(true)
+      setTexData(newTexData)
     }
 
     init()
 
     return () => {
       cancelled = true
-      setMats(prev => {
+      setTexData(prev => {
         const disposed = new Set<THREE.Texture>()
-        prev.forEach(m => {
-          if (m.map && !disposed.has(m.map)) { disposed.add(m.map); m.map.dispose() }
-          m.dispose()
-        })
+        prev.forEach(d => { if (!disposed.has(d.tex)) { disposed.add(d.tex); d.tex.dispose() } })
         return []
       })
-      setReady(false)
     }
   }, [vertices, repeatedPosts])
 
-  if (!ready || mats.length === 0 || vertices.length === 0) return null
+  if (vertices.length === 0 || texData.length === 0) return null
 
   return (
     <>
-      {vertices.map((v, i) => (
-        <mesh
-          key={i}
-          ref={(el: THREE.Mesh | null) => { meshRefs.current[i] = el }}
-          position={v.toArray() as [number, number, number]}
-          material={mats[i]}
-          scale={[size * (aspects[i] ?? 1), size, 1]}
-        >
-          <planeGeometry args={[1, 1]} />
-        </mesh>
-      ))}
+      {vertices.map((v, i) => {
+        const { tex, aspect } = texData[i]
+        return (
+          <sprite key={i} ref={el => { spriteRefs.current[i] = el }} position={[v.x, v.y, v.z]} scale={[size * aspect, size, 1]}>
+            <spriteMaterial map={tex} sizeAttenuation />
+          </sprite>
+        )
+      })}
     </>
   )
 }
