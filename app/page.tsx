@@ -564,7 +564,7 @@ function HomeInner() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [roomKey, setRoomKey] = useState(0)
 
-  const [audioVolume, setAudioVolume] = useState(0.10)
+  const [audioVolume, setAudioVolume] = useState(1.00)
   const [showNames, setShowNames] = useState(true)
   const [nameSize, setNameSize] = useState(10)
   const [showNoiseGlobe, setShowNoiseGlobe] = useState(false)
@@ -869,7 +869,8 @@ function HomeInner() {
     bgAudioBlobRef.current = url
     const audio = new Audio(url)
     audio.loop = true
-    audio.volume = audioVolume
+    audio.volume = 1
+    setAudioVolume(1)
     try {
       const ctx = new AudioContext()
       audioCtxRef.current = ctx
