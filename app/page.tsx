@@ -691,6 +691,7 @@ function HomeInner() {
   const [selfImages, setSelfImages] = useState<{ url: string; isVideo: boolean }[]>([])
   const selfImagesBlobsRef = useRef<string[]>([])
   const [selfFacing, setSelfFacing] = useState<'camera' | 'surface'>('camera')
+  const [selfSoundReact, setSelfSoundReact] = useState(false)
   const [bgColor, setBgColor] = useState('#ffffff')
   const [bgImage, setBgImage] = useState<string | null>(null)
   const bgImageBlobRef = useRef<string | null>(null)
@@ -1081,7 +1082,7 @@ function HomeInner() {
           ))}
 
           {/* Facing mode toggle */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             {(['camera', 'surface'] as const).map(mode => (
               <button key={mode} onClick={() => setSelfFacing(mode)} style={{
                 fontFamily: 'ui-monospace, monospace', fontSize: 10,
@@ -1091,6 +1092,14 @@ function HomeInner() {
               }}>{mode}</button>
             ))}
           </div>
+
+          {/* Sound react toggle */}
+          <button onClick={() => setSelfSoundReact(v => !v)} style={{
+            fontFamily: 'ui-monospace, monospace', fontSize: 10,
+            background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+            color: selfSoundReact ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.35)',
+            transition: 'color 0.15s', display: 'block', marginBottom: 16,
+          }}>sound react</button>
 
           {/* Uploaded media for mixing */}
           <div style={{ marginTop: 4 }}>
@@ -1420,7 +1429,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
 
         {/* SELF view */}
         {!loading && mountedView === 'self' && selfPermission === 'granted' && selfStream && !selectedStudent && (
-          <SelfCanvas stream={selfStream} figureScale={figureScale} figureFacing={figureFacing} imgSize={selfImgSize} imgCount={selfImgCount} bgColor={bgColor} bgImage={bgImage} images={selfImages} facing={selfFacing} />
+          <SelfCanvas stream={selfStream} figureScale={figureScale} figureFacing={figureFacing} imgSize={selfImgSize} imgCount={selfImgCount} bgColor={bgColor} bgImage={bgImage} images={selfImages} facing={selfFacing} analyserRef={selfSoundReact ? analyserRef : undefined} />
         )}
 
         {/* Personal student room */}

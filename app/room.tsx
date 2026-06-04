@@ -795,19 +795,34 @@ function makeSvgTex(url: string, aspect: number, flip: boolean): Promise<THREE.C
   })
 }
 
-function SelfVertexImages({ scene, stream, count, size, images, facing }: {
+function SelfVertexImages({ scene, stream, count, size, images, facing, analyserRef }: {
   scene: THREE.Object3D; stream: MediaStream; count: number; size: number
   images: { url: string; isVideo: boolean }[]; facing: 'camera' | 'surface'
+  analyserRef?: React.RefObject<AnalyserNode | null>
 }) {
   const data     = useMemo(() => sampleVerticesWithNormals(scene, count), [scene, count])
   const meshRefs = useRef<(THREE.Mesh | null)[]>([])
   const [mats,    setMats   ] = useState<THREE.MeshBasicMaterial[]>([])
   const [aspects, setAspects] = useState<number[]>([])
   const [ready,   setReady  ] = useState(false)
+  const dataArrRef = useRef<Uint8Array | null>(null)
 
   useFrame(({ camera }) => {
-    if (facing !== 'camera') return
-    meshRefs.current.forEach(m => { if (m) m.lookAt(camera.position) })
+    if (facing === 'camera') {
+      meshRefs.current.forEach(m => { if (m) m.lookAt(camera.position) })
+    }
+    let vol = 0
+    if (analyserRef?.current) {
+      const a = analyserRef.current
+      if (!dataArrRef.current || dataArrRef.current.length !== a.frequencyBinCount)
+        dataArrRef.current = new Uint8Array(a.frequencyBinCount)
+      a.getByteFrequencyData(dataArrRef.current as Uint8Array<ArrayBuffer>)
+      let sum = 0
+      for (let i = 0; i < dataArrRef.current.length; i++) sum += dataArrRef.current[i]
+      vol = Math.min((sum / dataArrRef.current.length / 255) * 5, 1)
+    }
+    const s = 1 + vol * 3
+    meshRefs.current.forEach(m => { if (m) m.scale.set(s, s, 1) })
   })
 
   useEffect(() => {
@@ -917,8 +932,8 @@ function SelfVertexImages({ scene, stream, count, size, images, facing }: {
   )
 }
 
-function SelfScene({ stream, figureScale, figureFacing, imgSize, imgCount, bgColor, bgImage, images, facing }: {
-  stream: MediaStream; figureScale: number; figureFacing: number; imgSize: number; imgCount: number; bgColor: string; bgImage: string | null; images: { url: string; isVideo: boolean }[]; facing: 'camera' | 'surface'
+function SelfScene({ stream, figureScale, figureFacing, imgSize, imgCount, bgColor, bgImage, images, facing, analyserRef }: {
+  stream: MediaStream; figureScale: number; figureFacing: number; imgSize: number; imgCount: number; bgColor: string; bgImage: string | null; images: { url: string; isVideo: boolean }[]; facing: 'camera' | 'surface'; analyserRef?: React.RefObject<AnalyserNode | null>
 }) {
   const { scene: raw } = useGLTF('/figure.glb')
   const cloned = useMemo(() => {
@@ -939,13 +954,13 @@ function SelfScene({ stream, figureScale, figureFacing, imgSize, imgCount, bgCol
         scene={cloned} style="points" dotSize={0.4} dotColor="#888888"
         dotCount={30000} transitionKey={0} enableDissolve={false}
       />
-      <SelfVertexImages scene={cloned} stream={stream} count={imgCount} size={imgSize} images={images} facing={facing} />
+      <SelfVertexImages scene={cloned} stream={stream} count={imgCount} size={imgSize} images={images} facing={facing} analyserRef={analyserRef} />
     </group>
   )
 }
 
-export function SelfCanvas({ stream, figureScale = 200, figureFacing = 4.65, imgSize = 0.1, imgCount = 60, bgColor = '#0a0a0a', bgImage = null, images = [], facing = 'camera' }: {
-  stream: MediaStream; figureScale?: number; figureFacing?: number; imgSize?: number; imgCount?: number; bgColor?: string; bgImage?: string | null; images?: { url: string; isVideo: boolean }[]; facing?: 'camera' | 'surface'
+export function SelfCanvas({ stream, figureScale = 200, figureFacing = 4.65, imgSize = 0.1, imgCount = 60, bgColor = '#0a0a0a', bgImage = null, images = [], facing = 'camera', analyserRef }: {
+  stream: MediaStream; figureScale?: number; figureFacing?: number; imgSize?: number; imgCount?: number; bgColor?: string; bgImage?: string | null; images?: { url: string; isVideo: boolean }[]; facing?: 'camera' | 'surface'; analyserRef?: React.RefObject<AnalyserNode | null>
 }) {
   return (
     <Canvas
@@ -955,7 +970,7 @@ export function SelfCanvas({ stream, figureScale = 200, figureFacing = 4.65, img
       <PerspectiveCamera makeDefault position={[0, 150, 600]} fov={55} near={0.1} far={5000} />
       <OrbitControls target={[0, 150, 0]} enableDamping dampingFactor={0.08} />
       <Suspense fallback={null}>
-        <SelfScene stream={stream} figureScale={figureScale} figureFacing={figureFacing} imgSize={imgSize} imgCount={imgCount} bgColor={bgColor} bgImage={bgImage} images={images} facing={facing} />
+        <SelfScene stream={stream} figureScale={figureScale} figureFacing={figureFacing} imgSize={imgSize} imgCount={imgCount} bgColor={bgColor} bgImage={bgImage} images={images} facing={facing} analyserRef={analyserRef} />
       </Suspense>
     </Canvas>
   )
