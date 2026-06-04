@@ -177,13 +177,17 @@ function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene
     [scene, repeatedPosts.length]
   )
 
-  const spriteRefs = useRef<(THREE.Sprite | null)[]>([])
-  const [texData, setTexData] = useState<{ tex: THREE.Texture; aspect: number }[]>([])
-  const dataArrRef = useRef<Uint8Array | null>(null)
+  const spriteRefs  = useRef<(THREE.Sprite | null)[]>([])
+  const dataArrRef  = useRef<Uint8Array | null>(null)
+
+  // Textures keyed by URL — only reloaded when the set of post URLs actually changes
+  const [loadedTex, setLoadedTex] = useState<Map<string, { tex: THREE.Texture; aspect: number }>>(new Map())
+  // Per-sprite data built synchronously from loadedTex + vertices — no network needed on repeat change
+  const [spriteData, setSpriteData] = useState<{ tex: THREE.Texture; aspect: number }[]>([])
 
   useFrame(() => {
     const sprites = spriteRefs.current
-    if (!sprites.length || texData.length === 0) return
+    if (!sprites.length || spriteData.length === 0) return
     let vol = 0
     if (analyserRef?.current) {
       const a = analyserRef.current
@@ -196,24 +200,28 @@ function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene
     }
     sprites.forEach((sprite, i) => {
       if (!sprite) return
-      const aspect = texData[i]?.aspect ?? 1
+      const aspect = spriteData[i % spriteData.length]?.aspect ?? 1
       const s = size * (1 + vol * 3)
       sprite.scale.set(s * aspect, s, 1)
     })
   })
 
+  // Effect 1: load textures only when the post URL set changes (NOT when repeat changes)
+  const urlsKey = useMemo(
+    () => posts.map(p => p.image_url).sort().join('\n'),
+    [posts]
+  )
   useEffect(() => {
-    if (vertices.length === 0 || repeatedPosts.length === 0) return
+    if (posts.length === 0) return
+    const uniqueUrls = [...new Set(posts.map(p => p.image_url))]
     let cancelled = false
 
-    const init = async () => {
-      // Detect SVG via content-type fetch (same as SELF), deduplicated per unique URL
-      const uniqueUrls = [...new Set(repeatedPosts.map(p => p.image_url))]
+    const load = async () => {
       const metaMap = new Map<string, { aspect: number; isSvg: boolean }>()
       await Promise.all(uniqueUrls.map(async url => { metaMap.set(url, await loadImgMeta(url)) }))
       if (cancelled) return
 
-      const texMap = new Map<string, THREE.Texture>()
+      const newMap = new Map<string, { tex: THREE.Texture; aspect: number }>()
       for (const url of uniqueUrls) {
         const meta = metaMap.get(url)!
         let tex: THREE.Texture
@@ -224,38 +232,43 @@ function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene
             new THREE.TextureLoader().load(url, t => { t.colorSpace = THREE.SRGBColorSpace; resolve(t) })
           })
         }
-        if (cancelled) { tex.dispose(); return }
-        texMap.set(url, tex)
+        if (cancelled) { tex.dispose(); newMap.forEach(v => v.tex.dispose()); return }
+        newMap.set(url, { tex, aspect: meta.aspect })
       }
-      if (cancelled) return
+      if (cancelled) { newMap.forEach(v => v.tex.dispose()); return }
 
-      const newTexData: { tex: THREE.Texture; aspect: number }[] = []
-      for (let i = 0; i < vertices.length; i++) {
-        const url  = repeatedPosts[i % repeatedPosts.length].image_url
-        const meta = metaMap.get(url) ?? { aspect: 1, isSvg: false }
-        newTexData.push({ tex: texMap.get(url)!, aspect: meta.aspect })
-      }
-      setTexData(newTexData)
-    }
-
-    init()
-
-    return () => {
-      cancelled = true
-      setTexData(prev => {
-        const disposed = new Set<THREE.Texture>()
-        prev.forEach(d => { if (!disposed.has(d.tex)) { disposed.add(d.tex); d.tex.dispose() } })
-        return []
+      setLoadedTex(prev => {
+        prev.forEach((v, k) => { if (!newMap.has(k)) v.tex.dispose() })
+        return newMap
       })
     }
-  }, [vertices, repeatedPosts])
 
-  if (vertices.length === 0 || texData.length === 0) return null
+    load()
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlsKey])
+
+  // Dispose all textures on unmount
+  useEffect(() => () => { setLoadedTex(prev => { prev.forEach(v => v.tex.dispose()); return new Map() }) }, [])
+
+  // Effect 2: rebuild per-sprite data whenever repeat/vertices change — instant, no network
+  useEffect(() => {
+    if (loadedTex.size === 0 || vertices.length === 0 || repeatedPosts.length === 0) {
+      setSpriteData([])
+      return
+    }
+    setSpriteData(vertices.map((_, i) => {
+      const url = repeatedPosts[i % repeatedPosts.length].image_url
+      return loadedTex.get(url) ?? null
+    }).filter((d): d is { tex: THREE.Texture; aspect: number } => d !== null))
+  }, [loadedTex, vertices, repeatedPosts])
+
+  if (vertices.length === 0 || spriteData.length === 0) return null
 
   return (
     <>
       {vertices.map((v, i) => {
-        const { tex, aspect } = texData[i % texData.length]
+        const { tex, aspect } = spriteData[i % spriteData.length]
         return (
           <sprite key={i} ref={el => { spriteRefs.current[i] = el }} position={[v.x, v.y, v.z]} scale={[size * aspect, size, 1]}>
             <spriteMaterial map={tex} sizeAttenuation />
