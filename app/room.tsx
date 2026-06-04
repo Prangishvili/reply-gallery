@@ -177,7 +177,7 @@ function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene
     [scene, repeatedPosts.length]
   )
 
-  const spriteRefs  = useRef<(THREE.Sprite | null)[]>([])
+  const spriteMap   = useRef<Map<number, THREE.Sprite>>(new Map())
   const dataArrRef  = useRef<Uint8Array | null>(null)
 
   // Textures keyed by URL — only reloaded when the set of post URLs actually changes
@@ -186,8 +186,8 @@ function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene
   const [spriteData, setSpriteData] = useState<{ tex: THREE.Texture; aspect: number }[]>([])
 
   useFrame(() => {
-    const sprites = spriteRefs.current
-    if (!sprites.length || spriteData.length === 0) return
+    const map = spriteMap.current
+    if (map.size === 0 || spriteData.length === 0) return
     let vol = 0
     if (analyserRef?.current) {
       const a = analyserRef.current
@@ -198,8 +198,7 @@ function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene
       for (let i = 0; i < dataArrRef.current.length; i++) sum += dataArrRef.current[i]
       vol = Math.min((sum / dataArrRef.current.length / 255) * 5, 1)
     }
-    sprites.forEach((sprite, i) => {
-      if (!sprite) return
+    map.forEach((sprite, i) => {
       const aspect = spriteData[i % spriteData.length]?.aspect ?? 1
       const s = size * (1 + vol * 3)
       sprite.scale.set(s * aspect, s, 1)
@@ -229,7 +228,12 @@ function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene
           tex = await makeSvgTex(url, meta.aspect, false)
         } else {
           tex = await new Promise<THREE.Texture>(resolve => {
-            new THREE.TextureLoader().load(url, t => { t.colorSpace = THREE.SRGBColorSpace; resolve(t) })
+            new THREE.TextureLoader().load(
+              url,
+              t => { t.colorSpace = THREE.SRGBColorSpace; resolve(t) },
+              undefined,
+              () => resolve(new THREE.Texture())
+            )
           })
         }
         if (cancelled) { tex.dispose(); newMap.forEach(v => v.tex.dispose()); return }
@@ -270,7 +274,12 @@ function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene
       {vertices.map((v, i) => {
         const { tex, aspect } = spriteData[i % spriteData.length]
         return (
-          <sprite key={i} ref={el => { spriteRefs.current[i] = el }} position={[v.x, v.y, v.z]} scale={[size * aspect, size, 1]}>
+          <sprite
+            key={i}
+            ref={(el: THREE.Sprite | null) => { if (el) spriteMap.current.set(i, el); else spriteMap.current.delete(i) }}
+            position={[v.x, v.y, v.z]}
+            scale={[size * aspect, size, 1]}
+          >
             <spriteMaterial map={tex} sizeAttenuation />
           </sprite>
         )
