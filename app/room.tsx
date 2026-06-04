@@ -255,7 +255,7 @@ function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene
   return (
     <>
       {vertices.map((v, i) => {
-        const { tex, aspect } = texData[i]
+        const { tex, aspect } = texData[i % texData.length]
         return (
           <sprite key={i} ref={el => { spriteRefs.current[i] = el }} position={[v.x, v.y, v.z]} scale={[size * aspect, size, 1]}>
             <spriteMaterial map={tex} sizeAttenuation />
