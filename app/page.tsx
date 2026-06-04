@@ -9,7 +9,8 @@ import { Post } from '@/lib/supabase'
 const GlobeCanvas  = dynamic(() => import('./globe'), { ssr: false })
 const RoomCanvas   = dynamic(() => import('./room'),  { ssr: false })
 const CircleCanvas = dynamic(() => import('./room').then(m => ({ default: m.CircleCanvas })), { ssr: false })
-import type { WireframeStyle, CircleCameraMode, TextureMapping } from './room'
+const SelfCanvas   = dynamic(() => import('./room').then(m => ({ default: m.SelfCanvas   })), { ssr: false })
+import type { WireframeStyle, CircleCameraMode, RoomCameraMode, TextureMapping } from './room'
 
 const STUDENTS = ['Nodar Gogichaishvili','Sesili Gurgenidze','Dominika Davshrishovi','Nutsa Kavtelishvili','Ketevan Lomiashvili','Ana Mamniashvili','Sergi Sarajevi','Natali Chixelidze','Salome Shalvashvili','Bako Shengelia','Mariam Wulaia','Mariam Qsovreli']
 
@@ -101,24 +102,7 @@ function PanelToggle({ options, value, onChange }: {
 }
 
 function AdminPanel({
-  rotateSpeed, setRotateSpeed,
-  globeScale, setGlobeScale,
-  tileSize, setTileSize,
-  tileStyle, setTileStyle,
   audioVolume, setAudioVolume,
-  showNames, setShowNames,
-  nameSize, setNameSize,
-  scaleX, setScaleX,
-  scaleY, setScaleY,
-  showNoiseGlobe, setShowNoiseGlobe,
-  noiseColor1, setNoiseColor1,
-  noiseColor2, setNoiseColor2,
-  noiseSpeed, setNoiseSpeed,
-  noiseScale, setNoiseScale,
-  showWireframe, setShowWireframe,
-  wireframeSegments, setWireframeSegments,
-  wireframeOpacity, setWireframeOpacity,
-  wireframeColor, setWireframeColor,
   viewMode, setViewMode,
   timebombActive, setTimebombActive,
   hiddenCount, resetTimebomb,
@@ -126,11 +110,6 @@ function AdminPanel({
   grainOpacity, setGrainOpacity,
   vignetteOpacity, setVignetteOpacity,
   wobbleScale, setWobbleScale,
-  showDoggo, setShowDoggo,
-  doggoScale, setDoggoScale,
-  doggoX, setDoggoX,
-  doggoY, setDoggoY,
-  doggoZ, setDoggoZ,
   showFigure, setShowFigure,
   figureRadius, setFigureRadius,
   figureSpeed, setFigureSpeed,
@@ -159,6 +138,8 @@ function AdminPanel({
   dofFocus, setDofFocus,
   dofBokeh, setDofBokeh,
   enableDissolve, setEnableDissolve,
+  figureRings, setFigureRings,
+  soloReact, setSoloReact,
   circleRadius, setCircleRadius,
   circleCameraMode, setCircleCameraMode,
   circleCamX, setCircleCamX,
@@ -172,41 +153,22 @@ function AdminPanel({
   camX, setCamX,
   camY, setCamY,
   camZ, setCamZ,
+  roomCameraMode, setRoomCameraMode,
+  roomCamFov, setRoomCamFov,
+  roomCamZoom, setRoomCamZoom,
+  roomCamXLoop, setRoomCamXLoop,
+  roomCamXLoopSpeed, setRoomCamXLoopSpeed,
   phase,
   hidden,
-  posts,
-  onDeletePost,
 }: {
-  rotateSpeed: number; setRotateSpeed: (v: number) => void
-  globeScale: number; setGlobeScale: (v: number) => void
-  tileSize: number; setTileSize: (v: number) => void
-  tileStyle: 'billboard' | 'outward'; setTileStyle: (v: 'billboard' | 'outward') => void
   audioVolume: number; setAudioVolume: (v: number) => void
-  showNames: boolean; setShowNames: (v: boolean) => void
-  nameSize: number; setNameSize: (v: number) => void
-  scaleX: number; setScaleX: (v: number) => void
-  scaleY: number; setScaleY: (v: number) => void
-  showNoiseGlobe: boolean; setShowNoiseGlobe: (v: boolean) => void
-  noiseColor1: string; setNoiseColor1: (v: string) => void
-  noiseColor2: string; setNoiseColor2: (v: string) => void
-  noiseSpeed: number; setNoiseSpeed: (v: number) => void
-  noiseScale: number; setNoiseScale: (v: number) => void
-  showWireframe: boolean; setShowWireframe: (v: boolean) => void
-  wireframeSegments: number; setWireframeSegments: (v: number) => void
-  wireframeOpacity: number; setWireframeOpacity: (v: number) => void
-  wireframeColor: string; setWireframeColor: (v: string) => void
-  viewMode: 'globe' | 'room' | 'circle'; setViewMode: (v: 'globe' | 'room' | 'circle') => void
+  viewMode: 'globe' | 'room' | 'circle' | 'self'; setViewMode: (v: 'globe' | 'room' | 'circle' | 'self') => void
   timebombActive: boolean; setTimebombActive: (v: boolean) => void
   hiddenCount: number; resetTimebomb: () => void
   showTexture: boolean; setShowTexture: (v: boolean) => void
   grainOpacity: number; setGrainOpacity: (v: number) => void
   vignetteOpacity: number; setVignetteOpacity: (v: number) => void
   wobbleScale: number; setWobbleScale: (v: number) => void
-  showDoggo: boolean; setShowDoggo: (v: boolean) => void
-  doggoScale: number; setDoggoScale: (v: number) => void
-  doggoX: number; setDoggoX: (v: number) => void
-  doggoY: number; setDoggoY: (v: number) => void
-  doggoZ: number; setDoggoZ: (v: number) => void
   showFigure: boolean; setShowFigure: (v: boolean) => void
   figureRadius: number; setFigureRadius: (v: number) => void
   figureSpeed: number; setFigureSpeed: (v: number) => void
@@ -235,6 +197,8 @@ function AdminPanel({
   dofFocus: number; setDofFocus: (v: number) => void
   dofBokeh: number; setDofBokeh: (v: number) => void
   enableDissolve: boolean; setEnableDissolve: (v: boolean) => void
+  figureRings: boolean; setFigureRings: (v: boolean) => void
+  soloReact: boolean; setSoloReact: (v: boolean) => void
   circleRadius: number; setCircleRadius: (v: number) => void
   circleCameraMode: CircleCameraMode; setCircleCameraMode: (v: CircleCameraMode) => void
   circleCamX: number; setCircleCamX: (v: number) => void
@@ -248,10 +212,13 @@ function AdminPanel({
   camX: number; setCamX: (v: number) => void
   camY: number; setCamY: (v: number) => void
   camZ: number; setCamZ: (v: number) => void
+  roomCameraMode: RoomCameraMode; setRoomCameraMode: (v: RoomCameraMode) => void
+  roomCamFov: number; setRoomCamFov: (v: number) => void
+  roomCamZoom: number; setRoomCamZoom: (v: number) => void
+  roomCamXLoop: boolean; setRoomCamXLoop: (v: boolean) => void
+  roomCamXLoopSpeed: number; setRoomCamXLoopSpeed: (v: number) => void
   phase: Phase
   hidden: boolean
-  posts: Post[]
-  onDeletePost: (id: string) => Promise<void>
 }) {
   return (
     <div style={{
@@ -289,88 +256,6 @@ function AdminPanel({
         <PanelSlider label="Volume" value={audioVolume} min={0} max={1} step={0.01} decimals={2} onChange={setAudioVolume} />
       </PanelSection>
 
-      <PanelSection title="Globe">
-        <PanelSlider label="Rotation speed" value={rotateSpeed} min={0} max={5} step={0.1} decimals={1} onChange={setRotateSpeed} />
-        <PanelSlider label="Globe scale" value={globeScale} min={0.4} max={2} step={0.05} decimals={2} onChange={setGlobeScale} />
-        <PanelSlider label="Tile size" value={tileSize} min={0.3} max={1.8} step={0.05} decimals={2} onChange={setTileSize} />
-      </PanelSection>
-
-      <PanelSection title="Shape">
-        <PanelSlider label="Horizontal stretch" value={scaleX} min={0.5} max={3} step={0.05} decimals={2} onChange={setScaleX} />
-        <PanelSlider label="Vertical stretch" value={scaleY} min={0.5} max={3} step={0.05} decimals={2} onChange={setScaleY} />
-      </PanelSection>
-
-      <PanelSection title="Wireframe">
-        <div style={{ fontSize: 11, color: P.dim, marginBottom: 8 }}>Visibility</div>
-        <PanelToggle
-          options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
-          value={showWireframe ? 'show' : 'hide'}
-          onChange={v => setShowWireframe(v === 'show')}
-        />
-        <PanelSlider label="Opacity" value={wireframeOpacity} min={0} max={1} step={0.01} decimals={2} onChange={setWireframeOpacity} />
-        <PanelSlider label="Segments" value={wireframeSegments} min={4} max={32} step={2} decimals={0} onChange={setWireframeSegments} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
-          <span style={{ fontSize: 11, color: P.text }}>Color</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 10, color: P.dim }}>{wireframeColor.toUpperCase()}</span>
-            <input
-              type="color" value={wireframeColor}
-              onChange={e => setWireframeColor(e.target.value)}
-              style={{ width: 24, height: 16, border: `1px solid ${P.borderStrong}`, background: 'transparent', cursor: 'pointer', padding: 0 }}
-            />
-          </div>
-        </div>
-      </PanelSection>
-
-      <PanelSection title="Noise">
-        <PanelToggle
-          options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
-          value={showNoiseGlobe ? 'show' : 'hide'}
-          onChange={v => setShowNoiseGlobe(v === 'show')}
-        />
-        <PanelSlider label="Speed" value={noiseSpeed} min={0.05} max={3} step={0.05} decimals={2} onChange={setNoiseSpeed} />
-        <PanelSlider label="Scale" value={noiseScale} min={0.2} max={5} step={0.1} decimals={1} onChange={setNoiseScale} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', marginTop: 4 }}>
-          <span style={{ fontSize: 11, color: P.text }}>Base color</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 10, color: P.dim }}>{noiseColor1.toUpperCase()}</span>
-            <input type="color" value={noiseColor1} onChange={e => setNoiseColor1(e.target.value)}
-              style={{ width: 24, height: 16, border: `1px solid ${P.borderStrong}`, background: 'transparent', cursor: 'pointer', padding: 0 }} />
-          </div>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
-          <span style={{ fontSize: 11, color: P.text }}>Glow color</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 10, color: P.dim }}>{noiseColor2.toUpperCase()}</span>
-            <input type="color" value={noiseColor2} onChange={e => setNoiseColor2(e.target.value)}
-              style={{ width: 24, height: 16, border: `1px solid ${P.borderStrong}`, background: 'transparent', cursor: 'pointer', padding: 0 }} />
-          </div>
-        </div>
-      </PanelSection>
-
-      <PanelSection title="Tiles">
-        <div style={{ fontSize: 11, color: P.dim, marginBottom: 8 }}>Orientation</div>
-        <PanelToggle
-          options={[{ label: 'Billboard', value: 'billboard' }, { label: 'Outward', value: 'outward' }]}
-          value={tileStyle}
-          onChange={v => setTileStyle(v as 'billboard' | 'outward')}
-        />
-        <div style={{ fontSize: 10, color: P.low, lineHeight: 1.6 }}>
-          <strong style={{ color: P.dim }}>Billboard</strong> — always faces camera<br />
-          <strong style={{ color: P.dim }}>Outward</strong> — rotates with globe
-        </div>
-      </PanelSection>
-
-      <PanelSection title="Names">
-        <div style={{ fontSize: 11, color: P.dim, marginBottom: 8 }}>Visibility</div>
-        <PanelToggle
-          options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
-          value={showNames ? 'show' : 'hide'}
-          onChange={v => setShowNames(v === 'show')}
-        />
-        <PanelSlider label="Font size" value={nameSize} min={6} max={24} step={0.5} decimals={1} onChange={setNameSize} />
-      </PanelSection>
-
       <PanelSection title="Timebomb">
         <PanelToggle
           options={[{ label: 'Armed', value: 'on' }, { label: 'Safe', value: 'off' }]}
@@ -403,18 +288,6 @@ function AdminPanel({
         <PanelSlider label="Grain intensity" value={grainOpacity} min={0} max={0.15} step={0.005} decimals={3} onChange={setGrainOpacity} />
         <PanelSlider label="Vignette intensity" value={vignetteOpacity} min={0} max={1} step={0.05} decimals={2} onChange={setVignetteOpacity} />
         <PanelSlider label="Wobble scale" value={wobbleScale} min={0} max={12} step={0.5} decimals={1} onChange={setWobbleScale} />
-      </PanelSection>
-
-      <PanelSection title="Doggo">
-        <PanelToggle
-          options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
-          value={showDoggo ? 'show' : 'hide'}
-          onChange={v => setShowDoggo(v === 'show')}
-        />
-        <PanelSlider label="Scale"      value={doggoScale} min={0.1} max={200} step={0.5}  decimals={1} onChange={setDoggoScale} />
-        <PanelSlider label="Position X" value={doggoX}     min={-200} max={200} step={2}    decimals={0} onChange={setDoggoX} />
-        <PanelSlider label="Position Y" value={doggoY}     min={-10}  max={60}  step={0.5}  decimals={1} onChange={setDoggoY} />
-        <PanelSlider label="Position Z" value={doggoZ}     min={-100} max={100} step={2}    decimals={0} onChange={setDoggoZ} />
       </PanelSection>
 
       <PanelSection title="Figure">
@@ -472,6 +345,18 @@ function AdminPanel({
           options={[{ label: 'On', value: 'on' }, { label: 'Off', value: 'off' }]}
           value={enableDissolve ? 'on' : 'off'}
           onChange={v => setEnableDissolve(v === 'on')}
+        />
+        <div style={{ fontSize: 11, color: P.dim, marginBottom: 8 }}>Sergi rings</div>
+        <PanelToggle
+          options={[{ label: 'On', value: 'on' }, { label: 'Off', value: 'off' }]}
+          value={figureRings ? 'on' : 'off'}
+          onChange={v => setFigureRings(v === 'on')}
+        />
+        <div style={{ fontSize: 11, color: P.dim, marginBottom: 8 }}>Solo react</div>
+        <PanelToggle
+          options={[{ label: 'On', value: 'on' }, { label: 'Off', value: 'off' }]}
+          value={soloReact ? 'on' : 'off'}
+          onChange={v => setSoloReact(v === 'on')}
         />
         <div style={{ fontSize: 11, color: P.dim, marginBottom: 8 }}>Vertex images</div>
         <PanelToggle
@@ -563,7 +448,7 @@ function AdminPanel({
       </PanelSection>
 
       <PanelSection title="Student textures">
-        {STUDENTS.map(name => {
+        {STUDENTS.filter(s => s !== 'SELF').map(name => {
           const tex = studentTextures[name] ?? null
           return (
             <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0' }}>
@@ -614,40 +499,32 @@ function AdminPanel({
         </>)}
       </PanelSection>
 
-      <PanelSection title="Camera">
-        <PanelSlider label="X" value={camX} min={-240} max={240} step={1} decimals={0} onChange={setCamX} />
-        <PanelSlider label="Y" value={camY} min={0}    max={400} step={1} decimals={0} onChange={setCamY} />
-        <PanelSlider label="Z" value={camZ} min={-480} max={100} step={1} decimals={0} onChange={setCamZ} />
-      </PanelSection>
-
-      <PanelSection title="Posts">
-        <div style={{ maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {posts.length === 0 && <div style={{ fontSize: 10, color: P.low }}>No posts yet</div>}
-          {posts.map(post => (
-            <div key={post.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <img src={post.image_url} style={{ width: 36, height: 36, objectFit: 'cover', flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 9, color: P.dim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {post.student_name ?? '—'}
-                </div>
-                <div style={{ fontSize: 9, color: P.low, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {post.text}
-                </div>
-              </div>
-              <button
-                onClick={() => onDeletePost(post.id)}
-                style={{
-                  flexShrink: 0, fontFamily: P.font, fontSize: 10,
-                  padding: '3px 7px', background: 'transparent',
-                  color: '#cc4444', border: `1px solid #cc4444`,
-                  cursor: 'pointer', lineHeight: 1,
-                }}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-        </div>
+      <PanelSection title="Room Camera">
+        <PanelToggle
+          options={[{ label: 'Free', value: 'freeroam' }, { label: 'Persp', value: 'perspective' }, { label: 'Ortho', value: 'orthographic' }, { label: 'Pano', value: 'panoramic' }]}
+          value={roomCameraMode}
+          onChange={v => setRoomCameraMode(v as RoomCameraMode)}
+        />
+        <PanelSlider label="Cam X" value={camX} min={-2000} max={2000} step={10} decimals={0} onChange={setCamX} />
+        <PanelSlider label="Cam Y" value={camY} min={-500}  max={2000} step={10} decimals={0} onChange={setCamY} />
+        <PanelSlider label="Cam Z" value={camZ} min={-2000} max={2000} step={10} decimals={0} onChange={setCamZ} />
+        {roomCameraMode === 'orthographic' && (
+          <PanelSlider label="Zoom" value={roomCamZoom} min={0.1} max={10} step={0.1} decimals={1} onChange={setRoomCamZoom} />
+        )}
+        {roomCameraMode !== 'orthographic' && roomCameraMode !== 'freeroam' && (
+          <PanelSlider label="FOV" value={roomCamFov} min={10} max={175} step={1} decimals={0} onChange={setRoomCamFov} />
+        )}
+        {roomCameraMode !== 'freeroam' && (<>
+          <div style={{ fontSize: 11, color: P.dim, marginBottom: 8, marginTop: 4 }}>Cam X loop</div>
+          <PanelToggle
+            options={[{ label: 'On', value: 'on' }, { label: 'Off', value: 'off' }]}
+            value={roomCamXLoop ? 'on' : 'off'}
+            onChange={v => setRoomCamXLoop(v === 'on')}
+          />
+          {roomCamXLoop && (
+            <PanelSlider label="Speed" value={roomCamXLoopSpeed} min={0.1} max={10} step={0.1} decimals={1} onChange={setRoomCamXLoopSpeed} />
+          )}
+        </>)}
       </PanelSection>
 
       <PanelSection title="About">
@@ -687,15 +564,9 @@ function HomeInner() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [roomKey, setRoomKey] = useState(0)
 
-  const [rotateSpeed, setRotateSpeed] = useState(0.05)
-  const [globeScale, setGlobeScale] = useState(1.5)
-  const [tileSize, setTileSize] = useState(0.40)
-  const [tileStyle, setTileStyle] = useState<'billboard' | 'outward'>('billboard')
   const [audioVolume, setAudioVolume] = useState(0.10)
   const [showNames, setShowNames] = useState(true)
   const [nameSize, setNameSize] = useState(10)
-  const [scaleX, setScaleX] = useState(1.0)
-  const [scaleY, setScaleY] = useState(1.0)
   const [showNoiseGlobe, setShowNoiseGlobe] = useState(false)
   const [noiseColor1, setNoiseColor1] = useState('#08003a')
   const [noiseColor2, setNoiseColor2] = useState('#8c1aff')
@@ -709,7 +580,7 @@ function HomeInner() {
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set())
   const [showAbout, setShowAbout] = useState(false)
 
-  const [viewMode, setViewMode] = useState<'globe' | 'room' | 'circle'>('circle')
+  const [viewMode, setViewMode] = useState<'globe' | 'room' | 'circle' | 'self'>('circle')
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null)
   const [personalRoomKey, setPersonalRoomKey] = useState(0)
   const [circleKey, setCircleKey] = useState(0)
@@ -736,7 +607,7 @@ function HomeInner() {
     else if (activeEditStudent === student) setActiveEditStudent(null)
   }
 
-  const switchView = (v: 'globe' | 'room' | 'circle') => {
+  const switchView = (v: 'globe' | 'room' | 'circle' | 'self') => {
     if (v === 'room') setRoomKey(k => k + 1)
     if (v === 'circle') setCircleKey(k => k + 1)
     setSelectedStudent(null)
@@ -753,9 +624,9 @@ function HomeInner() {
   }
 
   // Delay mounting the room/circle canvas so the GPU can release the globe context first
-  const [mountedView, setMountedView] = useState<'globe' | 'room' | 'circle'>('circle')
+  const [mountedView, setMountedView] = useState<'globe' | 'room' | 'circle' | 'self'>('circle')
   useEffect(() => {
-    if (viewMode === 'globe') { setMountedView('globe'); return }
+    if (viewMode === 'globe' || viewMode === 'self') { setMountedView(viewMode); return }
     const id = setTimeout(() => setMountedView(viewMode), 200)
     return () => clearTimeout(id)
   }, [viewMode])
@@ -806,7 +677,23 @@ function HomeInner() {
   const [dofFocus, setDofFocus] = useState(0.01)
   const [dofBokeh, setDofBokeh] = useState(3)
   const [enableDissolve, setEnableDissolve] = useState(false)
+  const [figureRings, setFigureRings] = useState(false)
+  const [soloReact, setSoloReact] = useState(false)
+  const [graffitiMode, setGraffitiMode] = useState(false)
+  const [graffitiColor, setGraffitiColor] = useState('#ff2222')
+  const [graffitiBrushSize, setGraffitiBrushSize] = useState(8)
+  const [graffitiClearKey, setGraffitiClearKey] = useState(0)
   const [transitionKey, setTransitionKey] = useState(0)
+  const [selfStream, setSelfStream] = useState<MediaStream | null>(null)
+  const [selfPermission, setSelfPermission] = useState<'idle' | 'granted' | 'denied'>('idle')
+  const [selfImgSize, setSelfImgSize] = useState(0.1)
+  const [selfImgCount, setSelfImgCount] = useState(60)
+  const [selfImages, setSelfImages] = useState<{ url: string; isVideo: boolean }[]>([])
+  const selfImagesBlobsRef = useRef<string[]>([])
+  const [selfFacing, setSelfFacing] = useState<'camera' | 'surface'>('camera')
+  const [bgColor, setBgColor] = useState('#ffffff')
+  const [bgImage, setBgImage] = useState<string | null>(null)
+  const bgImageBlobRef = useRef<string | null>(null)
   const dissolveInitRef = useRef(false)
 
   const [selectedStudents, setSelectedStudents] = useState<string[]>(['Salome Shalvashvili', 'Sergi Sarajevi'])
@@ -815,6 +702,10 @@ function HomeInner() {
   const figureOrbiting = selectedStudents.length === 2
 
   const handleStudentSelect = (name: string) => {
+    if (name === 'SELF') {
+      switchView(viewMode === 'self' ? 'room' : 'self')
+      return
+    }
     setSelectedStudents(prev => {
       const idx = prev.indexOf(name)
       if (idx !== -1) return prev.filter(s => s !== name)
@@ -829,9 +720,23 @@ function HomeInner() {
     setTransitionKey(k => k + 1)
   }, [figureStudent, figureStudent2])
 
+  // Stop webcam stream when leaving the SELF view
+  useEffect(() => {
+    if (viewMode !== 'self') {
+      selfStream?.getTracks().forEach(t => t.stop())
+      setSelfStream(null)
+      setSelfPermission('idle')
+    }
+  }, [viewMode]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const [camX, setCamX] = useState(0)
-  const [camY, setCamY] = useState(260)
+  const [camY, setCamY] = useState(-100)
   const [camZ, setCamZ] = useState(-35)
+  const [roomCameraMode, setRoomCameraMode] = useState<RoomCameraMode>('perspective')
+  const [roomCamFov, setRoomCamFov] = useState(72)
+  const [roomCamZoom, setRoomCamZoom] = useState(1)
+  const [roomCamXLoop, setRoomCamXLoop] = useState(false)
+  const [roomCamXLoopSpeed, setRoomCamXLoopSpeed] = useState(1)
   const [panelHidden, setPanelHidden] = useState(false)
 
   const isAdmin = useSearchParams().get('admin') === 'true'
@@ -1044,7 +949,7 @@ function HomeInner() {
   }
 
   return (
-    <div className="w-screen h-screen overflow-hidden bg-white relative">
+    <div className="w-screen h-screen overflow-hidden relative" style={{ background: bgImage ? `url(${bgImage}) center/cover no-repeat` : bgColor }}>
       {/* Logo */}
       <div className="fixed top-9 left-1/2 -translate-x-1/2 z-20 pointer-events-none select-none">
         <img src="/logo.svg" alt="Reply" className="h-10 w-auto" />
@@ -1057,7 +962,7 @@ function HomeInner() {
           style={{ right: isAdmin && !panelHidden ? 296 : 16 }}
         >
           <div style={{ display: 'flex', gap: 14 }}>
-            {(['room', 'circle'] as const).map(mode => (
+            {(['room', 'circle', 'self'] as const).map(mode => (
               <button
                 key={mode}
                 onClick={() => switchView(mode)}
@@ -1151,6 +1056,228 @@ function HomeInner() {
         </div>
       )}
 
+      {/* Image controls overlay — self view */}
+      {phase === 'gallery' && mountedView === 'self' && selfPermission === 'granted' && !selectedStudent && (
+        <div style={{
+          position: 'fixed', right: isAdmin && !panelHidden ? 296 + 24 : 24,
+          top: '50%', transform: 'translateY(-50%)',
+          zIndex: 30, width: 160, display: 'flex', flexDirection: 'column', gap: 0,
+          pointerEvents: 'auto',
+        }}>
+          {([
+            { label: 'Image size', value: selfImgSize, min: 0.01, max: 1,   step: 0.005, dec: 3, set: setSelfImgSize  },
+            { label: 'Count',      value: selfImgCount, min: 1,   max: 200,  step: 1,     dec: 0, set: setSelfImgCount },
+          ] as { label: string; value: number; min: number; max: number; step: number; dec: number; set: (v: number) => void }[]).map(({ label, value, min, max, step, dec, set }) => (
+            <div key={label} style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.45)' }}>{label}</span>
+                <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.7)', fontVariantNumeric: 'tabular-nums' }}>{dec === 0 ? value : value.toFixed(dec)}</span>
+              </div>
+              <input type="range" min={min} max={max} step={step} value={value}
+                onChange={e => set(Number(e.target.value))}
+                style={{ width: '100%', accentColor: 'rgba(0,0,0,0.6)', cursor: 'pointer' }}
+              />
+            </div>
+          ))}
+
+          {/* Facing mode toggle */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            {(['camera', 'surface'] as const).map(mode => (
+              <button key={mode} onClick={() => setSelfFacing(mode)} style={{
+                fontFamily: 'ui-monospace, monospace', fontSize: 10,
+                background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                color: selfFacing === mode ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.35)',
+                transition: 'color 0.15s',
+              }}>{mode}</button>
+            ))}
+          </div>
+
+          {/* Uploaded media for mixing */}
+          <div style={{ marginTop: 4 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.45)' }}>mix media</span>
+              {selfImages.length > 0 && (
+                <button
+                  onClick={() => {
+                    selfImagesBlobsRef.current.forEach(u => URL.revokeObjectURL(u))
+                    selfImagesBlobsRef.current = []
+                    setSelfImages([])
+                  }}
+                  style={{ fontFamily: 'ui-monospace, monospace', fontSize: 9, color: 'rgba(0,0,0,0.35)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                >clear all</button>
+              )}
+            </div>
+            {selfImages.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+                {selfImages.map(({ url, isVideo }) => (
+                  <div key={url} style={{ position: 'relative', width: 40, height: 40, flexShrink: 0 }}>
+                    {isVideo
+                      ? <video src={url} muted loop autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      : <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    }
+                    <button
+                      onClick={() => {
+                        URL.revokeObjectURL(url)
+                        selfImagesBlobsRef.current = selfImagesBlobsRef.current.filter(u => u !== url)
+                        setSelfImages(prev => prev.filter(item => item.url !== url))
+                      }}
+                      style={{
+                        position: 'absolute', top: -5, right: -5,
+                        width: 14, height: 14, borderRadius: '50%',
+                        background: 'rgba(0,0,0,0.75)', color: '#fff',
+                        border: 'none', cursor: 'pointer', padding: 0,
+                        fontSize: 9, lineHeight: '14px', textAlign: 'center',
+                      }}
+                    >×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <input
+              id="self-img-upload" type="file" multiple accept="image/*,video/*"
+              style={{ display: 'none' }}
+              onChange={e => {
+                const files = Array.from(e.target.files || [])
+                const newItems = files.map(f => {
+                  const url = URL.createObjectURL(f)
+                  selfImagesBlobsRef.current.push(url)
+                  return { url, isVideo: f.type.startsWith('video/') }
+                })
+                setSelfImages(prev => [...prev, ...newItems])
+                e.target.value = ''
+              }}
+            />
+            <label
+              htmlFor="self-img-upload"
+              style={{
+                display: 'block', textAlign: 'center', cursor: 'pointer',
+                fontFamily: 'ui-monospace, monospace', fontSize: 10, letterSpacing: 1,
+                color: 'rgba(0,0,0,0.45)',
+                border: '1px dashed rgba(0,0,0,0.2)',
+                padding: '5px 0',
+              }}
+            >+ add files</label>
+          </div>
+        </div>
+      )}
+
+      {/* Graffiti overlay — room view, when Sesili is selected */}
+      {phase === 'gallery' && mountedView === 'room' && !selectedStudent &&
+       selectedStudents.some(s => s.toLowerCase().includes('sesili')) && (
+        <div style={{
+          position: 'fixed', left: 170, bottom: 80, zIndex: 30,
+          display: 'flex', flexDirection: 'column', gap: 10,
+          pointerEvents: 'auto',
+        }}>
+          <button
+            onClick={() => setGraffitiMode(v => !v)}
+            style={{
+              fontFamily: 'ui-monospace, monospace', fontSize: 10, letterSpacing: 1,
+              textTransform: 'uppercase', padding: '5px 10px',
+              background: graffitiMode ? 'rgba(0,0,0,0.85)' : 'transparent',
+              color: graffitiMode ? '#fff' : 'rgba(0,0,0,0.5)',
+              border: '1px solid rgba(0,0,0,0.25)', cursor: 'pointer',
+            }}
+          >
+            {graffitiMode ? '✎ painting' : '✎ paint'}
+          </button>
+          {graffitiMode && (<>
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', maxWidth: 120 }}>
+              {['#ff2222','#ff8800','#ffee00','#22cc44','#2288ff','#cc22cc','#ffffff','#111111'].map(c => (
+                <button
+                  key={c}
+                  onClick={() => setGraffitiColor(c)}
+                  style={{
+                    width: 22, height: 22, background: c, border: 'none', cursor: 'pointer', padding: 0,
+                    outline: graffitiColor === c ? '2px solid rgba(0,0,0,0.7)' : '1px solid rgba(0,0,0,0.2)',
+                    outlineOffset: 1,
+                  }}
+                />
+              ))}
+              <input
+                type="color" value={graffitiColor}
+                onChange={e => setGraffitiColor(e.target.value)}
+                style={{ width: 22, height: 22, border: '1px solid rgba(0,0,0,0.2)', padding: 0, cursor: 'pointer', background: 'transparent' }}
+                title="Custom color"
+              />
+            </div>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.45)' }}>Brush</span>
+                <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.6)' }}>{graffitiBrushSize}</span>
+              </div>
+              <input
+                type="range" min={2} max={30} step={1} value={graffitiBrushSize}
+                onChange={e => setGraffitiBrushSize(Number(e.target.value))}
+                style={{ width: 120, accentColor: 'rgba(0,0,0,0.6)', cursor: 'pointer' }}
+              />
+            </div>
+            <button
+              onClick={() => setGraffitiClearKey(k => k + 1)}
+              style={{
+                fontFamily: 'ui-monospace, monospace', fontSize: 10, letterSpacing: 1,
+                textTransform: 'uppercase', padding: '4px 10px',
+                background: 'transparent', color: 'rgba(0,0,0,0.4)',
+                border: '1px solid rgba(0,0,0,0.2)', cursor: 'pointer',
+              }}
+            >clear</button>
+          </>)}
+        </div>
+      )}
+
+      {/* SELF — camera permission overlay */}
+      {phase === 'gallery' && viewMode === 'self' && selfPermission !== 'granted' && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 25,
+          background: 'rgba(8,8,8,0.94)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexDirection: 'column', gap: 24,
+          fontFamily: 'ui-monospace, monospace',
+        }}>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', letterSpacing: 3, textTransform: 'uppercase' }}>
+            self
+          </div>
+          {selfPermission === 'idle' ? (
+            <button
+              onClick={async () => {
+                try {
+                  const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+                  setSelfStream(stream)
+                  setSelfPermission('granted')
+                } catch {
+                  setSelfPermission('denied')
+                }
+              }}
+              style={{
+                fontFamily: 'ui-monospace, monospace', fontSize: 11, letterSpacing: 2,
+                textTransform: 'uppercase', padding: '10px 28px',
+                background: 'transparent', color: 'rgba(255,255,255,0.65)',
+                border: '1px solid rgba(255,255,255,0.18)', cursor: 'pointer',
+              }}
+            >
+              enable camera
+            </button>
+          ) : (
+            <>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', letterSpacing: 1 }}>
+                camera access denied
+              </div>
+              <button
+                onClick={() => setSelfPermission('idle')}
+                style={{
+                  fontFamily: 'ui-monospace, monospace', fontSize: 10, letterSpacing: 1,
+                  padding: '6px 16px', background: 'transparent',
+                  color: 'rgba(255,255,255,0.35)', border: '1px solid rgba(255,255,255,0.12)',
+                  cursor: 'pointer',
+                }}
+              >
+                try again
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* About button */}
       {phase === 'gallery' && !selectedStudent && (
         <button
@@ -1175,17 +1302,17 @@ function HomeInner() {
           style={{
             position: 'fixed', inset: 0, zIndex: 55,
             background: 'rgba(255,255,255,0.55)',
-            backdropFilter: 'blur(18px)',
+            backdropFilter: 'blur(12px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: '40px 24px',
           }}
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ maxWidth: 580, width: '100%' }}
+            style={{ maxWidth: 720, width: '100%' }}
           >
             <p style={{
-              fontFamily: 'ui-monospace, monospace', fontSize: 12, lineHeight: 2,
+              fontFamily: 'ui-monospace, monospace', fontSize: 14, lineHeight: 2,
               color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em',
               whiteSpace: 'pre-line',
             }}>{`Reply is a concept rooted in the constant communication of the digital world, a collaborative work by students of the Free University of Georgia, and a dialogue between selves and their relationships.
@@ -1223,7 +1350,8 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           overflowY: 'auto',
         }}>
           {STUDENTS.map(name => {
-            const isSelected = selectedStudents.includes(name)
+            const isSelf = name === 'SELF'
+            const isSelected = isSelf ? viewMode === 'self' : selectedStudents.includes(name)
             return (
               <button
                 key={name}
@@ -1236,9 +1364,8 @@ Reply is a virtual art exhibition that challenges the limits of natural language
               >
                 <span style={{
                   fontSize: 10, lineHeight: 1.4,
-                  color: '#000000',
-                  opacity: isSelected ? 1 : 0.35,
-                  transition: 'opacity 0.15s',
+                  color: isSelected ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.35)',
+                  transition: 'color 0.15s',
                 }}>
                   {name}
                 </span>
@@ -1262,22 +1389,16 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           </div>
         )}
         {!loading && mountedView === 'room' && !selectedStudent && (
-          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} enableBloom={enableBloom} bloomIntensity={bloomIntensity} enableDOF={enableDOF} dofFocus={dofFocus} dofBokeh={dofBokeh} analyserRef={analyserRef} />
+          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} enableBloom={enableBloom} bloomIntensity={bloomIntensity} enableDOF={enableDOF} dofFocus={dofFocus} dofBokeh={dofBokeh} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} />
         )}
         {!loading && mountedView === 'circle' && !selectedStudent && (
-          <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS} circleRadius={circleRadius} figureScale={figureScale} figureY={figureY} showVertexImages={false} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX} camY={circleCamY} camZ={circleCamZ} camFov={circleCamFov} camZoom={circleCamZoom} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} analyserRef={analyserRef} />
+          <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={figureY} showVertexImages={false} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX} camY={circleCamY} camZ={circleCamZ} camFov={circleCamFov} camZoom={circleCamZoom} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} />
         )}
         {!loading && posts.length > 0 && mountedView === 'globe' && !selectedStudent && (
           <GlobeCanvas
             posts={posts.filter(p => !hiddenIds.has(p.id))}
-            rotateSpeed={rotateSpeed}
-            scale={globeScale}
-            tileSize={tileSize}
-            tileStyle={tileStyle}
             showNames={showNames}
             nameSize={nameSize}
-            scaleX={scaleX}
-            scaleY={scaleY}
             showWireframe={showWireframe}
             wireframeSegments={wireframeSegments}
             wireframeOpacity={wireframeOpacity}
@@ -1292,12 +1413,19 @@ Reply is a virtual art exhibition that challenges the limits of natural language
             blurNames={showAbout}
             onNameClick={openStudentRoom}
             namesClickable={phase === 'gallery'}
+            bgColor={bgColor}
+            bgImage={bgImage}
           />
+        )}
+
+        {/* SELF view */}
+        {!loading && mountedView === 'self' && selfPermission === 'granted' && selfStream && !selectedStudent && (
+          <SelfCanvas stream={selfStream} figureScale={figureScale} figureFacing={figureFacing} imgSize={selfImgSize} imgCount={selfImgCount} bgColor={bgColor} bgImage={bgImage} images={selfImages} facing={selfFacing} />
         )}
 
         {/* Personal student room */}
         {mountedStudent && (
-          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} enableBloom={enableBloom} bloomIntensity={bloomIntensity} enableDOF={enableDOF} dofFocus={dofFocus} dofBokeh={dofBokeh} analyserRef={analyserRef} />
+          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} enableBloom={enableBloom} bloomIntensity={bloomIntensity} enableDOF={enableDOF} dofFocus={dofFocus} dofBokeh={dofBokeh} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} />
         )}
       </div>
 
@@ -1362,6 +1490,60 @@ Reply is a virtual art exhibition that challenges the limits of natural language
         <div style={{ position: 'fixed', inset: 0, zIndex: 57, pointerEvents: 'none', background: `radial-gradient(ellipse at center, transparent 30%, rgba(10,5,0,${vignetteOpacity}) 100%)` }} />
       </>)}
 
+      {/* Background controls */}
+      {phase === 'gallery' && !selectedStudent && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: 24, zIndex: 20,
+          display: 'flex', alignItems: 'center', gap: 8,
+          fontFamily: 'ui-monospace, monospace',
+        }}>
+          {/* Color swatch — click to open color picker */}
+          <label style={{ cursor: 'pointer', position: 'relative' }} title="Background color">
+            <div style={{
+              width: 22, height: 22,
+              background: bgColor,
+              border: '1px solid rgba(0,0,0,0.2)',
+              borderRadius: 2,
+            }} />
+            <input
+              type="color" value={bgColor}
+              onChange={e => setBgColor(e.target.value)}
+              style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }}
+            />
+          </label>
+          {/* Upload image/SVG */}
+          <label style={{ cursor: 'pointer' }} title="Upload background image or SVG">
+            <span style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', letterSpacing: 0.5 }}>bg</span>
+            <input
+              type="file" accept="image/*" style={{ display: 'none' }}
+              onChange={e => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                if (bgImageBlobRef.current) URL.revokeObjectURL(bgImageBlobRef.current)
+                const url = URL.createObjectURL(file)
+                bgImageBlobRef.current = url
+                setBgImage(url)
+                e.target.value = ''
+              }}
+            />
+          </label>
+          {/* Clear image */}
+          {bgImage && (
+            <button
+              onClick={() => {
+                if (bgImageBlobRef.current) { URL.revokeObjectURL(bgImageBlobRef.current); bgImageBlobRef.current = null }
+                setBgImage(null)
+              }}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                fontSize: 13, color: 'rgba(0,0,0,0.35)', lineHeight: 1,
+              }}
+              title="Remove background image"
+            >×</button>
+          )}
+        </div>
+      )}
+
       {/* Upload FAB */}
       {phase === 'gallery' && (
         <div className="fixed bottom-9 left-1/2 -translate-x-1/2 z-20 flex gap-3">
@@ -1392,36 +1574,14 @@ Reply is a virtual art exhibition that challenges the limits of natural language
       {isAdmin && (
         <AdminPanel
           hidden={panelHidden}
-          rotateSpeed={rotateSpeed} setRotateSpeed={setRotateSpeed}
-          globeScale={globeScale} setGlobeScale={setGlobeScale}
-          scaleX={scaleX} setScaleX={setScaleX}
-          scaleY={scaleY} setScaleY={setScaleY}
-          tileSize={tileSize} setTileSize={setTileSize}
-          tileStyle={tileStyle} setTileStyle={setTileStyle}
           audioVolume={audioVolume} setAudioVolume={setAudioVolume}
-          showNames={showNames} setShowNames={setShowNames}
-          nameSize={nameSize} setNameSize={setNameSize}
+          viewMode={viewMode} setViewMode={switchView}
           timebombActive={timebombActive} setTimebombActive={setTimebombActive}
           hiddenCount={hiddenIds.size} resetTimebomb={() => setHiddenIds(new Set())}
-          showNoiseGlobe={showNoiseGlobe} setShowNoiseGlobe={setShowNoiseGlobe}
-          noiseColor1={noiseColor1} setNoiseColor1={setNoiseColor1}
-          noiseColor2={noiseColor2} setNoiseColor2={setNoiseColor2}
-          noiseSpeed={noiseSpeed} setNoiseSpeed={setNoiseSpeed}
-          noiseScale={noiseScale} setNoiseScale={setNoiseScale}
-          showWireframe={showWireframe} setShowWireframe={setShowWireframe}
-          wireframeSegments={wireframeSegments} setWireframeSegments={setWireframeSegments}
-          wireframeOpacity={wireframeOpacity} setWireframeOpacity={setWireframeOpacity}
-          wireframeColor={wireframeColor} setWireframeColor={setWireframeColor}
-          viewMode={viewMode} setViewMode={switchView}
           showTexture={showTexture} setShowTexture={setShowTexture}
           grainOpacity={grainOpacity} setGrainOpacity={setGrainOpacity}
           vignetteOpacity={vignetteOpacity} setVignetteOpacity={setVignetteOpacity}
           wobbleScale={wobbleScale} setWobbleScale={setWobbleScale}
-          showDoggo={showDoggo} setShowDoggo={setShowDoggo}
-          doggoScale={doggoScale} setDoggoScale={setDoggoScale}
-          doggoX={doggoX} setDoggoX={setDoggoX}
-          doggoY={doggoY} setDoggoY={setDoggoY}
-          doggoZ={doggoZ} setDoggoZ={setDoggoZ}
           showFigure={showFigure} setShowFigure={setShowFigure}
           figureRadius={figureRadius} setFigureRadius={setFigureRadius}
           figureSpeed={figureSpeed} setFigureSpeed={setFigureSpeed}
@@ -1450,6 +1610,8 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           dofFocus={dofFocus} setDofFocus={setDofFocus}
           dofBokeh={dofBokeh} setDofBokeh={setDofBokeh}
           enableDissolve={enableDissolve} setEnableDissolve={setEnableDissolve}
+          figureRings={figureRings} setFigureRings={setFigureRings}
+          soloReact={soloReact} setSoloReact={setSoloReact}
           circleRadius={circleRadius} setCircleRadius={setCircleRadius}
           circleCameraMode={circleCameraMode} setCircleCameraMode={setCircleCameraMode}
           circleCamX={circleCamX} setCircleCamX={setCircleCamX}
@@ -1463,9 +1625,12 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           camX={camX} setCamX={setCamX}
           camY={camY} setCamY={setCamY}
           camZ={camZ} setCamZ={setCamZ}
+          roomCameraMode={roomCameraMode} setRoomCameraMode={setRoomCameraMode}
+          roomCamFov={roomCamFov} setRoomCamFov={setRoomCamFov}
+          roomCamZoom={roomCamZoom} setRoomCamZoom={setRoomCamZoom}
+          roomCamXLoop={roomCamXLoop} setRoomCamXLoop={setRoomCamXLoop}
+          roomCamXLoopSpeed={roomCamXLoopSpeed} setRoomCamXLoopSpeed={setRoomCamXLoopSpeed}
           phase={phase}
-          posts={posts}
-          onDeletePost={handleDeletePost}
         />
       )}
 
@@ -1577,7 +1742,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
                   className="w-full font-mono text-xs border border-gray-200 rounded-lg px-3 py-2 focus:border-black outline-none bg-white"
                 >
                   <option value="">— select your name —</option>
-                  {STUDENTS.map(n => (
+                  {STUDENTS.filter(s => s !== 'SELF').map(n => (
                     <option key={n} value={n}>{n}</option>
                   ))}
                 </select>
