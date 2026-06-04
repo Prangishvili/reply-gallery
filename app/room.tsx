@@ -196,7 +196,7 @@ function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene
       a.getByteFrequencyData(dataArrRef.current as Uint8Array<ArrayBuffer>)
       let sum = 0
       for (let i = 0; i < dataArrRef.current.length; i++) sum += dataArrRef.current[i]
-      vol = Math.min((sum / dataArrRef.current.length / 255) * 5, 1)
+      vol = Math.min((sum / dataArrRef.current.length / 255) * 2, 1)
     }
     map.forEach((sprite, i) => {
       const aspect = spriteData[i % spriteData.length]?.aspect ?? 1
@@ -435,7 +435,7 @@ function FigureRings({ scene, ringCount = 40, color = '#000000', analyserRef }: 
       a.getByteFrequencyData(dataArrRef.current as Uint8Array<ArrayBuffer>)
       let sum = 0
       for (let i = 0; i < dataArrRef.current.length; i++) sum += dataArrRef.current[i]
-      vol = Math.min((sum / dataArrRef.current.length / 255) * 5, 1)
+      vol = Math.min((sum / dataArrRef.current.length / 255) * 2, 1)
     }
     if (groupRef.current) {
       const s = 1 + vol * 0.3
@@ -841,7 +841,7 @@ function SelfVertexImages({ scene, stream, count, size, images, facing, analyser
       a.getByteFrequencyData(dataArrRef.current as Uint8Array<ArrayBuffer>)
       let sum = 0
       for (let i = 0; i < dataArrRef.current.length; i++) sum += dataArrRef.current[i]
-      vol = Math.min((sum / dataArrRef.current.length / 255) * 5, 1)
+      vol = Math.min((sum / dataArrRef.current.length / 255) * 2, 1)
     }
     const s = 1 + vol * 3
     meshRefs.current.forEach(m => { if (m) m.scale.set(s, s, 1) })
