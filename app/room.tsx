@@ -173,12 +173,13 @@ function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene
     return arr
   }, [posts, repeat])
   const vertices = useMemo(
-    () => repeatedPosts.length > 0 ? sampleVertices(scene, repeatedPosts.length) : [],
+    () => repeatedPosts.length > 0 ? sampleVerticesWithNormals(scene, repeatedPosts.length) : [],
     [scene, repeatedPosts.length]
   )
 
   const spriteMap   = useRef<Map<number, THREE.Sprite>>(new Map())
   const dataArrRef  = useRef<Uint8Array | null>(null)
+  const gifAnimRef  = useRef<Map<string, { img: HTMLImageElement; canvas: HTMLCanvasElement; tex: THREE.CanvasTexture }>>(new Map())
 
   // Textures keyed by URL — only reloaded when the set of post URLs actually changes
   const [loadedTex, setLoadedTex] = useState<Map<string, { tex: THREE.Texture; aspect: number }>>(new Map())
@@ -186,6 +187,12 @@ function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene
   const [spriteData, setSpriteData] = useState<{ tex: THREE.Texture; aspect: number }[]>([])
 
   useFrame(() => {
+    gifAnimRef.current.forEach(({ img, canvas, tex }) => {
+      if (img.complete && img.naturalWidth > 0) {
+        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+        tex.needsUpdate = true
+      }
+    })
     const map = spriteMap.current
     if (map.size === 0 || spriteData.length === 0) return
     let vol = 0
@@ -216,16 +223,30 @@ function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene
     let cancelled = false
 
     const load = async () => {
-      const metaMap = new Map<string, { aspect: number; isSvg: boolean }>()
+      const metaMap = new Map<string, { aspect: number; isSvg: boolean; isGif: boolean }>()
       await Promise.all(uniqueUrls.map(async url => { metaMap.set(url, await loadImgMeta(url)) }))
       if (cancelled) return
 
       const newMap = new Map<string, { tex: THREE.Texture; aspect: number }>()
+      const newGifMap = new Map<string, { img: HTMLImageElement; canvas: HTMLCanvasElement; tex: THREE.CanvasTexture }>()
       for (const url of uniqueUrls) {
         const meta = metaMap.get(url)!
         let tex: THREE.Texture
         if (meta.isSvg) {
           tex = await makeSvgTex(url, meta.aspect, false)
+        } else if (meta.isGif) {
+          const tW = 512, tH = Math.round(tW / meta.aspect)
+          const canvas = document.createElement('canvas')
+          canvas.width = tW; canvas.height = tH
+          const img = new window.Image()
+          // Must be in DOM for the browser to advance GIF animation frames
+          img.style.cssText = 'position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:-9999px;left:-9999px'
+          document.body.appendChild(img)
+          img.src = url
+          const canvasTex = new THREE.CanvasTexture(canvas)
+          canvasTex.colorSpace = THREE.SRGBColorSpace
+          newGifMap.set(url, { img, canvas, tex: canvasTex })
+          tex = canvasTex
         } else {
           tex = await new Promise<THREE.Texture>(resolve => {
             new THREE.TextureLoader().load(
@@ -245,6 +266,8 @@ function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene
         prev.forEach((v, k) => { if (!newMap.has(k)) v.tex.dispose() })
         return newMap
       })
+      gifAnimRef.current.forEach(({ img }) => { if (img.parentNode) img.parentNode.removeChild(img) })
+      gifAnimRef.current = newGifMap
     }
 
     load()
@@ -253,7 +276,11 @@ function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene
   }, [urlsKey])
 
   // Dispose all textures on unmount
-  useEffect(() => () => { setLoadedTex(prev => { prev.forEach(v => v.tex.dispose()); return new Map() }) }, [])
+  useEffect(() => () => {
+    setLoadedTex(prev => { prev.forEach(v => v.tex.dispose()); return new Map() })
+    gifAnimRef.current.forEach(({ img }) => { if (img.parentNode) img.parentNode.removeChild(img) })
+    gifAnimRef.current.clear()
+  }, [])
 
   // Effect 2: rebuild per-sprite data whenever repeat/vertices change — instant, no network
   useEffect(() => {
@@ -273,11 +300,14 @@ function FigureVertexImages({ scene, posts, size, repeat, analyserRef }: { scene
     <>
       {vertices.map((v, i) => {
         const { tex, aspect } = spriteData[i % spriteData.length]
+        const px = v.pos.x + v.normal.x * 0.04
+        const py = v.pos.y + v.normal.y * 0.04
+        const pz = v.pos.z + v.normal.z * 0.04
         return (
           <sprite
             key={i}
             ref={(el: THREE.Sprite | null) => { if (el) spriteMap.current.set(i, el); else spriteMap.current.delete(i) }}
-            position={[v.x, v.y, v.z]}
+            position={[px, py, pz]}
             scale={[size * aspect, size, 1]}
           >
             <spriteMaterial map={tex} sizeAttenuation />
@@ -772,11 +802,13 @@ function GraffitiPaintFigure({ scene, brushColor, brushSize, clearKey, active }:
 // ── Self (webcam) figure ──────────────────────────────────────────────────────
 const _Z = new THREE.Vector3(0, 0, 1)
 
-async function loadImgMeta(url: string): Promise<{ aspect: number; isSvg: boolean }> {
-  let isSvg = false
+async function loadImgMeta(url: string): Promise<{ aspect: number; isSvg: boolean; isGif: boolean }> {
+  let isSvg = false, isGif = false
   try {
     const r = await fetch(url)
-    isSvg = (r.headers.get('content-type') ?? '').includes('svg')
+    const ct = r.headers.get('content-type') ?? ''
+    isSvg = ct.includes('svg')
+    isGif = ct.includes('gif')
   } catch {}
   const aspect = await new Promise<number>(resolve => {
     const img = new window.Image()
@@ -784,7 +816,7 @@ async function loadImgMeta(url: string): Promise<{ aspect: number; isSvg: boolea
     img.onerror = () => resolve(1)
     img.src = url
   })
-  return { aspect, isSvg }
+  return { aspect, isSvg, isGif }
 }
 
 function loadVideoMeta(url: string): Promise<number> {
@@ -818,7 +850,7 @@ function makeSvgTex(url: string, aspect: number, flip: boolean): Promise<THREE.C
 }
 
 function SelfVertexImages({ scene, stream, count, size, images, facing, analyserRef }: {
-  scene: THREE.Object3D; stream: MediaStream; count: number; size: number
+  scene: THREE.Object3D; stream: MediaStream | null; count: number; size: number
   images: { url: string; isVideo: boolean }[]; facing: 'camera' | 'surface'
   analyserRef?: React.RefObject<AnalyserNode | null>
 }) {
@@ -848,24 +880,30 @@ function SelfVertexImages({ scene, stream, count, size, images, facing, analyser
   })
 
   useEffect(() => {
+    if (!stream && images.length === 0) return
     let cancelled = false
-    const camVid = document.createElement('video')
-    camVid.srcObject = stream
-    camVid.autoplay = true; camVid.muted = true; camVid.playsInline = true
-    camVid.play().catch(() => {})
+    let camVid: HTMLVideoElement | null = null
+    if (stream) {
+      camVid = document.createElement('video')
+      camVid.srcObject = stream
+      camVid.autoplay = true; camVid.muted = true; camVid.playsInline = true
+      camVid.play().catch(() => {})
+    }
     const fileVids: HTMLVideoElement[] = []
 
     const init = async () => {
-      const camAspect = await new Promise<number>(resolve => {
-        if (camVid.videoWidth) { resolve(camVid.videoWidth / camVid.videoHeight); return }
-        const onMeta = () => resolve(camVid.videoWidth / camVid.videoHeight || 4 / 3)
-        camVid.addEventListener('loadedmetadata', onMeta, { once: true })
-        setTimeout(() => resolve(4 / 3), 2000)
-      })
+      const camAspect = camVid
+        ? await new Promise<number>(resolve => {
+            if (camVid!.videoWidth) { resolve(camVid!.videoWidth / camVid!.videoHeight); return }
+            const onMeta = () => resolve(camVid!.videoWidth / camVid!.videoHeight || 4 / 3)
+            camVid!.addEventListener('loadedmetadata', onMeta, { once: true })
+            setTimeout(() => resolve(4 / 3), 2000)
+          })
+        : 4 / 3
 
       const mediaMeta = await Promise.all(images.map(({ url, isVideo }) =>
         isVideo
-          ? loadVideoMeta(url).then(aspect => ({ aspect, isSvg: false, isVideo: true }))
+          ? loadVideoMeta(url).then(aspect => ({ aspect, isSvg: false, isGif: false, isVideo: true }))
           : loadImgMeta(url).then(m => ({ ...m, isVideo: false }))
       ))
 
@@ -875,7 +913,7 @@ function SelfVertexImages({ scene, stream, count, size, images, facing, analyser
       const newAspects: number[] = []
 
       for (let i = 0; i < count; i++) {
-        const useUploaded = images.length > 0 && Math.random() < 0.5
+        const useUploaded = images.length > 0 && (!camVid || Math.random() < 0.5)
         let tex: THREE.Texture
         let aspect: number
 
@@ -904,7 +942,7 @@ function SelfVertexImages({ scene, stream, count, size, images, facing, analyser
           }
         } else {
           const flip = Math.random() < 0.5
-          tex = new THREE.VideoTexture(camVid)
+          tex = new THREE.VideoTexture(camVid!)
           tex.colorSpace = THREE.SRGBColorSpace
           if (flip) { tex.repeat.x = -1; tex.offset.x = 1 }
           aspect = camAspect
@@ -924,7 +962,7 @@ function SelfVertexImages({ scene, stream, count, size, images, facing, analyser
 
     return () => {
       cancelled = true
-      camVid.srcObject = null
+      if (camVid) { camVid.srcObject = null }
       fileVids.forEach(v => { v.pause(); v.src = '' })
       setMats(prev => { prev.forEach(m => { m.map?.dispose(); m.dispose() }); return [] })
       setReady(false)
@@ -955,7 +993,7 @@ function SelfVertexImages({ scene, stream, count, size, images, facing, analyser
 }
 
 function SelfScene({ stream, figureScale, figureFacing, imgSize, imgCount, bgColor, bgImage, images, facing, analyserRef }: {
-  stream: MediaStream; figureScale: number; figureFacing: number; imgSize: number; imgCount: number; bgColor: string; bgImage: string | null; images: { url: string; isVideo: boolean }[]; facing: 'camera' | 'surface'; analyserRef?: React.RefObject<AnalyserNode | null>
+  stream: MediaStream | null; figureScale: number; figureFacing: number; imgSize: number; imgCount: number; bgColor: string; bgImage: string | null; images: { url: string; isVideo: boolean }[]; facing: 'camera' | 'surface'; analyserRef?: React.RefObject<AnalyserNode | null>
 }) {
   const { scene: raw } = useGLTF('/figure.glb')
   const cloned = useMemo(() => {
@@ -982,7 +1020,7 @@ function SelfScene({ stream, figureScale, figureFacing, imgSize, imgCount, bgCol
 }
 
 export function SelfCanvas({ stream, figureScale = 200, figureFacing = 4.65, imgSize = 0.1, imgCount = 60, bgColor = '#0a0a0a', bgImage = null, images = [], facing = 'camera', analyserRef }: {
-  stream: MediaStream; figureScale?: number; figureFacing?: number; imgSize?: number; imgCount?: number; bgColor?: string; bgImage?: string | null; images?: { url: string; isVideo: boolean }[]; facing?: 'camera' | 'surface'; analyserRef?: React.RefObject<AnalyserNode | null>
+  stream: MediaStream | null; figureScale?: number; figureFacing?: number; imgSize?: number; imgCount?: number; bgColor?: string; bgImage?: string | null; images?: { url: string; isVideo: boolean }[]; facing?: 'camera' | 'surface'; analyserRef?: React.RefObject<AnalyserNode | null>
 }) {
   return (
     <Canvas

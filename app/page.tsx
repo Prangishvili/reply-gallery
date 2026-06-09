@@ -1026,15 +1026,15 @@ function HomeInner() {
         </div>
       )}
 
-      {/* Image controls overlay — room view, after upload */}
-      {phase === 'gallery' && mountedView === 'room' && !selectedStudent && posts.length > 0 && (
+      {/* Image controls overlay — room view */}
+      {phase === 'gallery' && mountedView === 'room' && !selectedStudent && (
         <div style={{
           position: 'fixed', right: isAdmin && !panelHidden ? 296 + 24 : 24,
           top: '50%', transform: 'translateY(-50%)',
           zIndex: 30, width: 160, display: 'flex', flexDirection: 'column', gap: 0,
           pointerEvents: 'auto',
         }}>
-          {([
+          {posts.length > 0 && ([
             { label: 'Image size', value: vertexImgSize, min: 0.005, max: 3,  step: 0.005, dec: 3, set: setVertexImgSize },
             { label: 'Repeat',     value: vertexRepeat,  min: 1,     max: 20, step: 1,     dec: 0, set: setVertexRepeat  },
           ] as { label: string; value: number; min: number; max: number; step: number; dec: number; set: (v: number) => void }[]).map(({ label, value, min, max, step, dec, set }) => (
@@ -1049,15 +1049,54 @@ function HomeInner() {
               />
             </div>
           ))}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 2 }}>
-            <button
-              onClick={() => {
-                posts.filter(p => p.image_url.startsWith('blob:')).forEach(p => URL.revokeObjectURL(p.image_url))
-                setPosts(p => p.filter(post => !post.image_url.startsWith('blob:')))
-              }}
-              style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.4)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-            >remove all</button>
+
+          {/* Texture upload */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: posts.length > 0 ? 6 : 0 }}>
+            {meshTexture && (
+              <div style={{ position: 'relative', width: 32, height: 32, flexShrink: 0 }}>
+                <img src={meshTexture} style={{ width: 32, height: 32, objectFit: 'cover', display: 'block' }} />
+                <button
+                  onClick={() => { URL.revokeObjectURL(meshTexture); setMeshTexture(null) }}
+                  style={{
+                    position: 'absolute', top: -4, right: -4,
+                    width: 13, height: 13, borderRadius: '50%',
+                    background: 'rgba(0,0,0,0.6)', color: '#fff',
+                    border: 'none', cursor: 'pointer', padding: 0,
+                    fontSize: 8, lineHeight: '13px', textAlign: 'center',
+                  }}
+                >×</button>
+              </div>
+            )}
+            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{
+                fontFamily: 'ui-monospace, monospace', fontSize: 10,
+                color: 'rgba(0,0,0,0.45)',
+              }}>{meshTexture ? 'texture' : '+ texture'}</span>
+              <input
+                type="file" accept="image/*"
+                style={{ display: 'none' }}
+                onChange={e => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  if (meshTexture) URL.revokeObjectURL(meshTexture)
+                  setMeshTexture(URL.createObjectURL(file))
+                  e.target.value = ''
+                }}
+              />
+            </label>
           </div>
+
+          {posts.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 2 }}>
+              <button
+                onClick={() => {
+                  posts.filter(p => p.image_url.startsWith('blob:')).forEach(p => URL.revokeObjectURL(p.image_url))
+                  setPosts(p => p.filter(post => !post.image_url.startsWith('blob:')))
+                }}
+                style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.4)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              >remove all</button>
+            </div>
+          )}
         </div>
       )}
 
@@ -1084,6 +1123,23 @@ function HomeInner() {
               />
             </div>
           ))}
+
+          {/* Enable camera (shown when skipped) */}
+          {!selfStream && (
+            <button
+              onClick={async () => {
+                try {
+                  const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+                  setSelfStream(stream)
+                } catch {}
+              }}
+              style={{
+                fontFamily: 'ui-monospace, monospace', fontSize: 10,
+                background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                color: 'rgba(0,0,0,0.45)', display: 'block', marginBottom: 12,
+              }}
+            >enable camera</button>
+          )}
 
           {/* Facing mode toggle */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
@@ -1251,25 +1307,37 @@ function HomeInner() {
             self
           </div>
           {selfPermission === 'idle' ? (
-            <button
-              onClick={async () => {
-                try {
-                  const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
-                  setSelfStream(stream)
-                  setSelfPermission('granted')
-                } catch {
-                  setSelfPermission('denied')
-                }
-              }}
-              style={{
-                fontFamily: 'ui-monospace, monospace', fontSize: 11, letterSpacing: 2,
-                textTransform: 'uppercase', padding: '10px 28px',
-                background: 'transparent', color: 'rgba(255,255,255,0.65)',
-                border: '1px solid rgba(255,255,255,0.18)', cursor: 'pointer',
-              }}
-            >
-              enable camera
-            </button>
+            <>
+              <button
+                onClick={async () => {
+                  try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+                    setSelfStream(stream)
+                    setSelfPermission('granted')
+                  } catch {
+                    setSelfPermission('denied')
+                  }
+                }}
+                style={{
+                  fontFamily: 'ui-monospace, monospace', fontSize: 11, letterSpacing: 2,
+                  textTransform: 'uppercase', padding: '10px 28px',
+                  background: 'transparent', color: 'rgba(255,255,255,0.65)',
+                  border: '1px solid rgba(255,255,255,0.18)', cursor: 'pointer',
+                }}
+              >
+                enable camera
+              </button>
+              <button
+                onClick={() => setSelfPermission('granted')}
+                style={{
+                  fontFamily: 'ui-monospace, monospace', fontSize: 10, letterSpacing: 1,
+                  background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                  color: 'rgba(255,255,255,0.25)',
+                }}
+              >
+                skip
+              </button>
+            </>
           ) : (
             <>
               <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', letterSpacing: 1 }}>
@@ -1285,6 +1353,16 @@ function HomeInner() {
                 }}
               >
                 try again
+              </button>
+              <button
+                onClick={() => setSelfPermission('granted')}
+                style={{
+                  fontFamily: 'ui-monospace, monospace', fontSize: 10, letterSpacing: 1,
+                  background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                  color: 'rgba(255,255,255,0.25)',
+                }}
+              >
+                skip
               </button>
             </>
           )}
@@ -1432,7 +1510,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
         )}
 
         {/* SELF view */}
-        {!loading && mountedView === 'self' && selfPermission === 'granted' && selfStream && !selectedStudent && (
+        {!loading && mountedView === 'self' && selfPermission === 'granted' && !selectedStudent && (
           <SelfCanvas stream={selfStream} figureScale={figureScale} figureFacing={figureFacing} imgSize={selfImgSize} imgCount={selfImgCount} bgColor={bgColor} bgImage={bgImage} images={selfImages} facing={selfFacing} analyserRef={selfSoundReact ? analyserRef : undefined} />
         )}
 
