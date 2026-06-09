@@ -14,6 +14,22 @@ import type { WireframeStyle, CircleCameraMode, RoomCameraMode, TextureMapping }
 
 const STUDENTS = ['Nodar Gogichaishvili','Sesili Gurgenidze','Dominika Davshrishovi','Nutsa Kavtelishvili','Ketevan Lomiashvili','Ana Mamniashvili','Sergi Sarajevi','Natali Chixelidze','Salome Shalvashvili','Bako Shengelia','Mariam Wulaia','Mariam Qsovreli']
 
+// ── Per-student image size & repeat defaults — edit values here ───────────────
+const STUDENT_VERTEX_DEFAULTS: Record<string, { imgSize: number; repeat: number }> = {
+  'Nodar Gogichaishvili':  { imgSize: 0.025, repeat: 1 },
+  'Sesili Gurgenidze':     { imgSize: 0.025, repeat: 1 },
+  'Dominika Davshrishovi': { imgSize: 0.025, repeat: 1 },
+  'Nutsa Kavtelishvili':   { imgSize: 0.025, repeat: 1 },
+  'Ketevan Lomiashvili':   { imgSize: 0.025, repeat: 1 },
+  'Ana Mamniashvili':      { imgSize: 0.025, repeat: 1 },
+  'Sergi Sarajevi':        { imgSize: 0.025, repeat: 1 },
+  'Natali Chixelidze':     { imgSize: 0.025, repeat: 1 },
+  'Salome Shalvashvili':   { imgSize: 0.060, repeat: 17 },
+  'Bako Shengelia':        { imgSize: 0.025, repeat: 1 },
+  'Mariam Wulaia':         { imgSize: 0.025, repeat: 1 },
+  'Mariam Qsovreli':       { imgSize: 0.025, repeat: 1 },
+}
+
 type ImageItem = { file: File; preview: string; caption: string }
 
 function fileToCaption(file: File): string {
@@ -158,6 +174,7 @@ function AdminPanel({
   roomCamZoom, setRoomCamZoom,
   roomCamXLoop, setRoomCamXLoop,
   roomCamXLoopSpeed, setRoomCamXLoopSpeed,
+  onAdminUpload,
   phase,
   hidden,
 }: {
@@ -217,9 +234,26 @@ function AdminPanel({
   roomCamZoom: number; setRoomCamZoom: (v: number) => void
   roomCamXLoop: boolean; setRoomCamXLoop: (v: boolean) => void
   roomCamXLoopSpeed: number; setRoomCamXLoopSpeed: (v: number) => void
+  onAdminUpload: (file: File, studentName: string) => Promise<void>
   phase: Phase
   hidden: boolean
 }) {
+  const [uploadFiles, setUploadFiles] = useState<File[]>([])
+  const [uploadStudent, setUploadStudent] = useState<string>(STUDENTS[0])
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  async function doUpload() {
+    if (!uploadFiles.length || !uploadStudent) return
+    setUploadProgress({ done: 0, total: uploadFiles.length })
+    setUploadError(null)
+    for (let i = 0; i < uploadFiles.length; i++) {
+      try {
+        await onAdminUpload(uploadFiles[i], uploadStudent)
+        setUploadProgress({ done: i + 1, total: uploadFiles.length })
+      } catch (e) { setUploadError(String(e)); break }
+    }
+    setUploadFiles([])
+  }
   return (
     <div style={{
       position: 'fixed', top: 0, right: 0, bottom: 0, width: 280, zIndex: 100,
@@ -527,6 +561,22 @@ function AdminPanel({
         </>)}
       </PanelSection>
 
+      <PanelSection title="Upload to DB">
+        <select value={uploadStudent} onChange={e => setUploadStudent(e.target.value)}
+          style={{ width: '100%', marginBottom: 8, fontFamily: P.font, fontSize: 10, background: P.surface, color: P.text, border: `1px solid ${P.border}`, padding: '4px 6px' }}>
+          {STUDENTS.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <label style={{ display: 'block', cursor: 'pointer', background: P.surface, border: `1px solid ${P.border}`, padding: '5px 10px', fontSize: 10, color: P.dim, marginBottom: 8, textAlign: 'center' as const }}>
+          {uploadFiles.length ? `${uploadFiles.length} file${uploadFiles.length > 1 ? 's' : ''} selected` : 'choose files'}
+          <input type="file" accept="image/*,video/*" multiple style={{ display: 'none' }} onChange={e => { setUploadFiles(Array.from(e.target.files ?? [])); e.target.value = '' }} />
+        </label>
+        <button onClick={doUpload} disabled={!uploadFiles.length || !!uploadProgress}
+          style={{ width: '100%', fontFamily: P.font, fontSize: 10, padding: '5px 0', cursor: 'pointer', background: P.surface, color: P.text, border: `1px solid ${P.border}` }}>
+          {uploadProgress ? `uploading ${uploadProgress.done}/${uploadProgress.total}…` : 'upload'}
+        </button>
+        {uploadError && <div style={{ marginTop: 6, fontSize: 10, color: '#f55' }}>{uploadError}</div>}
+      </PanelSection>
+
       <PanelSection title="About">
         <div style={{ fontSize: 10, color: P.low, lineHeight: 1.7 }}>
           <strong style={{ color: P.dim }}>URL</strong> ?admin=true<br />
@@ -669,8 +719,12 @@ function HomeInner() {
   const [dotCount, setDotCount] = useState(30000)
   const [showWalls, setShowWalls] = useState(false)
   const [showVertexImages, setShowVertexImages] = useState(true)
-  const [vertexImgSize, setVertexImgSize] = useState(0.025)
-  const [vertexRepeat, setVertexRepeat] = useState(1)
+  const [studentVertexSettings, setStudentVertexSettings] = useState<Record<string, { imgSize: number; repeat: number }>>(() => ({ ...STUDENT_VERTEX_DEFAULTS }))
+  const getVS = (name: string | null) => name ? (studentVertexSettings[name] ?? { imgSize: 0.025, repeat: 1 }) : { imgSize: 0.025, repeat: 1 }
+  const setVSKey = (name: string | null, key: 'imgSize' | 'repeat', val: number) => {
+    if (!name) return
+    setStudentVertexSettings(p => ({ ...p, [name]: { ...(p[name] ?? { imgSize: 0.025, repeat: 1 }), [key]: val } }))
+  }
   const [enableBloom, setEnableBloom] = useState(false)
   const [bloomIntensity, setBloomIntensity] = useState(1.5)
   const [enableDOF, setEnableDOF] = useState(false)
@@ -916,6 +970,17 @@ function HomeInner() {
     setItems(prev => prev.map((item, i) => i === index ? { ...item, caption } : item))
   }
 
+  async function handleAdminUpload(file: File, studentName: string) {
+    const fd = new FormData()
+    fd.append('image', file)
+    fd.append('text', file.name.replace(/\.[^.]+$/, ''))
+    fd.append('student_name', studentName)
+    const res = await fetch('/api/posts', { method: 'POST', body: fd })
+    if (!res.ok) throw new Error(await res.text())
+    const post: Post = await res.json()
+    setPosts(p => [post, ...p])
+  }
+
   async function handleDeletePost(id: string) {
     const post = posts.find(p => p.id === id)
     if (post?.image_url.startsWith('blob:')) {
@@ -1035,8 +1100,8 @@ function HomeInner() {
           pointerEvents: 'auto',
         }}>
           {posts.length > 0 && ([
-            { label: 'Image size', value: vertexImgSize, min: 0.005, max: 3,  step: 0.005, dec: 3, set: setVertexImgSize },
-            { label: 'Repeat',     value: vertexRepeat,  min: 1,     max: 20, step: 1,     dec: 0, set: setVertexRepeat  },
+            { label: 'Image size', value: getVS(figureStudent).imgSize, min: 0.005, max: 3,  step: 0.005, dec: 3, set: (v: number) => setVSKey(figureStudent, 'imgSize', v) },
+            { label: 'Repeat',     value: getVS(figureStudent).repeat,  min: 1,     max: 20, step: 1,     dec: 0, set: (v: number) => setVSKey(figureStudent, 'repeat', v)  },
           ] as { label: string; value: number; min: number; max: number; step: number; dec: number; set: (v: number) => void }[]).map(({ label, value, min, max, step, dec, set }) => (
             <div key={label} style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -1480,10 +1545,10 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           </div>
         )}
         {!loading && mountedView === 'room' && !selectedStudent && (
-          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} enableBloom={enableBloom} bloomIntensity={bloomIntensity} enableDOF={enableDOF} dofFocus={dofFocus} dofBokeh={dofBokeh} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} />
+          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} enableBloom={enableBloom} bloomIntensity={bloomIntensity} enableDOF={enableDOF} dofFocus={dofFocus} dofBokeh={dofBokeh} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} />
         )}
         {!loading && mountedView === 'circle' && !selectedStudent && (
-          <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={figureY} showVertexImages={false} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX} camY={circleCamY} camZ={circleCamZ} camFov={circleCamFov} camZoom={circleCamZoom} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} />
+          <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={figureY} showVertexImages={false} vertexSettings={studentVertexSettings} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX} camY={circleCamY} camZ={circleCamZ} camFov={circleCamFov} camZoom={circleCamZoom} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} />
         )}
         {!loading && posts.length > 0 && mountedView === 'globe' && !selectedStudent && (
           <GlobeCanvas
@@ -1516,7 +1581,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
 
         {/* Personal student room */}
         {mountedStudent && (
-          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} enableBloom={enableBloom} bloomIntensity={bloomIntensity} enableDOF={enableDOF} dofFocus={dofFocus} dofBokeh={dofBokeh} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} />
+          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} enableBloom={enableBloom} bloomIntensity={bloomIntensity} enableDOF={enableDOF} dofFocus={dofFocus} dofBokeh={dofBokeh} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} />
         )}
       </div>
 
@@ -1664,6 +1729,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
       {/* Admin panel */}
       {isAdmin && (
         <AdminPanel
+          onAdminUpload={handleAdminUpload}
           hidden={panelHidden}
           audioVolume={audioVolume} setAudioVolume={setAudioVolume}
           viewMode={viewMode} setViewMode={switchView}
@@ -1693,8 +1759,8 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           texOffsetY={texOffsetY} setTexOffsetY={setTexOffsetY}
           texRotation={texRotation} setTexRotation={setTexRotation}
           showVertexImages={showVertexImages} setShowVertexImages={setShowVertexImages}
-          vertexImgSize={vertexImgSize} setVertexImgSize={setVertexImgSize}
-          vertexRepeat={vertexRepeat} setVertexRepeat={setVertexRepeat}
+          vertexImgSize={getVS(figureStudent).imgSize} setVertexImgSize={v => setVSKey(figureStudent, 'imgSize', v)}
+          vertexRepeat={getVS(figureStudent).repeat} setVertexRepeat={v => setVSKey(figureStudent, 'repeat', v)}
           enableBloom={enableBloom} setEnableBloom={setEnableBloom}
           bloomIntensity={bloomIntensity} setBloomIntensity={setBloomIntensity}
           enableDOF={enableDOF} setEnableDOF={setEnableDOF}

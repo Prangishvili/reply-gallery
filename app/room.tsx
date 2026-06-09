@@ -1041,7 +1041,7 @@ type FigurePairProps = {
   roomDepth: number; radius: number; speed: number
   x: number; y: number; z: number
   figureScale: number; figureFacing: number; figureWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
-  posts: Post[]; mirrorPosts: Post[]; showVertexImages: boolean; vertexImgSize: number; vertexRepeat: number
+  posts: Post[]; mirrorPosts: Post[]; showVertexImages: boolean; origImgSize: number; origRepeat: number; mirrorImgSize: number; mirrorRepeat: number
   orbiting: boolean
   meshTexture: string | null
   texScale: number; texOffsetX: number; texOffsetY: number; texRotation: number
@@ -1052,7 +1052,7 @@ type FigurePairProps = {
   graffitiMode: boolean; graffitiColor: string; graffitiBrushSize: number; graffitiClearKey: number
   analyserRef?: React.RefObject<AnalyserNode | null>
 }
-function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, posts, mirrorPosts, showVertexImages, vertexImgSize, vertexRepeat, orbiting, meshTexture, texScale, texOffsetX, texOffsetY, texRotation, transitionKey, enableDissolve, figureRingsOrig, figureRingsMirror, soloReact, graffitiOrig, graffitiMirror, graffitiMode, graffitiColor, graffitiBrushSize, graffitiClearKey, analyserRef }: FigurePairProps) {
+function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, posts, mirrorPosts, showVertexImages, origImgSize, origRepeat, mirrorImgSize, mirrorRepeat, orbiting, meshTexture, texScale, texOffsetX, texOffsetY, texRotation, transitionKey, enableDissolve, figureRingsOrig, figureRingsMirror, soloReact, graffitiOrig, graffitiMirror, graffitiMode, graffitiColor, graffitiBrushSize, graffitiClearKey, analyserRef }: FigurePairProps) {
   const { scene } = useGLTF('/figure.glb')
 
   const cloneWithMats = (s: THREE.Object3D) => {
@@ -1185,7 +1185,7 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
             {figureRingsOrig && <FigureRings scene={orig} analyserRef={origAnalyser} />}
             {showVertexImages && posts.length > 0 && (
               <Suspense fallback={null}>
-                <FigureVertexImages scene={orig} posts={posts} size={vertexImgSize} repeat={vertexRepeat} analyserRef={origAnalyser} />
+                <FigureVertexImages scene={orig} posts={posts} size={origImgSize} repeat={origRepeat} analyserRef={origAnalyser} />
               </Suspense>
             )}
           </>
@@ -1202,7 +1202,7 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
               {figureRingsMirror && <FigureRings scene={mirror} analyserRef={mirrorAnalyser} />}
               {showVertexImages && mirrorPosts.length > 0 && (
                 <Suspense fallback={null}>
-                  <FigureVertexImages scene={mirror} posts={mirrorPosts} size={vertexImgSize} repeat={vertexRepeat} analyserRef={mirrorAnalyser} />
+                  <FigureVertexImages scene={mirror} posts={mirrorPosts} size={mirrorImgSize} repeat={mirrorRepeat} analyserRef={mirrorAnalyser} />
                 </Suspense>
               )}
             </>
@@ -1226,7 +1226,7 @@ type RoomSceneProps = {
   showDoggo: boolean; doggoScale: number; doggoX: number; doggoY: number; doggoZ: number
   showFigure: boolean; figureRadius: number; figureSpeed: number; figureX: number; figureY: number; figureZ: number
   figureScale: number; figureFacing: number; figureWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
-  showVertexImages: boolean; vertexImgSize: number; vertexRepeat: number
+  showVertexImages: boolean; vertexSettings: Record<string, { imgSize: number; repeat: number }>
   figureStudent: string | null; figureStudent2: string | null
   figureOrbiting: boolean
   camX: number; camY: number; camZ: number
@@ -1240,7 +1240,7 @@ type RoomSceneProps = {
   bgColor: string; bgImage: string | null
   analyserRef?: React.RefObject<AnalyserNode | null>
 }
-function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, showVertexImages, vertexImgSize, vertexRepeat, figureStudent, figureStudent2, figureOrbiting, camX, camY, camZ, roomCameraMode, roomCamFov, roomCamZoom, roomCamXLoop, roomCamXLoopSpeed, showWalls, meshTexture, texScale, texOffsetX, texOffsetY, texRotation, transitionKey, enableDissolve, figureRings, soloReact, graffitiMode, graffitiColor, graffitiBrushSize, graffitiClearKey, bgColor, bgImage, analyserRef }: RoomSceneProps) {
+function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, showVertexImages, vertexSettings, figureStudent, figureStudent2, figureOrbiting, camX, camY, camZ, roomCameraMode, roomCamFov, roomCamZoom, roomCamXLoop, roomCamXLoopSpeed, showWalls, meshTexture, texScale, texOffsetX, texOffsetY, texRotation, transitionKey, enableDissolve, figureRings, soloReact, graffitiMode, graffitiColor, graffitiBrushSize, graffitiClearKey, bgColor, bgImage, analyserRef }: RoomSceneProps) {
   const match = (a: string | null | undefined, b: string | null) =>
     a != null && b != null && a.trim().toLowerCase() === b.trim().toLowerCase()
   const figurePosts  = figureStudent  ? posts.filter(p => match(p.student_name, figureStudent))  : posts
@@ -1251,6 +1251,9 @@ function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showF
   const figureRingsMirror = figureRings && isSergi(figureStudent2)
   const graffitiOrig   = isSesili(figureStudent)
   const graffitiMirror = isSesili(figureStudent2)
+  const DEF = { imgSize: 0.025, repeat: 1 }
+  const origVS   = (figureStudent  ? vertexSettings[figureStudent]  : null) ?? DEF
+  const mirrorVS = (figureStudent2 ? vertexSettings[figureStudent2] : null) ?? DEF
 
   return (
     <>
@@ -1296,7 +1299,7 @@ function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showF
 
       {showFigure && (
         <Suspense fallback={null}>
-          <FigurePair roomDepth={D} radius={figureRadius} speed={figureSpeed} x={figureX} y={figureY} z={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} posts={figurePosts} mirrorPosts={mirrorPosts} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} orbiting={figureOrbiting} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRingsOrig={figureRingsOrig} figureRingsMirror={figureRingsMirror} soloReact={soloReact} graffitiOrig={graffitiOrig} graffitiMirror={graffitiMirror} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} analyserRef={analyserRef} />
+          <FigurePair roomDepth={D} radius={figureRadius} speed={figureSpeed} x={figureX} y={figureY} z={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} posts={figurePosts} mirrorPosts={mirrorPosts} showVertexImages={showVertexImages} origImgSize={origVS.imgSize} origRepeat={origVS.repeat} mirrorImgSize={mirrorVS.imgSize} mirrorRepeat={mirrorVS.repeat} orbiting={figureOrbiting} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRingsOrig={figureRingsOrig} figureRingsMirror={figureRingsMirror} soloReact={soloReact} graffitiOrig={graffitiOrig} graffitiMirror={graffitiMirror} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} analyserRef={analyserRef} />
         </Suspense>
       )}
 
@@ -1305,14 +1308,14 @@ function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showF
 }
 
 // ── Entry point — pre-loads image dimensions before mounting scene ─────────────
-export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, doggoX = 0, doggoY = 0, doggoZ = 0, showFigure = true, figureRadius = 5, figureSpeed = 0.5, figureX = 0, figureY = 0, figureZ = 0, figureScale = 1, figureFacing = 0, figureWireframe = true, wireframeStyle = 'edges', dotSize = 0.200, dotColor = '#000000', dotCount = 30000, showVertexImages = false, vertexImgSize = 0.05, vertexRepeat = 1, figureStudent = null, figureStudent2 = null, figureOrbiting = true, camX = 0, camY = EYE, camZ = 55, roomCameraMode = 'freeroam' as RoomCameraMode, roomCamFov = 72, roomCamZoom = 1, roomCamXLoop = false, roomCamXLoopSpeed = 1, showWalls = false, meshTexture = null, texScale = 1, texOffsetX = 0, texOffsetY = 0, texRotation = 0, transitionKey = 0, enableDissolve = false, figureRings = false, soloReact = false, graffitiMode = false, graffitiColor = '#ff2222', graffitiBrushSize = 8, graffitiClearKey = 0, enableBloom = false, bloomIntensity = 1.5, enableDOF = false, dofFocus = 0.01, dofBokeh = 3, bgColor = '#ffffff', bgImage = null, analyserRef }: { posts: Post[]; showDoggo?: boolean; doggoScale?: number; doggoX?: number; doggoY?: number; doggoZ?: number; showFigure?: boolean; figureRadius?: number; figureSpeed?: number; figureX?: number; figureY?: number; figureZ?: number; figureScale?: number; figureFacing?: number; figureWireframe?: boolean; wireframeStyle?: WireframeStyle; dotSize?: number; dotColor?: string; dotCount?: number; showVertexImages?: boolean; vertexImgSize?: number; vertexRepeat?: number; figureStudent?: string | null; figureStudent2?: string | null; figureOrbiting?: boolean; camX?: number; camY?: number; camZ?: number; roomCameraMode?: RoomCameraMode; roomCamFov?: number; roomCamZoom?: number; roomCamXLoop?: boolean; roomCamXLoopSpeed?: number; showWalls?: boolean; meshTexture?: string | null; texScale?: number; texOffsetX?: number; texOffsetY?: number; texRotation?: number; transitionKey?: number; enableDissolve?: boolean; figureRings?: boolean; soloReact?: boolean; graffitiMode?: boolean; graffitiColor?: string; graffitiBrushSize?: number; graffitiClearKey?: number; enableBloom?: boolean; bloomIntensity?: number; enableDOF?: boolean; dofFocus?: number; dofBokeh?: number; bgColor?: string; bgImage?: string | null; analyserRef?: React.RefObject<AnalyserNode | null> }) {
+export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, doggoX = 0, doggoY = 0, doggoZ = 0, showFigure = true, figureRadius = 5, figureSpeed = 0.5, figureX = 0, figureY = 0, figureZ = 0, figureScale = 1, figureFacing = 0, figureWireframe = true, wireframeStyle = 'edges', dotSize = 0.200, dotColor = '#000000', dotCount = 30000, showVertexImages = false, vertexSettings = {} as Record<string, { imgSize: number; repeat: number }>, figureStudent = null, figureStudent2 = null, figureOrbiting = true, camX = 0, camY = EYE, camZ = 55, roomCameraMode = 'freeroam' as RoomCameraMode, roomCamFov = 72, roomCamZoom = 1, roomCamXLoop = false, roomCamXLoopSpeed = 1, showWalls = false, meshTexture = null, texScale = 1, texOffsetX = 0, texOffsetY = 0, texRotation = 0, transitionKey = 0, enableDissolve = false, figureRings = false, soloReact = false, graffitiMode = false, graffitiColor = '#ff2222', graffitiBrushSize = 8, graffitiClearKey = 0, enableBloom = false, bloomIntensity = 1.5, enableDOF = false, dofFocus = 0.01, dofBokeh = 3, bgColor = '#ffffff', bgImage = null, analyserRef }: { posts: Post[]; showDoggo?: boolean; doggoScale?: number; doggoX?: number; doggoY?: number; doggoZ?: number; showFigure?: boolean; figureRadius?: number; figureSpeed?: number; figureX?: number; figureY?: number; figureZ?: number; figureScale?: number; figureFacing?: number; figureWireframe?: boolean; wireframeStyle?: WireframeStyle; dotSize?: number; dotColor?: string; dotCount?: number; showVertexImages?: boolean; vertexSettings?: Record<string, { imgSize: number; repeat: number }>; figureStudent?: string | null; figureStudent2?: string | null; figureOrbiting?: boolean; camX?: number; camY?: number; camZ?: number; roomCameraMode?: RoomCameraMode; roomCamFov?: number; roomCamZoom?: number; roomCamXLoop?: boolean; roomCamXLoopSpeed?: number; showWalls?: boolean; meshTexture?: string | null; texScale?: number; texOffsetX?: number; texOffsetY?: number; texRotation?: number; transitionKey?: number; enableDissolve?: boolean; figureRings?: boolean; soloReact?: boolean; graffitiMode?: boolean; graffitiColor?: string; graffitiBrushSize?: number; graffitiClearKey?: number; enableBloom?: boolean; bloomIntensity?: number; enableDOF?: boolean; dofFocus?: number; dofBokeh?: number; bgColor?: string; bgImage?: string | null; analyserRef?: React.RefObject<AnalyserNode | null> }) {
   return (
     <Canvas
       camera={{ position: [camX, camY, camZ], fov: 72 }}
       dpr={[1, 2]}
       style={{ width: '100%', height: '100%', touchAction: 'none', background: bgColor }}
     >
-      <RoomScene posts={posts} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} />
+      <RoomScene posts={posts} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={vertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} />
       {(enableBloom || enableDOF) && (
         <EffectComposer>
           {enableBloom ? <Bloom intensity={bloomIntensity} luminanceThreshold={0.2} luminanceSmoothing={0.9} /> : <></>}
@@ -1353,9 +1356,9 @@ function CircleNameTag({ student, nameSize, blurNames, onNameClick, namesClickab
   )
 }
 
-function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexImages, vertexImgSize, vertexRepeat, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, meshTexture, texScale, texRepeat, texOffsetX, texOffsetY, texRotation, student, onTextureUpload, analyserRef }: {
+function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexImages, vertexSettings, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, meshTexture, texScale, texRepeat, texOffsetX, texOffsetY, texRotation, student, onTextureUpload, analyserRef }: {
   angle: number; radius: number; figureScale: number; figureY: number
-  posts: Post[]; showVertexImages: boolean; vertexImgSize: number; vertexRepeat: number
+  posts: Post[]; showVertexImages: boolean; vertexSettings: Record<string, { imgSize: number; repeat: number }>
   showWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
   meshTexture: string | null
   texScale: number; texRepeat: number; texOffsetX: number; texOffsetY: number; texRotation: number
@@ -1445,6 +1448,7 @@ function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexIm
   }, [texScale, texRepeat, texOffsetX, texOffsetY, texRotation])
 
   const rotY = 4.65 + angle + Math.PI
+  const vs = vertexSettings[student] ?? { imgSize: 0.025, repeat: 1 }
 
   return (
     <group position={[radius * Math.sin(angle), figureY, radius * Math.cos(angle)]} scale={figureScale} rotation={[0, rotY, 0]} frustumCulled={false}>
@@ -1454,7 +1458,7 @@ function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexIm
       )}
       {showVertexImages && posts.length > 0 && (
         <Suspense fallback={null}>
-          <FigureVertexImages scene={cloned} posts={posts} size={vertexImgSize} repeat={vertexRepeat} analyserRef={analyserRef} />
+          <FigureVertexImages scene={cloned} posts={posts} size={vs.imgSize} repeat={vs.repeat} analyserRef={analyserRef} />
         </Suspense>
       )}
       <Html center position={[0, 2.5, 0]} style={{ pointerEvents: 'auto' }}>
@@ -1486,9 +1490,9 @@ type CircleCameraMode = 'perspective' | 'orthographic' | 'panoramic'
 type TextureMapping = { scale: number; repeat: number; offsetX: number; offsetY: number; rotation: number }
 const DEFAULT_MAPPING: TextureMapping = { scale: 1, repeat: 1, offsetX: 0, offsetY: 0, rotation: 0 }
 
-function CircleScene({ posts, students, circleRadius, figureScale, figureY, showVertexImages, vertexImgSize, vertexRepeat, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, studentTextures, studentTextureMappings, onTextureUpload, showNoiseGlobe, noiseColor1, noiseColor2, noiseSpeed, noiseScale, audioVolume, cameraMode, camX, camY, camZ, camFov, camZoom, camXLoop, camXLoopSpeed, bgColor, bgImage, analyserRef }: {
+function CircleScene({ posts, students, circleRadius, figureScale, figureY, showVertexImages, vertexSettings, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, studentTextures, studentTextureMappings, onTextureUpload, showNoiseGlobe, noiseColor1, noiseColor2, noiseSpeed, noiseScale, audioVolume, cameraMode, camX, camY, camZ, camFov, camZoom, camXLoop, camXLoopSpeed, bgColor, bgImage, analyserRef }: {
   posts: Post[]; students: string[]; circleRadius: number; figureScale: number; figureY: number
-  showVertexImages: boolean; vertexImgSize: number; vertexRepeat: number
+  showVertexImages: boolean; vertexSettings: Record<string, { imgSize: number; repeat: number }>
   showWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
   studentTextures: Record<string, string | null>
   studentTextureMappings: Record<string, TextureMapping>
@@ -1524,8 +1528,7 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, show
             figureY={figureY}
             posts={studentPosts}
             showVertexImages={showVertexImages}
-            vertexImgSize={vertexImgSize}
-            vertexRepeat={vertexRepeat}
+            vertexSettings={vertexSettings}
             showWireframe={showWireframe}
             wireframeStyle={wireframeStyle}
             dotSize={dotSize}
@@ -1549,10 +1552,10 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, show
 
 export type { CircleCameraMode, TextureMapping }
 
-export function CircleCanvas({ posts, students, circleRadius = 300, figureScale = 200, figureY = -10, showVertexImages = true, vertexImgSize = 0.025, vertexRepeat = 1, showWireframe = true, wireframeStyle = 'points' as WireframeStyle, dotSize = 0.800, dotColor = '#000000', dotCount = 30000, studentTextures = {}, studentTextureMappings = {}, onTextureUpload = () => {}, showNoiseGlobe = false, noiseColor1 = '#08003a', noiseColor2 = '#8c1aff', noiseSpeed = 0.5, noiseScale = 1.0, audioVolume = 0, cameraMode = 'orthographic' as CircleCameraMode, camX = 150, camY = 930, camZ = -1350, camFov = 60, camZoom = 1.8, camXLoop = false, camXLoopSpeed = 1.0, bgColor = '#ffffff', bgImage = null, analyserRef }: {
+export function CircleCanvas({ posts, students, circleRadius = 300, figureScale = 200, figureY = -10, showVertexImages = true, vertexSettings = {} as Record<string, { imgSize: number; repeat: number }>, showWireframe = true, wireframeStyle = 'points' as WireframeStyle, dotSize = 0.800, dotColor = '#000000', dotCount = 30000, studentTextures = {}, studentTextureMappings = {}, onTextureUpload = () => {}, showNoiseGlobe = false, noiseColor1 = '#08003a', noiseColor2 = '#8c1aff', noiseSpeed = 0.5, noiseScale = 1.0, audioVolume = 0, cameraMode = 'orthographic' as CircleCameraMode, camX = 150, camY = 930, camZ = -1350, camFov = 60, camZoom = 1.8, camXLoop = false, camXLoopSpeed = 1.0, bgColor = '#ffffff', bgImage = null, analyserRef }: {
   posts: Post[]; students: string[]
   circleRadius?: number; figureScale?: number; figureY?: number
-  showVertexImages?: boolean; vertexImgSize?: number; vertexRepeat?: number
+  showVertexImages?: boolean; vertexSettings?: Record<string, { imgSize: number; repeat: number }>
   showWireframe?: boolean; wireframeStyle?: WireframeStyle; dotSize?: number; dotColor?: string; dotCount?: number
   studentTextures?: Record<string, string | null>
   studentTextureMappings?: Record<string, TextureMapping>
@@ -1570,7 +1573,7 @@ export function CircleCanvas({ posts, students, circleRadius = 300, figureScale 
     >
       <CircleScene
         posts={posts} students={students} circleRadius={circleRadius} figureScale={figureScale} figureY={figureY}
-        showVertexImages={showVertexImages} vertexImgSize={vertexImgSize} vertexRepeat={vertexRepeat}
+        showVertexImages={showVertexImages} vertexSettings={vertexSettings}
         showWireframe={showWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount}
         studentTextures={studentTextures}
         studentTextureMappings={studentTextureMappings}
