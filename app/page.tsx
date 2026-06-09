@@ -15,19 +15,24 @@ import type { WireframeStyle, CircleCameraMode, RoomCameraMode, TextureMapping }
 const STUDENTS = ['Nodar Gogichaishvili','Sesili Gurgenidze','Dominika Davshrishovi','Nutsa Kavtelishvili','Ketevan Lomiashvili','Ana Mamniashvili','Sergi Sarajevi','Natali Chixelidze','Salome Shalvashvili','Bako Shengelia','Mariam Wulaia','Mariam Qsovreli']
 
 // ── Per-student image size & repeat defaults — edit values here ───────────────
-const STUDENT_VERTEX_DEFAULTS: Record<string, { imgSize: number; repeat: number }> = {
-  'Nodar Gogichaishvili':  { imgSize: 0.025, repeat: 1 },
-  'Sesili Gurgenidze':     { imgSize: 0.025, repeat: 1 },
-  'Dominika Davshrishovi': { imgSize: 0.025, repeat: 1 },
-  'Nutsa Kavtelishvili':   { imgSize: 0.025, repeat: 1 },
-  'Ketevan Lomiashvili':   { imgSize: 0.025, repeat: 1 },
-  'Ana Mamniashvili':      { imgSize: 0.025, repeat: 1 },
-  'Sergi Sarajevi':        { imgSize: 0.025, repeat: 1 },
-  'Natali Chixelidze':     { imgSize: 0.025, repeat: 1 },
-  'Salome Shalvashvili':   { imgSize: 0.060, repeat: 17 },
-  'Bako Shengelia':        { imgSize: 0.025, repeat: 1 },
-  'Mariam Wulaia':         { imgSize: 0.025, repeat: 1 },
-  'Mariam Qsovreli':       { imgSize: 0.025, repeat: 1 },
+// imgSize / repeat           → used when no audio is playing
+// audioImgSize / audioRepeat → used when audio is playing (omit to keep same as static)
+// facing: 'normal'           → images lie flat on the mesh surface
+// facing: 'camera'           → images always face the camera (old billboard behaviour)
+type VertexSettings = { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }
+const STUDENT_VERTEX_DEFAULTS: Record<string, VertexSettings> = {
+  'Nodar Gogichaishvili':  { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
+  'Sesili Gurgenidze':     { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
+  'Dominika Davshrishovi': { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
+  'Nutsa Kavtelishvili':   { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
+  'Ketevan Lomiashvili':   { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
+  'Ana Mamniashvili':      { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
+  'Sergi Sarajevi':        { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
+  'Natali Chixelidze':     { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
+  'Salome Shalvashvili':   { imgSize: 0.060, repeat: 17, audioImgSize: 0.060, audioRepeat: 17, facing: 'camera' },
+  'Bako Shengelia':        { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
+  'Mariam Wulaia':         { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1, facing: 'camera'},
+  'Mariam Qsovreli':       { imgSize: 0.075, repeat: 19, audioImgSize: 0.035, audioRepeat: 14, facing: 'normal' },
 }
 
 type ImageItem = { file: File; preview: string; caption: string }
@@ -148,6 +153,8 @@ function AdminPanel({
   showVertexImages, setShowVertexImages,
   vertexImgSize, setVertexImgSize,
   vertexRepeat, setVertexRepeat,
+  vertexAudioImgSize, setVertexAudioImgSize,
+  vertexAudioRepeat, setVertexAudioRepeat,
   enableBloom, setEnableBloom,
   bloomIntensity, setBloomIntensity,
   enableDOF, setEnableDOF,
@@ -208,6 +215,8 @@ function AdminPanel({
   showVertexImages: boolean; setShowVertexImages: (v: boolean) => void
   vertexImgSize: number; setVertexImgSize: (v: number) => void
   vertexRepeat: number; setVertexRepeat: (v: number) => void
+  vertexAudioImgSize: number; setVertexAudioImgSize: (v: number) => void
+  vertexAudioRepeat: number; setVertexAudioRepeat: (v: number) => void
   enableBloom: boolean; setEnableBloom: (v: boolean) => void
   bloomIntensity: number; setBloomIntensity: (v: number) => void
   enableDOF: boolean; setEnableDOF: (v: boolean) => void
@@ -398,8 +407,10 @@ function AdminPanel({
           value={showVertexImages ? 'show' : 'hide'}
           onChange={v => setShowVertexImages(v === 'show')}
         />
-        <PanelSlider label="Image size"   value={vertexImgSize}  min={0.005} max={3}  step={0.005} decimals={3} onChange={setVertexImgSize} />
-        <PanelSlider label="Image repeat" value={vertexRepeat}   min={1}     max={50} step={1}     decimals={0} onChange={setVertexRepeat} />
+        <PanelSlider label="Image size"       value={vertexImgSize}      min={0.005} max={3}  step={0.005} decimals={3} onChange={setVertexImgSize} />
+        <PanelSlider label="Image repeat"     value={vertexRepeat}       min={1}     max={50} step={1}     decimals={0} onChange={setVertexRepeat} />
+        <PanelSlider label="Audio image size" value={vertexAudioImgSize} min={0.005} max={3}  step={0.005} decimals={3} onChange={setVertexAudioImgSize} />
+        <PanelSlider label="Audio repeat"     value={vertexAudioRepeat}  min={1}     max={50} step={1}     decimals={0} onChange={setVertexAudioRepeat} />
         <PanelSlider label="Circle R"   value={circleRadius} min={100}  max={1500} step={10}  decimals={0} onChange={setCircleRadius} />
         <PanelSlider label="Center X"   value={figureX}      min={-200} max={200} step={2}    decimals={0} onChange={setFigureX} />
         <PanelSlider label="Center Y"   value={figureY}      min={-100} max={100} step={1}    decimals={0} onChange={setFigureY} />
@@ -719,11 +730,12 @@ function HomeInner() {
   const [dotCount, setDotCount] = useState(30000)
   const [showWalls, setShowWalls] = useState(false)
   const [showVertexImages, setShowVertexImages] = useState(true)
-  const [studentVertexSettings, setStudentVertexSettings] = useState<Record<string, { imgSize: number; repeat: number }>>(() => ({ ...STUDENT_VERTEX_DEFAULTS }))
-  const getVS = (name: string | null) => name ? (studentVertexSettings[name] ?? { imgSize: 0.025, repeat: 1 }) : { imgSize: 0.025, repeat: 1 }
-  const setVSKey = (name: string | null, key: 'imgSize' | 'repeat', val: number) => {
+  const [studentVertexSettings, setStudentVertexSettings] = useState<Record<string, VertexSettings>>(() => ({ ...STUDENT_VERTEX_DEFAULTS }))
+  const DEF_VS: VertexSettings = { imgSize: 0.025, repeat: 1 }
+  const getVS = (name: string | null): VertexSettings => name ? (studentVertexSettings[name] ?? DEF_VS) : DEF_VS
+  const setVSKey = (name: string | null, key: keyof VertexSettings, val: number) => {
     if (!name) return
-    setStudentVertexSettings(p => ({ ...p, [name]: { ...(p[name] ?? { imgSize: 0.025, repeat: 1 }), [key]: val } }))
+    setStudentVertexSettings(p => ({ ...p, [name]: { ...(p[name] ?? DEF_VS), [key]: val } }))
   }
   const [enableBloom, setEnableBloom] = useState(false)
   const [bloomIntensity, setBloomIntensity] = useState(1.5)
@@ -1100,8 +1112,10 @@ function HomeInner() {
           pointerEvents: 'auto',
         }}>
           {posts.length > 0 && ([
-            { label: 'Image size', value: getVS(figureStudent).imgSize, min: 0.005, max: 3,  step: 0.005, dec: 3, set: (v: number) => setVSKey(figureStudent, 'imgSize', v) },
-            { label: 'Repeat',     value: getVS(figureStudent).repeat,  min: 1,     max: 20, step: 1,     dec: 0, set: (v: number) => setVSKey(figureStudent, 'repeat', v)  },
+            { label: 'Image size',       value: getVS(figureStudent).imgSize,       min: 0.005, max: 3,  step: 0.005, dec: 3, set: (v: number) => setVSKey(figureStudent, 'imgSize', v) },
+            { label: 'Repeat',           value: getVS(figureStudent).repeat,         min: 1,     max: 20, step: 1,     dec: 0, set: (v: number) => setVSKey(figureStudent, 'repeat', v)  },
+            { label: 'Audio image size', value: getVS(figureStudent).audioImgSize ?? getVS(figureStudent).imgSize, min: 0.005, max: 3,  step: 0.005, dec: 3, set: (v: number) => setVSKey(figureStudent, 'audioImgSize', v) },
+            { label: 'Audio repeat',     value: getVS(figureStudent).audioRepeat  ?? getVS(figureStudent).repeat,  min: 1,     max: 20, step: 1,     dec: 0, set: (v: number) => setVSKey(figureStudent, 'audioRepeat', v)  },
           ] as { label: string; value: number; min: number; max: number; step: number; dec: number; set: (v: number) => void }[]).map(({ label, value, min, max, step, dec, set }) => (
             <div key={label} style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -1761,6 +1775,8 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           showVertexImages={showVertexImages} setShowVertexImages={setShowVertexImages}
           vertexImgSize={getVS(figureStudent).imgSize} setVertexImgSize={v => setVSKey(figureStudent, 'imgSize', v)}
           vertexRepeat={getVS(figureStudent).repeat} setVertexRepeat={v => setVSKey(figureStudent, 'repeat', v)}
+          vertexAudioImgSize={getVS(figureStudent).audioImgSize ?? getVS(figureStudent).imgSize} setVertexAudioImgSize={v => setVSKey(figureStudent, 'audioImgSize', v)}
+          vertexAudioRepeat={getVS(figureStudent).audioRepeat ?? getVS(figureStudent).repeat} setVertexAudioRepeat={v => setVSKey(figureStudent, 'audioRepeat', v)}
           enableBloom={enableBloom} setEnableBloom={setEnableBloom}
           bloomIntensity={bloomIntensity} setBloomIntensity={setBloomIntensity}
           enableDOF={enableDOF} setEnableDOF={setEnableDOF}
