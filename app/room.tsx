@@ -1754,7 +1754,7 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, show
       )}
       {students.map((student, i) => {
         const angle = (i / students.length) * Math.PI * 2
-        const studentPosts = posts.filter(p => p.student_name?.trim().toLowerCase() === student.trim().toLowerCase())
+        const studentPosts = posts.filter(p => p.student_name?.trim().toLowerCase() === student.trim().toLowerCase()).slice(0, 30)
         return (
           <CircleFigure
             key={student}

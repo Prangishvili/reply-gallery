@@ -36,8 +36,7 @@ export async function POST(request: NextRequest) {
   }
 
   const isSvg = image.type === 'image/svg+xml'
-  const isPng = image.type === 'image/png'
-  const ext = isSvg ? 'svg' : isPng ? 'png' : 'jpg'
+  const ext = isSvg ? 'svg' : 'webp'
   const fileName = `${uuidv4()}.${ext}`
   const arrayBuffer = await image.arrayBuffer()
 
@@ -47,10 +46,11 @@ export async function POST(request: NextRequest) {
     uploadBuffer = Buffer.from(arrayBuffer)
     contentType = 'image/svg+xml'
   } else {
-    const pipeline = sharp(Buffer.from(arrayBuffer))
+    uploadBuffer = await sharp(Buffer.from(arrayBuffer))
       .resize(1920, 1920, { fit: 'inside', withoutEnlargement: true })
-    uploadBuffer = await (isPng ? pipeline.png({ compressionLevel: 8 }) : pipeline.jpeg({ quality: 100 })).toBuffer()
-    contentType = isPng ? 'image/png' : 'image/jpeg'
+      .webp({ quality: 85 })
+      .toBuffer()
+    contentType = 'image/webp'
   }
 
   const { error: uploadError } = await supabase.storage

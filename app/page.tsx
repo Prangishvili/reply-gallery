@@ -30,7 +30,7 @@ const STUDENT_VERTEX_DEFAULTS: Record<string, VertexSettings> = {
   'Sergi Sarajevi':        { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
   'Natali Chixelidze':     { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
   'Salome Shalvashvili':   { imgSize: 0.060, repeat: 17, audioImgSize: 0.060, audioRepeat: 17, facing: 'camera' },
-  'Bako Shengelia':        { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
+  'Bako Shengelia':        { imgSize: 0.090, repeat: 30, audioImgSize: 0.050, audioRepeat: 17, facing: 'normal' },
   'Mariam Wulaia':         { imgSize: 0.070, repeat: 5, audioImgSize: 0.050, audioRepeat: 5, facing: 'camera'},
   'Mariam Qsovreli':       { imgSize: 0.120, repeat: 19, audioImgSize: 0.035, audioRepeat: 14, facing: 'normal' },
 }
@@ -687,8 +687,7 @@ function HomeInner() {
       const el = e.target as Element
       const isPointer = getComputedStyle(el).cursor === 'pointer' ||
         !!el.closest('button, a, input, label, select, textarea, [role="button"]')
-      dot.style.width = (isPointer ? 28 : 20) + 'px'
-      dot.style.height = (isPointer ? 33 : 24) + 'px'
+      dot.style.width = dot.style.height = (isPointer ? 18 : 10) + 'px'
     }
     const onLeave = () => { wrap.style.transform = 'translate(-100px, -100px)' }
     document.addEventListener('mousemove', onMove)
@@ -1185,8 +1184,7 @@ function HomeInner() {
     <div suppressHydrationWarning className="w-screen h-screen overflow-hidden relative" style={{ background: bgImage ? `url(${bgImage}) center/cover no-repeat` : bgColor }}>
       {/* Custom cursor */}
       <div ref={cursorWrapRef} style={{ position: 'fixed', top: 0, left: 0, pointerEvents: 'none', zIndex: 99999, transform: 'translate(-100px, -100px)' }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img ref={cursorDotRef as React.RefObject<HTMLImageElement>} src="/mouse.svg" alt="" style={{ width: 20, height: 24, display: 'block', transition: 'width 0.12s ease, height 0.12s ease' }} />
+        <div ref={cursorDotRef as React.RefObject<HTMLDivElement>} style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff6600', transform: 'translate(-50%, -50%)', transition: 'width 0.12s ease, height 0.12s ease' }} />
       </div>
       {/* Logo */}
       <div className="fixed top-9 left-1/2 -translate-x-1/2 z-20 pointer-events-none select-none">
