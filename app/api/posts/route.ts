@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     contentType = 'image/svg+xml'
   } else {
     uploadBuffer = await sharp(Buffer.from(arrayBuffer))
-      .resize(1920, 1920, { fit: 'inside', withoutEnlargement: true })
+      .resize(500, 500, { fit: 'inside', withoutEnlargement: true })
       .webp({ quality: 85 })
       .toBuffer()
     contentType = 'image/webp'
