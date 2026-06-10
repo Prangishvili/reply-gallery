@@ -1556,7 +1556,11 @@ function HomeInner() {
               fontFamily: 'ui-monospace, monospace', fontSize: 14, lineHeight: 2,
               color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em',
               whiteSpace: 'pre-line',
-            }}>{`Reply is a concept rooted in the constant communication of the digital world, a collaborative work by students of the Free University of Georgia, and a dialogue between selves and their relationships.
+            }}>{`The action of being is so revolutionary that society rejects it and concerns itself exclusively with the action of becoming. 
+
+– Jiddu Krishnamurti
+
+Reply is a concept rooted in the constant communication of the digital world, a collaborative work by students of the Free University of Georgia, and a dialogue between selves and their relationships.
 
 While the physical self can be expressed in countless ways, Reply explores our virtual identities, the endless demands of digital presence, and the fragmented versions of ourselves we perform across platforms.
 
