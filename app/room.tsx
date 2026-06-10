@@ -1676,6 +1676,38 @@ function CameraMonitor({ infoRef }: { infoRef: React.RefObject<HTMLDivElement | 
   return null
 }
 
+function CircleCamDriver({ x, y, z, zoom, mode }: { x: number; y: number; z: number; zoom: number; mode: CircleCameraMode }) {
+  const { camera } = useThree()
+  const ready = useRef(false)
+  const prevTarget = useRef({ x, y, z, zoom })
+  const settledFrames = useRef(0)
+  useFrame(() => {
+    if (!ready.current) {
+      camera.position.set(x, y, z)
+      if (camera instanceof THREE.OrthographicCamera) { camera.zoom = zoom; camera.updateProjectionMatrix() }
+      ready.current = true
+      return
+    }
+    const p = prevTarget.current
+    if (p.x !== x || p.y !== y || p.z !== z || p.zoom !== zoom) {
+      prevTarget.current = { x, y, z, zoom }
+      settledFrames.current = 0
+    } else {
+      settledFrames.current++
+    }
+    if (settledFrames.current >= 80) return
+    const a = 0.06
+    camera.position.x += (x - camera.position.x) * a
+    camera.position.y += (y - camera.position.y) * a
+    camera.position.z += (z - camera.position.z) * a
+    if (camera instanceof THREE.OrthographicCamera) {
+      camera.zoom += (zoom - camera.zoom) * a
+      camera.updateProjectionMatrix()
+    }
+  })
+  return null
+}
+
 function CircleScene({ posts, students, circleRadius, figureScale, figureY, showVertexImages, vertexSettings, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, studentTextures, studentTextureMappings, onTextureUpload, showNoiseGlobe, noiseColor1, noiseColor2, noiseSpeed, noiseScale, audioVolume, cameraMode, camX, camY, camZ, camFov, camZoom, camXLoop, camXLoopSpeed, bgColor, bgImage, analyserRef, cameraInfoRef, isAdmin = false }: {
   posts: Post[]; students: string[]; circleRadius: number; figureScale: number; figureY: number
   showVertexImages: boolean; vertexSettings: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>
@@ -1695,9 +1727,10 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, show
     <>
       <BackgroundSetter color={bgColor} image={bgImage} />
       {cameraMode === 'orthographic'
-        ? <OrthographicCamera makeDefault position={[camX, camY, camZ]} zoom={camZoom} near={-10000} far={10000} />
-        : <PerspectiveCamera makeDefault position={[camX, camY, camZ]} fov={camFov} near={0.1} far={10000} />
+        ? <OrthographicCamera makeDefault near={-10000} far={10000} />
+        : <PerspectiveCamera makeDefault fov={camFov} near={0.1} far={10000} />
       }
+      <CircleCamDriver key={cameraMode} x={camX} y={camY} z={camZ} zoom={camZoom} mode={cameraMode} />
       <OrbitControls target={[0, 150, 0]} enableDamping dampingFactor={0.08} autoRotate={camXLoop} autoRotateSpeed={camXLoopSpeed} enablePan={false} />
       {showNoiseGlobe && analyserRef && (
         <group scale={circleRadius * 0.6}>

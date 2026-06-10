@@ -142,6 +142,7 @@ function AdminPanel({
   figureWireframe, setFigureWireframe,
   wireframeStyle, setWireframeStyle,
   dotSize, setDotSize,
+  circleDotSize, setCircleDotSize,
   dotColor, setDotColor,
   dotCount, setDotCount,
   showWalls, setShowWalls,
@@ -212,6 +213,7 @@ function AdminPanel({
   figureWireframe: boolean; setFigureWireframe: (v: boolean) => void
   wireframeStyle: WireframeStyle; setWireframeStyle: (v: WireframeStyle) => void
   dotSize: number; setDotSize: (v: number) => void
+  circleDotSize: number; setCircleDotSize: (v: number) => void
   dotColor: string; setDotColor: (v: string) => void
   dotCount: number; setDotCount: (v: number) => void
   showWalls: boolean; setShowWalls: (v: boolean) => void
@@ -457,7 +459,8 @@ function AdminPanel({
             <PanelSlider label="Speed"   value={circleCamXLoopSpeed} min={0.1} max={10} step={0.1} decimals={1} onChange={setCircleCamXLoopSpeed} />
           )}
           <PanelSlider label="Circle R"  value={circleRadius}    min={100}  max={1500} step={10}  decimals={0} onChange={setCircleRadius} />
-          <PanelSlider label="Figure Y"  value={circleFigureY}   min={-200} max={200}  step={1}   decimals={0} onChange={setCircleFigureY} />
+          <PanelSlider label="Figure Y"  value={circleFigureY}   min={-500} max={500}  step={1}   decimals={0} onChange={setCircleFigureY} />
+          <PanelSlider label="Dot size"  value={circleDotSize}   min={0.001} max={1}   step={0.001} decimals={3} onChange={setCircleDotSize} />
           {circleCameraInfoRef && (
             <div style={{ marginTop: 8 }}>
               <div style={{ fontSize: 11, color: P.dim, marginBottom: 6 }}>Live camera</div>
@@ -591,7 +594,7 @@ function AdminPanel({
             )}
           </>)}
           <PanelSlider label="Figure X" value={figureX} min={-200} max={200} step={2}  decimals={0} onChange={setFigureX} />
-          <PanelSlider label="Figure Y" value={figureY} min={-100} max={100} step={1}  decimals={0} onChange={setFigureY} />
+          <PanelSlider label="Figure Y" value={figureY} min={-500} max={500} step={1}  decimals={0} onChange={setFigureY} />
           <PanelSlider label="Figure Z" value={figureZ} min={-100} max={100} step={2}  decimals={0} onChange={setFigureZ} />
         </PanelSection>
       )}
@@ -709,8 +712,8 @@ function HomeInner() {
   const [circleCamZ, setCircleCamZ] = useState(-1350)
   const [circleCamFov, setCircleCamFov] = useState(60)
   const [circleCamZoom, setCircleCamZoom] = useState(1.8)
-  const [circleCamXLoop, setCircleCamXLoop] = useState(true)
-  const [circleCamXLoopSpeed, setCircleCamXLoopSpeed] = useState(0.1)
+  const [circleCamXLoop, setCircleCamXLoop] = useState(false)
+  const [circleCamXLoopSpeed, setCircleCamXLoopSpeed] = useState(0.03)
   const [studentTextures, setStudentTextures] = useState<Record<string, string | null>>({})
   const [studentTextureMappings, setStudentTextureMappings] = useState<Record<string, TextureMapping>>({})
   const [activeEditStudent, setActiveEditStudent] = useState<string | null>(null)
@@ -749,6 +752,30 @@ function HomeInner() {
     return () => clearTimeout(id)
   }, [viewMode])
 
+  // Circle intro animation — starts after loading + video finish
+  const circleAnimRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (viewMode !== 'circle' || phase !== 'gallery') return
+    if (circleAnimRef.current !== null) cancelAnimationFrame(circleAnimRef.current)
+    const fromCamY = circleCamYRef.current
+    const fromZoom = circleCamZoomRef.current
+    const fromFigY = circleFigureYRef.current
+    const duration = 2500
+    const start = performance.now()
+    const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / duration, 1)
+      const e = easeOut(t)
+      setCircleCamY(fromCamY + (150 - fromCamY) * e)
+      setCircleCamZoom(fromZoom + (3.3 - fromZoom) * e)
+      setCircleFigureY(fromFigY + (160 - fromFigY) * e)
+      if (t < 1) circleAnimRef.current = requestAnimationFrame(tick)
+      else { setCircleCamXLoop(true); setCircleCamXLoopSpeed(0.03) }
+    }
+    circleAnimRef.current = requestAnimationFrame(tick)
+    return () => { if (circleAnimRef.current !== null) cancelAnimationFrame(circleAnimRef.current) }
+  }, [viewMode, phase]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Delay mounting personal room canvas too
   const [mountedStudent, setMountedStudent] = useState<string | null>(null)
   useEffect(() => {
@@ -771,9 +798,19 @@ function HomeInner() {
   const [figureRadius, setFigureRadius] = useState(160)
   const [figureSpeed, setFigureSpeed] = useState(0.03)
   const [figureX, setFigureX] = useState(0)
-  const [figureY, setFigureY] = useState(-10)
+  const [figureY, setFigureY] = useState(-100)
   const [figureZ, setFigureZ] = useState(0)
-  const [circleFigureY, setCircleFigureY] = useState(-10)
+  const [circleFigureY, setCircleFigureY] = useState(200)
+  const [circleDotSize, setCircleDotSize] = useState(0.775)
+
+  // Refs so animation reads current values without stale closures
+  const circleCamYRef = useRef(circleCamY)
+  circleCamYRef.current = circleCamY
+  const circleCamZoomRef = useRef(circleCamZoom)
+  circleCamZoomRef.current = circleCamZoom
+  const circleFigureYRef = useRef(circleFigureY)
+  circleFigureYRef.current = circleFigureY
+
   const [figureScale, setFigureScale] = useState(200)
   const [figureFacing, setFigureFacing] = useState(4.80)
   const [figureWireframe, setFigureWireframe] = useState(true)
@@ -859,10 +896,10 @@ function HomeInner() {
   }, [viewMode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [camX, setCamX] = useState(0)
-  const [camY, setCamY] = useState(-100)
+  const [camY, setCamY] = useState(140)
   const [camZ, setCamZ] = useState(-35)
   const [roomCameraMode, setRoomCameraMode] = useState<RoomCameraMode>('perspective')
-  const [roomCamFov, setRoomCamFov] = useState(72)
+  const [roomCamFov, setRoomCamFov] = useState(90)
   const [roomCamZoom, setRoomCamZoom] = useState(1)
   const [roomCamXLoop, setRoomCamXLoop] = useState(false)
   const [roomCamXLoopSpeed, setRoomCamXLoopSpeed] = useState(1)
@@ -1624,7 +1661,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} enableBloom={enableBloom} bloomIntensity={bloomIntensity} enableDOF={enableDOF} dofFocus={dofFocus} dofBokeh={dofBokeh} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} />
         )}
         {!loading && mountedView === 'circle' && !selectedStudent && (
-          <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={circleFigureY} showVertexImages={false} vertexSettings={studentVertexSettings} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX} camY={circleCamY} camZ={circleCamZ} camFov={circleCamFov} camZoom={circleCamZoom} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} cameraInfoRef={isAdmin ? circleCameraInfoRef : undefined} isAdmin={isAdmin} />
+          <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={circleFigureY} showVertexImages={false} vertexSettings={studentVertexSettings} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={circleDotSize} dotColor={dotColor} dotCount={dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX} camY={circleCamY} camZ={circleCamZ} camFov={circleCamFov} camZoom={circleCamZoom} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} cameraInfoRef={isAdmin ? circleCameraInfoRef : undefined} isAdmin={isAdmin} />
         )}
         {!loading && posts.length > 0 && mountedView === 'globe' && !selectedStudent && (
           <GlobeCanvas
@@ -1826,6 +1863,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           figureWireframe={figureWireframe} setFigureWireframe={setFigureWireframe}
           wireframeStyle={wireframeStyle} setWireframeStyle={setWireframeStyle}
           dotSize={dotSize} setDotSize={setDotSize}
+          circleDotSize={circleDotSize} setCircleDotSize={setCircleDotSize}
           dotColor={dotColor} setDotColor={setDotColor}
           dotCount={dotCount} setDotCount={setDotCount}
           showWalls={showWalls} setShowWalls={setShowWalls}
