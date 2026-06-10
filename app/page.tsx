@@ -735,6 +735,7 @@ function HomeInner() {
   const bgAudioBlobRef = useRef<string | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
+  const gainNodeRef = useRef<GainNode | null>(null)
   const soundInputRef = useRef<HTMLInputElement>(null)
 
   const [posts, setPosts] = useState<Post[]>([])
@@ -970,9 +971,10 @@ function HomeInner() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Sync audio volume live
+  // Sync audio volume live via gain node so analyser always sees full signal
   useEffect(() => {
-    if (bgAudioRef.current) bgAudioRef.current.volume = audioVolume
+    if (gainNodeRef.current) gainNodeRef.current.gain.value = audioVolume
+    else if (bgAudioRef.current) bgAudioRef.current.volume = audioVolume
   }, [audioVolume])
 
   // Timebomb: hide one random post every 2s, restore all when disarmed
@@ -1001,10 +1003,9 @@ function HomeInner() {
 
 
   function startBgAudio(sound: boolean) {
-    if (!sound) return
     const audio = new Audio('/fx_bg.mp3')
     audio.loop = true
-    audio.volume = audioVolume
+    audio.volume = 1
     try {
       const ctx = new AudioContext()
       audioCtxRef.current = ctx
@@ -1012,9 +1013,13 @@ function HomeInner() {
       const analyser = ctx.createAnalyser()
       analyser.fftSize = 256
       analyser.smoothingTimeConstant = 0.8
+      const gain = ctx.createGain()
+      gain.gain.value = sound ? audioVolume : 0
       source.connect(analyser)
-      analyser.connect(ctx.destination)
+      analyser.connect(gain)
+      gain.connect(ctx.destination)
       analyserRef.current = analyser
+      gainNodeRef.current = gain
     } catch {}
     audio.play().catch(() => {})
     bgAudioRef.current = audio
@@ -1847,6 +1852,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
                 <button
                   onClick={() => {
                     setWithSound(false)
+                    startBgAudio(false)
                     goToGallery()
                   }}
                   style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.35)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
