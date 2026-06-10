@@ -1130,10 +1130,10 @@ function HomeInner() {
   }
 
   return (
-    <div className="w-screen h-screen overflow-hidden relative" style={{ background: bgImage ? `url(${bgImage}) center/cover no-repeat` : bgColor }}>
+    <div suppressHydrationWarning className="w-screen h-screen overflow-hidden relative" style={{ background: bgImage ? `url(${bgImage}) center/cover no-repeat` : bgColor }}>
       {/* Logo */}
       <div className="fixed top-9 left-1/2 -translate-x-1/2 z-20 pointer-events-none select-none">
-        <img src="/logo.svg" alt="Reply" className="h-10 w-auto" />
+        <img src="/logo.svg" alt="Reply" className="h-10 w-auto" fetchPriority="low" />
       </div>
 
       {/* View toggle */}
@@ -1542,7 +1542,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
         className="fixed bottom-6 right-6 z-20"
         style={isAdmin && !panelHidden ? { right: 286 } : {}}
       >
-        <img src="/UNI.svg" alt="Free University of Tbilisi" className="h-12 w-auto" />
+        <img src="/UNI.svg" alt="Free University of Tbilisi" className="h-12 w-auto" fetchPriority="low" />
       </a>
 
       {/* Student selector — left panel, room view only */}
