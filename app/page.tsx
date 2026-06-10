@@ -760,14 +760,15 @@ function HomeInner() {
     const fromCamY = circleCamYRef.current
     const fromZoom = circleCamZoomRef.current
     const fromFigY = circleFigureYRef.current
-    const duration = 2500
+    const targetZoom = window.innerWidth < 1000 ? 2.6 : 3.3
+    const duration = 3500
     const start = performance.now()
-    const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
+    const easeOut = (t: number) => 1 - Math.pow(1 - t, 2)
     const tick = (now: number) => {
       const t = Math.min((now - start) / duration, 1)
       const e = easeOut(t)
       setCircleCamY(fromCamY + (150 - fromCamY) * e)
-      setCircleCamZoom(fromZoom + (3.3 - fromZoom) * e)
+      setCircleCamZoom(fromZoom + (targetZoom - fromZoom) * e)
       setCircleFigureY(fromFigY + (160 - fromFigY) * e)
       if (t < 1) circleAnimRef.current = requestAnimationFrame(tick)
       else { setCircleCamXLoop(true); setCircleCamXLoopSpeed(0.03) }
