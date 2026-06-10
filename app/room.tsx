@@ -377,6 +377,81 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
   )
 }
 
+function GLBAtVertex({ url, position, size, mouseTargetRef, volRef }: { url: string; position: [number, number, number]; size: number; mouseTargetRef: React.RefObject<THREE.Vector3>; volRef: React.RefObject<number> }) {
+  const { scene } = useGLTF(url)
+  const groupRef = useRef<THREE.Group>(null)
+  const cloned = useMemo(() => {
+    const c = scene.clone(true)
+    c.traverse(o => {
+      const m = o as THREE.Mesh
+      if (!m.isMesh) return
+      const toBasic = (mat: THREE.Material) => {
+        const src = mat as THREE.MeshStandardMaterial
+        const bm = new THREE.MeshBasicMaterial({
+          map: src.map ?? null,
+          color: src.map ? 0xffffff : (src.color ?? new THREE.Color(0xffffff)),
+          transparent: src.transparent,
+          alphaTest: src.alphaTest,
+          side: src.side ?? THREE.FrontSide,
+        })
+        bm.needsUpdate = true
+        return bm
+      }
+      m.material = Array.isArray(m.material) ? m.material.map(toBasic) : toBasic(m.material as THREE.Material)
+    })
+    return c
+  }, [scene])
+  useFrame(() => {
+    if (!groupRef.current) return
+    groupRef.current.lookAt(mouseTargetRef.current)
+    const s = size * (1 + volRef.current * 3)
+    groupRef.current.scale.setScalar(s)
+  })
+  return (
+    <group ref={groupRef} position={position} scale={size}>
+      <primitive object={cloned} />
+    </group>
+  )
+}
+
+function FigureVertexGLBModels({ scene, glbUrls, size, repeat, analyserRef }: { scene: THREE.Object3D; glbUrls: string[]; size: number; repeat: number; analyserRef?: React.RefObject<AnalyserNode | null> }) {
+  const { camera, pointer } = useThree()
+  const mouseTargetRef = useRef(new THREE.Vector3())
+  const _ray = useRef(new THREE.Vector3())
+  const volRef = useRef(0)
+  const dataArrRef = useRef<Uint8Array | null>(null)
+  useFrame(() => {
+    _ray.current.set(pointer.x, pointer.y, 0.5).unproject(camera)
+    _ray.current.sub(camera.position).normalize()
+    mouseTargetRef.current.copy(camera.position).addScaledVector(_ray.current, 800)
+    if (analyserRef?.current) {
+      const a = analyserRef.current
+      if (!dataArrRef.current || dataArrRef.current.length !== a.frequencyBinCount)
+        dataArrRef.current = new Uint8Array(a.frequencyBinCount)
+      a.getByteFrequencyData(dataArrRef.current as Uint8Array<ArrayBuffer>)
+      let sum = 0
+      for (let i = 0; i < dataArrRef.current.length; i++) sum += dataArrRef.current[i]
+      volRef.current = Math.min((sum / dataArrRef.current.length / 255) * 2, 1)
+    } else {
+      volRef.current = 0
+    }
+  })
+  const samples = useMemo(() => {
+    return sampleVerticesWithNormals(scene, repeat).map(v => ({
+      pos: [v.pos.x + v.normal.x * 0.02, v.pos.y + v.normal.y * 0.02, v.pos.z + v.normal.z * 0.02] as [number, number, number],
+    }))
+  }, [scene, repeat])
+  return (
+    <>
+      {samples.map((s, i) => (
+        <Suspense key={i} fallback={null}>
+          <GLBAtVertex url={glbUrls[i % glbUrls.length]} position={s.pos} size={size} mouseTargetRef={mouseTargetRef} volRef={volRef} />
+        </Suspense>
+      ))}
+    </>
+  )
+}
+
 // ── Wireframe styles ──────────────────────────────────────────────────────────
 export type WireframeStyle = 'edges' | 'dense' | 'dashed' | 'points'
 export type RoomCameraMode = 'freeroam' | 'perspective' | 'orthographic' | 'panoramic'
@@ -1096,6 +1171,11 @@ export function SelfCanvas({ stream, figureScale = 200, figureFacing = 4.65, img
 }
 
 // ── Orbiting figure pair (original + mirror) ──────────────────────────────────
+function studentGlb(name: string | null | undefined): string {
+  if (name === 'Nutsa Kavtelishvili') return '/DNA.glb'
+  return '/figure.glb'
+}
+
 type FigurePairProps = {
   roomDepth: number; radius: number; speed: number
   x: number; y: number; z: number
@@ -1112,9 +1192,13 @@ type FigurePairProps = {
   graffitiOrig: boolean; graffitiMirror: boolean
   graffitiMode: boolean; graffitiColor: string; graffitiBrushSize: number; graffitiClearKey: number
   analyserRef?: React.RefObject<AnalyserNode | null>
+  origStudent?: string | null; mirrorStudent?: string | null
+  nutsaGlbs?: string[]
+  nutsaGlbScale?: number; nutsaGlbRepeat?: number
 }
-function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, posts, mirrorPosts, showVertexImages, origImgSize, origRepeat, origAudioImgSize, origAudioRepeat, origFacing, mirrorImgSize, mirrorRepeat, mirrorAudioImgSize, mirrorAudioRepeat, mirrorFacing, orbiting, meshTexture, texScale, texOffsetX, texOffsetY, texRotation, transitionKey, enableDissolve, figureRingsOrig, figureRingsMirror, soloReact, graffitiOrig, graffitiMirror, graffitiMode, graffitiColor, graffitiBrushSize, graffitiClearKey, analyserRef }: FigurePairProps) {
-  const { scene } = useGLTF('/figure.glb')
+function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, posts, mirrorPosts, showVertexImages, origImgSize, origRepeat, origAudioImgSize, origAudioRepeat, origFacing, mirrorImgSize, mirrorRepeat, mirrorAudioImgSize, mirrorAudioRepeat, mirrorFacing, orbiting, meshTexture, texScale, texOffsetX, texOffsetY, texRotation, transitionKey, enableDissolve, figureRingsOrig, figureRingsMirror, soloReact, graffitiOrig, graffitiMirror, graffitiMode, graffitiColor, graffitiBrushSize, graffitiClearKey, analyserRef, origStudent, mirrorStudent, nutsaGlbs, nutsaGlbScale = 0.025, nutsaGlbRepeat = 1 }: FigurePairProps) {
+  const { scene: origScene }   = useGLTF(studentGlb(origStudent))
+  const { scene: mirrorScene } = useGLTF(studentGlb(mirrorStudent))
 
   const cloneWithMats = (s: THREE.Object3D) => {
     const c = s.clone(true)
@@ -1126,8 +1210,8 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
     return c
   }
 
-  const orig   = useMemo(() => cloneWithMats(scene), [scene])
-  const mirror = useMemo(() => cloneWithMats(scene), [scene])
+  const orig   = useMemo(() => cloneWithMats(origScene),   [origScene])
+  const mirror = useMemo(() => cloneWithMats(mirrorScene), [mirrorScene])
 
   const [activeReact, setActiveReact] = useState(0)
   const soloTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -1170,13 +1254,12 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
 
     if (!meshTexture) {
       // Restore original cloned materials (dispose any basic mat we added)
-      ;[orig, mirror].forEach((root, ri) => {
-        getMeshes(root).forEach(m => {
+      ;[[orig, origScene], [mirror, mirrorScene]].forEach(([root, src]) => {
+        getMeshes(root as THREE.Object3D).forEach(m => {
           if ((m.material as THREE.Material).type === 'MeshBasicMaterial') {
             ;(m.material as THREE.MeshBasicMaterial).map?.dispose()
             ;(m.material as THREE.Material).dispose()
-            // Re-clone from scene
-            const srcMeshes = getMeshes(ri === 0 ? scene : scene)
+            const srcMeshes = getMeshes(src as THREE.Object3D)
             const match = srcMeshes.find(s => s.name === m.name)
             if (match) m.material = (match.material as THREE.Material).clone()
           }
@@ -1217,7 +1300,7 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
       })
     })
     return () => { cancelled = true; loadedTexRef.current = null }
-  }, [meshTexture, orig, mirror, scene])
+  }, [meshTexture, orig, mirror, origScene, mirrorScene])
 
   // Live-update texture mapping controls
   useEffect(() => {
@@ -1244,7 +1327,10 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
             <primitive object={orig} />
             {figureWireframe && !figureRingsOrig && <FigureWireframe scene={orig} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} transitionKey={transitionKey} enableDissolve={enableDissolve} />}
             {figureRingsOrig && <FigureRings scene={orig} analyserRef={origAnalyser} />}
-            {showVertexImages && posts.length > 0 && (
+            {showVertexImages && origStudent === 'Nutsa Kavtelishvili' && !!nutsaGlbs?.length && (
+              <FigureVertexGLBModels scene={orig} glbUrls={nutsaGlbs} size={nutsaGlbScale} repeat={nutsaGlbRepeat} analyserRef={origAnalyser} />
+            )}
+            {showVertexImages && !(origStudent === 'Nutsa Kavtelishvili' && nutsaGlbs?.length) && posts.length > 0 && (
               <Suspense fallback={null}>
                 <FigureVertexImages scene={orig} posts={posts} size={origImgSize} repeat={origRepeat} audioImgSize={origAudioImgSize} audioRepeat={origAudioRepeat} facing={origFacing} analyserRef={origAnalyser} />
               </Suspense>
@@ -1261,7 +1347,10 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
               <primitive object={mirror} />
               {figureWireframe && !figureRingsMirror && <FigureWireframe scene={mirror} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} transitionKey={transitionKey} enableDissolve={enableDissolve} />}
               {figureRingsMirror && <FigureRings scene={mirror} analyserRef={mirrorAnalyser} />}
-              {showVertexImages && mirrorPosts.length > 0 && (
+              {showVertexImages && mirrorStudent === 'Nutsa Kavtelishvili' && !!nutsaGlbs?.length && (
+                <FigureVertexGLBModels scene={mirror} glbUrls={nutsaGlbs} size={nutsaGlbScale} repeat={nutsaGlbRepeat} analyserRef={mirrorAnalyser} />
+              )}
+              {showVertexImages && !(mirrorStudent === 'Nutsa Kavtelishvili' && nutsaGlbs?.length) && mirrorPosts.length > 0 && (
                 <Suspense fallback={null}>
                   <FigureVertexImages scene={mirror} posts={mirrorPosts} size={mirrorImgSize} repeat={mirrorRepeat} audioImgSize={mirrorAudioImgSize} audioRepeat={mirrorAudioRepeat} facing={mirrorFacing} analyserRef={mirrorAnalyser} />
                 </Suspense>
@@ -1300,8 +1389,10 @@ type RoomSceneProps = {
   graffitiMode: boolean; graffitiColor: string; graffitiBrushSize: number; graffitiClearKey: number
   bgColor: string; bgImage: string | null
   analyserRef?: React.RefObject<AnalyserNode | null>
+  nutsaGlbs?: string[]
+  nutsaGlbScale?: number; nutsaGlbRepeat?: number
 }
-function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, showVertexImages, vertexSettings, figureStudent, figureStudent2, figureOrbiting, camX, camY, camZ, roomCameraMode, roomCamFov, roomCamZoom, roomCamXLoop, roomCamXLoopSpeed, showWalls, meshTexture, texScale, texOffsetX, texOffsetY, texRotation, transitionKey, enableDissolve, figureRings, soloReact, graffitiMode, graffitiColor, graffitiBrushSize, graffitiClearKey, bgColor, bgImage, analyserRef }: RoomSceneProps) {
+function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, showVertexImages, vertexSettings, figureStudent, figureStudent2, figureOrbiting, camX, camY, camZ, roomCameraMode, roomCamFov, roomCamZoom, roomCamXLoop, roomCamXLoopSpeed, showWalls, meshTexture, texScale, texOffsetX, texOffsetY, texRotation, transitionKey, enableDissolve, figureRings, soloReact, graffitiMode, graffitiColor, graffitiBrushSize, graffitiClearKey, bgColor, bgImage, analyserRef, nutsaGlbs, nutsaGlbScale, nutsaGlbRepeat }: RoomSceneProps) {
   const match = (a: string | null | undefined, b: string | null) =>
     a != null && b != null && a.trim().toLowerCase() === b.trim().toLowerCase()
   const figurePosts  = figureStudent  ? posts.filter(p => match(p.student_name, figureStudent))  : posts
@@ -1360,7 +1451,7 @@ function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showF
 
       {showFigure && (
         <Suspense fallback={null}>
-          <FigurePair roomDepth={D} radius={figureRadius} speed={figureSpeed} x={figureX} y={figureY} z={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} posts={figurePosts} mirrorPosts={mirrorPosts} showVertexImages={showVertexImages} origImgSize={origVS.imgSize} origRepeat={origVS.repeat} origAudioImgSize={origVS.audioImgSize} origAudioRepeat={origVS.audioRepeat} origFacing={origVS.facing} mirrorImgSize={mirrorVS.imgSize} mirrorRepeat={mirrorVS.repeat} mirrorAudioImgSize={mirrorVS.audioImgSize} mirrorAudioRepeat={mirrorVS.audioRepeat} mirrorFacing={mirrorVS.facing} orbiting={figureOrbiting} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRingsOrig={figureRingsOrig} figureRingsMirror={figureRingsMirror} soloReact={soloReact} graffitiOrig={graffitiOrig} graffitiMirror={graffitiMirror} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} analyserRef={analyserRef} />
+          <FigurePair roomDepth={D} radius={figureRadius} speed={figureSpeed} x={figureX} y={figureY} z={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} posts={figurePosts} mirrorPosts={mirrorPosts} showVertexImages={showVertexImages} origImgSize={origVS.imgSize} origRepeat={origVS.repeat} origAudioImgSize={origVS.audioImgSize} origAudioRepeat={origVS.audioRepeat} origFacing={origVS.facing} mirrorImgSize={mirrorVS.imgSize} mirrorRepeat={mirrorVS.repeat} mirrorAudioImgSize={mirrorVS.audioImgSize} mirrorAudioRepeat={mirrorVS.audioRepeat} mirrorFacing={mirrorVS.facing} orbiting={figureOrbiting} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRingsOrig={figureRingsOrig} figureRingsMirror={figureRingsMirror} soloReact={soloReact} graffitiOrig={graffitiOrig} graffitiMirror={graffitiMirror} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} analyserRef={analyserRef} origStudent={figureStudent} mirrorStudent={figureStudent2} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} />
         </Suspense>
       )}
 
@@ -1369,14 +1460,14 @@ function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showF
 }
 
 // ── Entry point — pre-loads image dimensions before mounting scene ─────────────
-export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, doggoX = 0, doggoY = 0, doggoZ = 0, showFigure = true, figureRadius = 5, figureSpeed = 0.5, figureX = 0, figureY = 0, figureZ = 0, figureScale = 1, figureFacing = 0, figureWireframe = true, wireframeStyle = 'edges', dotSize = 0.200, dotColor = '#000000', dotCount = 30000, showVertexImages = false, vertexSettings = {} as Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>, figureStudent = null, figureStudent2 = null, figureOrbiting = true, camX = 0, camY = EYE, camZ = 55, roomCameraMode = 'freeroam' as RoomCameraMode, roomCamFov = 72, roomCamZoom = 1, roomCamXLoop = false, roomCamXLoopSpeed = 1, showWalls = false, meshTexture = null, texScale = 1, texOffsetX = 0, texOffsetY = 0, texRotation = 0, transitionKey = 0, enableDissolve = false, figureRings = false, soloReact = false, graffitiMode = false, graffitiColor = '#ff2222', graffitiBrushSize = 8, graffitiClearKey = 0, enableBloom = false, bloomIntensity = 1.5, enableDOF = false, dofFocus = 0.01, dofBokeh = 3, bgColor = '#ffffff', bgImage = null, analyserRef }: { posts: Post[]; showDoggo?: boolean; doggoScale?: number; doggoX?: number; doggoY?: number; doggoZ?: number; showFigure?: boolean; figureRadius?: number; figureSpeed?: number; figureX?: number; figureY?: number; figureZ?: number; figureScale?: number; figureFacing?: number; figureWireframe?: boolean; wireframeStyle?: WireframeStyle; dotSize?: number; dotColor?: string; dotCount?: number; showVertexImages?: boolean; vertexSettings?: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>; figureStudent?: string | null; figureStudent2?: string | null; figureOrbiting?: boolean; camX?: number; camY?: number; camZ?: number; roomCameraMode?: RoomCameraMode; roomCamFov?: number; roomCamZoom?: number; roomCamXLoop?: boolean; roomCamXLoopSpeed?: number; showWalls?: boolean; meshTexture?: string | null; texScale?: number; texOffsetX?: number; texOffsetY?: number; texRotation?: number; transitionKey?: number; enableDissolve?: boolean; figureRings?: boolean; soloReact?: boolean; graffitiMode?: boolean; graffitiColor?: string; graffitiBrushSize?: number; graffitiClearKey?: number; enableBloom?: boolean; bloomIntensity?: number; enableDOF?: boolean; dofFocus?: number; dofBokeh?: number; bgColor?: string; bgImage?: string | null; analyserRef?: React.RefObject<AnalyserNode | null> }) {
+export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, doggoX = 0, doggoY = 0, doggoZ = 0, showFigure = true, figureRadius = 5, figureSpeed = 0.5, figureX = 0, figureY = 0, figureZ = 0, figureScale = 1, figureFacing = 0, figureWireframe = true, wireframeStyle = 'edges', dotSize = 0.200, dotColor = '#000000', dotCount = 30000, showVertexImages = false, vertexSettings = {} as Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>, figureStudent = null, figureStudent2 = null, figureOrbiting = true, camX = 0, camY = EYE, camZ = 55, roomCameraMode = 'freeroam' as RoomCameraMode, roomCamFov = 72, roomCamZoom = 1, roomCamXLoop = false, roomCamXLoopSpeed = 1, showWalls = false, meshTexture = null, texScale = 1, texOffsetX = 0, texOffsetY = 0, texRotation = 0, transitionKey = 0, enableDissolve = false, figureRings = false, soloReact = false, graffitiMode = false, graffitiColor = '#ff2222', graffitiBrushSize = 8, graffitiClearKey = 0, enableBloom = false, bloomIntensity = 1.5, enableDOF = false, dofFocus = 0.01, dofBokeh = 3, bgColor = '#ffffff', bgImage = null, analyserRef, nutsaGlbs, nutsaGlbScale, nutsaGlbRepeat }: { posts: Post[]; showDoggo?: boolean; doggoScale?: number; doggoX?: number; doggoY?: number; doggoZ?: number; showFigure?: boolean; figureRadius?: number; figureSpeed?: number; figureX?: number; figureY?: number; figureZ?: number; figureScale?: number; figureFacing?: number; figureWireframe?: boolean; wireframeStyle?: WireframeStyle; dotSize?: number; dotColor?: string; dotCount?: number; showVertexImages?: boolean; vertexSettings?: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>; figureStudent?: string | null; figureStudent2?: string | null; figureOrbiting?: boolean; camX?: number; camY?: number; camZ?: number; roomCameraMode?: RoomCameraMode; roomCamFov?: number; roomCamZoom?: number; roomCamXLoop?: boolean; roomCamXLoopSpeed?: number; showWalls?: boolean; meshTexture?: string | null; texScale?: number; texOffsetX?: number; texOffsetY?: number; texRotation?: number; transitionKey?: number; enableDissolve?: boolean; figureRings?: boolean; soloReact?: boolean; graffitiMode?: boolean; graffitiColor?: string; graffitiBrushSize?: number; graffitiClearKey?: number; enableBloom?: boolean; bloomIntensity?: number; enableDOF?: boolean; dofFocus?: number; dofBokeh?: number; bgColor?: string; bgImage?: string | null; analyserRef?: React.RefObject<AnalyserNode | null>; nutsaGlbs?: string[]; nutsaGlbScale?: number; nutsaGlbRepeat?: number }) {
   return (
     <Canvas
       camera={{ position: [camX, camY, camZ], fov: 72 }}
       dpr={[1, 2]}
       style={{ width: '100%', height: '100%', touchAction: 'none', background: bgColor }}
     >
-      <RoomScene posts={posts} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={vertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} />
+      <RoomScene posts={posts} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={vertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} />
       {(enableBloom || enableDOF) && (
         <EffectComposer>
           {enableBloom ? <Bloom intensity={bloomIntensity} luminanceThreshold={0.2} luminanceSmoothing={0.9} /> : <></>}
@@ -1417,7 +1508,7 @@ function CircleNameTag({ student, nameSize, blurNames, onNameClick, namesClickab
   )
 }
 
-function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexImages, vertexSettings, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, meshTexture, texScale, texRepeat, texOffsetX, texOffsetY, texRotation, student, onTextureUpload, analyserRef }: {
+function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexImages, vertexSettings, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, meshTexture, texScale, texRepeat, texOffsetX, texOffsetY, texRotation, student, onTextureUpload, analyserRef, isAdmin = false }: {
   angle: number; radius: number; figureScale: number; figureY: number
   posts: Post[]; showVertexImages: boolean; vertexSettings: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>
   showWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
@@ -1425,6 +1516,7 @@ function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexIm
   texScale: number; texRepeat: number; texOffsetX: number; texOffsetY: number; texRotation: number
   student: string; onTextureUpload: (student: string, url: string | null) => void
   analyserRef?: React.RefObject<AnalyserNode | null>
+  isAdmin?: boolean
 }) {
   const { scene: raw } = useGLTF('/figure.glb')
   const cloned = useMemo(() => {
@@ -1511,37 +1603,48 @@ function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexIm
   const rotY = 4.65 + angle + Math.PI
   const vs = vertexSettings[student] ?? { imgSize: 0.025, repeat: 1 }
 
+  const figureCenter = useMemo(() => {
+    const box = new THREE.Box3().setFromObject(cloned)
+    const c = new THREE.Vector3()
+    box.getCenter(c)
+    return c
+  }, [cloned])
+
   return (
     <group position={[radius * Math.sin(angle), figureY, radius * Math.cos(angle)]} scale={figureScale} rotation={[0, rotY, 0]} frustumCulled={false}>
-      <primitive object={cloned} frustumCulled={false} />
-      {showWireframe && (
-        <FigureWireframe scene={cloned} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} transitionKey={0} enableDissolve={false} />
-      )}
-      {showVertexImages && posts.length > 0 && (
-        <Suspense fallback={null}>
-          <FigureVertexImages scene={cloned} posts={posts} size={vs.imgSize} repeat={vs.repeat} audioImgSize={vs.audioImgSize} audioRepeat={vs.audioRepeat} facing={vs.facing} analyserRef={analyserRef} />
-        </Suspense>
-      )}
-      <Html center position={[0, 2.5, 0]} style={{ pointerEvents: 'auto' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', userSelect: 'none' }}>
-          <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: '11px', color: 'rgba(0,0,0,0.45)', whiteSpace: 'nowrap' }}>{student}</span>
-          <label style={{ cursor: 'pointer', background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.13)', borderRadius: '4px', padding: '3px 9px', fontSize: '10px', fontFamily: 'ui-monospace, monospace', color: 'rgba(0,0,0,0.5)', whiteSpace: 'nowrap' }}>
-            {meshTexture ? 'change texture' : '+ texture'}
-            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
-              const file = e.target.files?.[0]
-              if (!file) return
-              const url = URL.createObjectURL(file)
-              onTextureUpload(student, url)
-              e.target.value = ''
-            }} />
-          </label>
-          {meshTexture && (
-            <button onClick={() => onTextureUpload(student, null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '10px', fontFamily: 'ui-monospace, monospace', color: 'rgba(0,0,0,0.35)', padding: '1px 0' }}>
-              remove
-            </button>
-          )}
-        </div>
-      </Html>
+      <group position={[-figureCenter.x, -figureCenter.y, -figureCenter.z]}>
+        <primitive object={cloned} frustumCulled={false} />
+        {showWireframe && (
+          <FigureWireframe scene={cloned} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} transitionKey={0} enableDissolve={false} />
+        )}
+        {showVertexImages && posts.length > 0 && (
+          <Suspense fallback={null}>
+            <FigureVertexImages scene={cloned} posts={posts} size={vs.imgSize} repeat={vs.repeat} audioImgSize={vs.audioImgSize} audioRepeat={vs.audioRepeat} facing={vs.facing} analyserRef={analyserRef} />
+          </Suspense>
+        )}
+        {isAdmin && (
+          <Html center position={[0, 2.5, 0]} style={{ pointerEvents: 'auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', userSelect: 'none' }}>
+              <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: '11px', color: 'rgba(0,0,0,0.45)', whiteSpace: 'nowrap' }}>{student}</span>
+              <label style={{ cursor: 'pointer', background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.13)', borderRadius: '4px', padding: '3px 9px', fontSize: '10px', fontFamily: 'ui-monospace, monospace', color: 'rgba(0,0,0,0.5)', whiteSpace: 'nowrap' }}>
+                {meshTexture ? 'change texture' : '+ texture'}
+                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  const url = URL.createObjectURL(file)
+                  onTextureUpload(student, url)
+                  e.target.value = ''
+                }} />
+              </label>
+              {meshTexture && (
+                <button onClick={() => onTextureUpload(student, null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '10px', fontFamily: 'ui-monospace, monospace', color: 'rgba(0,0,0,0.35)', padding: '1px 0' }}>
+                  remove
+                </button>
+              )}
+            </div>
+          </Html>
+        )}
+      </group>
     </group>
   )
 }
@@ -1551,7 +1654,29 @@ type CircleCameraMode = 'perspective' | 'orthographic' | 'panoramic'
 type TextureMapping = { scale: number; repeat: number; offsetX: number; offsetY: number; rotation: number }
 const DEFAULT_MAPPING: TextureMapping = { scale: 1, repeat: 1, offsetX: 0, offsetY: 0, rotation: 0 }
 
-function CircleScene({ posts, students, circleRadius, figureScale, figureY, showVertexImages, vertexSettings, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, studentTextures, studentTextureMappings, onTextureUpload, showNoiseGlobe, noiseColor1, noiseColor2, noiseSpeed, noiseScale, audioVolume, cameraMode, camX, camY, camZ, camFov, camZoom, camXLoop, camXLoopSpeed, bgColor, bgImage, analyserRef }: {
+function CameraMonitor({ infoRef }: { infoRef: React.RefObject<HTMLDivElement | null> }) {
+  const { camera } = useThree()
+  useFrame(() => {
+    const el = infoRef.current
+    if (!el) return
+    const p = camera.position
+    const tx = 0, ty = 150, tz = 0
+    const dx = p.x - tx, dy = p.y - ty, dz = p.z - tz
+    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+    const azimuth = Math.atan2(dx, dz) * 180 / Math.PI
+    const polar = Math.acos(Math.max(-1, Math.min(1, dy / dist))) * 180 / Math.PI
+    el.innerHTML =
+      `<div>X: ${Math.round(p.x)}</div>` +
+      `<div>Y: ${Math.round(p.y)}</div>` +
+      `<div>Z: ${Math.round(p.z)}</div>` +
+      `<div style="margin-top:4px">dist: ${Math.round(dist)}</div>` +
+      `<div>azimuth: ${Math.round(azimuth)}°</div>` +
+      `<div>polar: ${Math.round(polar)}°</div>`
+  })
+  return null
+}
+
+function CircleScene({ posts, students, circleRadius, figureScale, figureY, showVertexImages, vertexSettings, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, studentTextures, studentTextureMappings, onTextureUpload, showNoiseGlobe, noiseColor1, noiseColor2, noiseSpeed, noiseScale, audioVolume, cameraMode, camX, camY, camZ, camFov, camZoom, camXLoop, camXLoopSpeed, bgColor, bgImage, analyserRef, cameraInfoRef, isAdmin = false }: {
   posts: Post[]; students: string[]; circleRadius: number; figureScale: number; figureY: number
   showVertexImages: boolean; vertexSettings: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>
   showWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
@@ -1563,6 +1688,8 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, show
   camXLoop: boolean; camXLoopSpeed: number
   bgColor: string; bgImage: string | null
   analyserRef?: React.RefObject<AnalyserNode | null>
+  cameraInfoRef?: React.RefObject<HTMLDivElement | null>
+  isAdmin?: boolean
 }) {
   return (
     <>
@@ -1571,7 +1698,7 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, show
         ? <OrthographicCamera makeDefault position={[camX, camY, camZ]} zoom={camZoom} near={-10000} far={10000} />
         : <PerspectiveCamera makeDefault position={[camX, camY, camZ]} fov={camFov} near={0.1} far={10000} />
       }
-      <OrbitControls target={[0, 150, 0]} enableDamping dampingFactor={0.08} autoRotate={camXLoop} autoRotateSpeed={camXLoopSpeed} />
+      <OrbitControls target={[0, 150, 0]} enableDamping dampingFactor={0.08} autoRotate={camXLoop} autoRotateSpeed={camXLoopSpeed} enablePan={false} />
       {showNoiseGlobe && analyserRef && (
         <group scale={circleRadius * 0.6}>
           <NoiseGlobe audioVolume={audioVolume} analyserRef={analyserRef} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} />
@@ -1604,16 +1731,18 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, show
             student={student}
             onTextureUpload={onTextureUpload}
             analyserRef={analyserRef}
+            isAdmin={isAdmin}
           />
         )
       })}
+      {cameraInfoRef && <CameraMonitor infoRef={cameraInfoRef} />}
     </>
   )
 }
 
 export type { CircleCameraMode, TextureMapping }
 
-export function CircleCanvas({ posts, students, circleRadius = 300, figureScale = 200, figureY = -10, showVertexImages = true, vertexSettings = {} as Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>, showWireframe = true, wireframeStyle = 'points' as WireframeStyle, dotSize = 0.800, dotColor = '#000000', dotCount = 30000, studentTextures = {}, studentTextureMappings = {}, onTextureUpload = () => {}, showNoiseGlobe = false, noiseColor1 = '#08003a', noiseColor2 = '#8c1aff', noiseSpeed = 0.5, noiseScale = 1.0, audioVolume = 0, cameraMode = 'orthographic' as CircleCameraMode, camX = 150, camY = 930, camZ = -1350, camFov = 60, camZoom = 1.8, camXLoop = false, camXLoopSpeed = 1.0, bgColor = '#ffffff', bgImage = null, analyserRef }: {
+export function CircleCanvas({ posts, students, circleRadius = 300, figureScale = 200, figureY = -10, showVertexImages = true, vertexSettings = {} as Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>, showWireframe = true, wireframeStyle = 'points' as WireframeStyle, dotSize = 0.800, dotColor = '#000000', dotCount = 30000, studentTextures = {}, studentTextureMappings = {}, onTextureUpload = () => {}, showNoiseGlobe = false, noiseColor1 = '#08003a', noiseColor2 = '#8c1aff', noiseSpeed = 0.5, noiseScale = 1.0, audioVolume = 0, cameraMode = 'orthographic' as CircleCameraMode, camX = 150, camY = 930, camZ = -1350, camFov = 60, camZoom = 1.8, camXLoop = false, camXLoopSpeed = 1.0, bgColor = '#ffffff', bgImage = null, analyserRef, cameraInfoRef, isAdmin = false }: {
   posts: Post[]; students: string[]
   circleRadius?: number; figureScale?: number; figureY?: number
   showVertexImages?: boolean; vertexSettings?: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>
@@ -1626,6 +1755,8 @@ export function CircleCanvas({ posts, students, circleRadius = 300, figureScale 
   camXLoop?: boolean; camXLoopSpeed?: number
   bgColor?: string; bgImage?: string | null
   analyserRef?: React.RefObject<AnalyserNode | null>
+  cameraInfoRef?: React.RefObject<HTMLDivElement | null>
+  isAdmin?: boolean
 }) {
   return (
     <Canvas
@@ -1644,7 +1775,12 @@ export function CircleCanvas({ posts, students, circleRadius = 300, figureScale 
         camXLoop={camXLoop} camXLoopSpeed={camXLoopSpeed}
         bgColor={bgColor} bgImage={bgImage}
         analyserRef={analyserRef}
+        cameraInfoRef={cameraInfoRef}
+        isAdmin={isAdmin}
       />
     </Canvas>
   )
 }
+
+useGLTF.preload('/figure.glb')
+useGLTF.preload('/DNA.glb')

@@ -31,7 +31,7 @@ const STUDENT_VERTEX_DEFAULTS: Record<string, VertexSettings> = {
   'Natali Chixelidze':     { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
   'Salome Shalvashvili':   { imgSize: 0.060, repeat: 17, audioImgSize: 0.060, audioRepeat: 17, facing: 'camera' },
   'Bako Shengelia':        { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
-  'Mariam Wulaia':         { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1, facing: 'camera'},
+  'Mariam Wulaia':         { imgSize: 0.070, repeat: 5, audioImgSize: 0.050, audioRepeat: 5, facing: 'camera'},
   'Mariam Qsovreli':       { imgSize: 0.075, repeat: 19, audioImgSize: 0.035, audioRepeat: 14, facing: 'normal' },
 }
 
@@ -164,6 +164,7 @@ function AdminPanel({
   figureRings, setFigureRings,
   soloReact, setSoloReact,
   circleRadius, setCircleRadius,
+  circleFigureY, setCircleFigureY,
   circleCameraMode, setCircleCameraMode,
   circleCamX, setCircleCamX,
   circleCamY, setCircleCamY,
@@ -182,6 +183,13 @@ function AdminPanel({
   roomCamXLoop, setRoomCamXLoop,
   roomCamXLoopSpeed, setRoomCamXLoopSpeed,
   onAdminUpload,
+  circleCameraInfoRef,
+  nutsaGlbs,
+  setNutsaGlbs,
+  nutsaGlbScale,
+  setNutsaGlbScale,
+  nutsaGlbRepeat,
+  setNutsaGlbRepeat,
   phase,
   hidden,
 }: {
@@ -226,6 +234,7 @@ function AdminPanel({
   figureRings: boolean; setFigureRings: (v: boolean) => void
   soloReact: boolean; setSoloReact: (v: boolean) => void
   circleRadius: number; setCircleRadius: (v: number) => void
+  circleFigureY: number; setCircleFigureY: (v: number) => void
   circleCameraMode: CircleCameraMode; setCircleCameraMode: (v: CircleCameraMode) => void
   circleCamX: number; setCircleCamX: (v: number) => void
   circleCamY: number; setCircleCamY: (v: number) => void
@@ -244,6 +253,10 @@ function AdminPanel({
   roomCamXLoop: boolean; setRoomCamXLoop: (v: boolean) => void
   roomCamXLoopSpeed: number; setRoomCamXLoopSpeed: (v: number) => void
   onAdminUpload: (file: File, studentName: string) => Promise<void>
+  circleCameraInfoRef?: React.RefObject<HTMLDivElement | null>
+  nutsaGlbs: string[]; setNutsaGlbs: React.Dispatch<React.SetStateAction<string[]>>
+  nutsaGlbScale: number; setNutsaGlbScale: (v: number) => void
+  nutsaGlbRepeat: number; setNutsaGlbRepeat: (v: number) => void
   phase: Phase
   hidden: boolean
 }) {
@@ -339,7 +352,7 @@ function AdminPanel({
           value={showFigure ? 'show' : 'hide'}
           onChange={v => setShowFigure(v === 'show')}
         />
-        <PanelSlider label="Scale"      value={figureScale}  min={0.1}  max={200}  step={0.5}  decimals={1} onChange={setFigureScale} />
+        <PanelSlider label="Scale"      value={figureScale}  min={200}  max={500}  step={1}    decimals={0} onChange={setFigureScale} />
         <PanelSlider label="Radius"     value={figureRadius} min={0.5}  max={200}  step={1}    decimals={1} onChange={setFigureRadius} />
         <PanelSlider label="Speed"      value={figureSpeed}  min={0}    max={5}    step={0.05} decimals={2} onChange={setFigureSpeed} />
         <PanelSlider label="Facing"     value={figureFacing} min={0}    max={6.28} step={0.05} decimals={2} onChange={setFigureFacing} />
@@ -411,42 +424,48 @@ function AdminPanel({
         <PanelSlider label="Image repeat"     value={vertexRepeat}       min={1}     max={50} step={1}     decimals={0} onChange={setVertexRepeat} />
         <PanelSlider label="Audio image size" value={vertexAudioImgSize} min={0.005} max={3}  step={0.005} decimals={3} onChange={setVertexAudioImgSize} />
         <PanelSlider label="Audio repeat"     value={vertexAudioRepeat}  min={1}     max={50} step={1}     decimals={0} onChange={setVertexAudioRepeat} />
-        <PanelSlider label="Circle R"   value={circleRadius} min={100}  max={1500} step={10}  decimals={0} onChange={setCircleRadius} />
-        <PanelSlider label="Center X"   value={figureX}      min={-200} max={200} step={2}    decimals={0} onChange={setFigureX} />
-        <PanelSlider label="Center Y"   value={figureY}      min={-100} max={100} step={1}    decimals={0} onChange={setFigureY} />
-        <PanelSlider label="Center Z"   value={figureZ}      min={-100} max={100} step={2}    decimals={0} onChange={setFigureZ} />
       </PanelSection>
 
-      <PanelSection title="Circle camera">
-        <PanelToggle
-          options={[{ label: 'Perspective', value: 'perspective' }, { label: 'Ortho', value: 'orthographic' }, { label: 'Panoramic', value: 'panoramic' }]}
-          value={circleCameraMode}
-          onChange={v => {
-            const mode = v as CircleCameraMode
-            setCircleCameraMode(mode)
-            if (mode === 'panoramic') setCircleCamFov(150)
-            else if (mode === 'perspective') setCircleCamFov(60)
-          }}
-        />
-        <PanelSlider label="Cam X"  value={circleCamX} min={-2000} max={2000} step={10}   decimals={0} onChange={setCircleCamX} />
-        <PanelSlider label="Cam Y"  value={circleCamY} min={-500}  max={2000} step={10}   decimals={0} onChange={setCircleCamY} />
-        <PanelSlider label="Cam Z"  value={circleCamZ} min={-2000} max={2000} step={10}   decimals={0} onChange={setCircleCamZ} />
-        {circleCameraMode !== 'orthographic' && (
-          <PanelSlider label="FOV"  value={circleCamFov} min={10} max={175} step={1} decimals={0} onChange={setCircleCamFov} />
-        )}
-        {circleCameraMode === 'orthographic' && (
-          <PanelSlider label="Zoom" value={circleCamZoom} min={0.1} max={10} step={0.1} decimals={1} onChange={setCircleCamZoom} />
-        )}
-        <div style={{ fontSize: 11, color: P.dim, marginBottom: 8, marginTop: 4 }}>Cam X loop</div>
-        <PanelToggle
-          options={[{ label: 'On', value: 'on' }, { label: 'Off', value: 'off' }]}
-          value={circleCamXLoop ? 'on' : 'off'}
-          onChange={v => setCircleCamXLoop(v === 'on')}
-        />
-        {circleCamXLoop && (
-          <PanelSlider label="Speed" value={circleCamXLoopSpeed} min={0.1} max={10} step={0.1} decimals={1} onChange={setCircleCamXLoopSpeed} />
-        )}
-      </PanelSection>
+      {viewMode === 'circle' && (
+        <PanelSection title="Circle — Camera">
+          <PanelToggle
+            options={[{ label: 'Perspective', value: 'perspective' }, { label: 'Ortho', value: 'orthographic' }, { label: 'Panoramic', value: 'panoramic' }]}
+            value={circleCameraMode}
+            onChange={v => {
+              const mode = v as CircleCameraMode
+              setCircleCameraMode(mode)
+              if (mode === 'panoramic') setCircleCamFov(150)
+              else if (mode === 'perspective') setCircleCamFov(60)
+            }}
+          />
+          <PanelSlider label="Cam X"     value={circleCamX}      min={-2000} max={2000} step={10}  decimals={0} onChange={setCircleCamX} />
+          <PanelSlider label="Cam Y"     value={circleCamY}      min={-500}  max={2000} step={10}  decimals={0} onChange={setCircleCamY} />
+          <PanelSlider label="Cam Z"     value={circleCamZ}      min={-2000} max={2000} step={10}  decimals={0} onChange={setCircleCamZ} />
+          {circleCameraMode !== 'orthographic' && (
+            <PanelSlider label="FOV"     value={circleCamFov}    min={10} max={175} step={1} decimals={0} onChange={setCircleCamFov} />
+          )}
+          {circleCameraMode === 'orthographic' && (
+            <PanelSlider label="Zoom"    value={circleCamZoom}   min={0.1} max={10} step={0.1} decimals={1} onChange={setCircleCamZoom} />
+          )}
+          <div style={{ fontSize: 11, color: P.dim, marginBottom: 8, marginTop: 4 }}>Cam X loop</div>
+          <PanelToggle
+            options={[{ label: 'On', value: 'on' }, { label: 'Off', value: 'off' }]}
+            value={circleCamXLoop ? 'on' : 'off'}
+            onChange={v => setCircleCamXLoop(v === 'on')}
+          />
+          {circleCamXLoop && (
+            <PanelSlider label="Speed"   value={circleCamXLoopSpeed} min={0.1} max={10} step={0.1} decimals={1} onChange={setCircleCamXLoopSpeed} />
+          )}
+          <PanelSlider label="Circle R"  value={circleRadius}    min={100}  max={1500} step={10}  decimals={0} onChange={setCircleRadius} />
+          <PanelSlider label="Figure Y"  value={circleFigureY}   min={-200} max={200}  step={1}   decimals={0} onChange={setCircleFigureY} />
+          {circleCameraInfoRef && (
+            <div style={{ marginTop: 8 }}>
+              <div style={{ fontSize: 11, color: P.dim, marginBottom: 6 }}>Live camera</div>
+              <div ref={circleCameraInfoRef} style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: P.text, lineHeight: 1.9 }} />
+            </div>
+          )}
+        </PanelSection>
+      )}
 
       <PanelSection title="Mesh texture">
         {meshTexture ? (
@@ -544,33 +563,38 @@ function AdminPanel({
         </>)}
       </PanelSection>
 
-      <PanelSection title="Room Camera">
-        <PanelToggle
-          options={[{ label: 'Free', value: 'freeroam' }, { label: 'Persp', value: 'perspective' }, { label: 'Ortho', value: 'orthographic' }, { label: 'Pano', value: 'panoramic' }]}
-          value={roomCameraMode}
-          onChange={v => setRoomCameraMode(v as RoomCameraMode)}
-        />
-        <PanelSlider label="Cam X" value={camX} min={-2000} max={2000} step={10} decimals={0} onChange={setCamX} />
-        <PanelSlider label="Cam Y" value={camY} min={-500}  max={2000} step={10} decimals={0} onChange={setCamY} />
-        <PanelSlider label="Cam Z" value={camZ} min={-2000} max={2000} step={10} decimals={0} onChange={setCamZ} />
-        {roomCameraMode === 'orthographic' && (
-          <PanelSlider label="Zoom" value={roomCamZoom} min={0.1} max={10} step={0.1} decimals={1} onChange={setRoomCamZoom} />
-        )}
-        {roomCameraMode !== 'orthographic' && roomCameraMode !== 'freeroam' && (
-          <PanelSlider label="FOV" value={roomCamFov} min={10} max={175} step={1} decimals={0} onChange={setRoomCamFov} />
-        )}
-        {roomCameraMode !== 'freeroam' && (<>
-          <div style={{ fontSize: 11, color: P.dim, marginBottom: 8, marginTop: 4 }}>Cam X loop</div>
+      {(viewMode === 'room' || viewMode === 'self') && (
+        <PanelSection title="Room — Camera">
           <PanelToggle
-            options={[{ label: 'On', value: 'on' }, { label: 'Off', value: 'off' }]}
-            value={roomCamXLoop ? 'on' : 'off'}
-            onChange={v => setRoomCamXLoop(v === 'on')}
+            options={[{ label: 'Free', value: 'freeroam' }, { label: 'Persp', value: 'perspective' }, { label: 'Ortho', value: 'orthographic' }, { label: 'Pano', value: 'panoramic' }]}
+            value={roomCameraMode}
+            onChange={v => setRoomCameraMode(v as RoomCameraMode)}
           />
-          {roomCamXLoop && (
-            <PanelSlider label="Speed" value={roomCamXLoopSpeed} min={0.1} max={10} step={0.1} decimals={1} onChange={setRoomCamXLoopSpeed} />
+          <PanelSlider label="Cam X"    value={camX}  min={-2000} max={2000} step={10}  decimals={0} onChange={setCamX} />
+          <PanelSlider label="Cam Y"    value={camY}  min={-500}  max={2000} step={10}  decimals={0} onChange={setCamY} />
+          <PanelSlider label="Cam Z"    value={camZ}  min={-2000} max={2000} step={10}  decimals={0} onChange={setCamZ} />
+          {roomCameraMode === 'orthographic' && (
+            <PanelSlider label="Zoom"   value={roomCamZoom} min={0.1} max={10} step={0.1} decimals={1} onChange={setRoomCamZoom} />
           )}
-        </>)}
-      </PanelSection>
+          {roomCameraMode !== 'orthographic' && roomCameraMode !== 'freeroam' && (
+            <PanelSlider label="FOV"    value={roomCamFov}  min={10} max={175} step={1}  decimals={0} onChange={setRoomCamFov} />
+          )}
+          {roomCameraMode !== 'freeroam' && (<>
+            <div style={{ fontSize: 11, color: P.dim, marginBottom: 8, marginTop: 4 }}>Cam X loop</div>
+            <PanelToggle
+              options={[{ label: 'On', value: 'on' }, { label: 'Off', value: 'off' }]}
+              value={roomCamXLoop ? 'on' : 'off'}
+              onChange={v => setRoomCamXLoop(v === 'on')}
+            />
+            {roomCamXLoop && (
+              <PanelSlider label="Speed" value={roomCamXLoopSpeed} min={0.1} max={10} step={0.1} decimals={1} onChange={setRoomCamXLoopSpeed} />
+            )}
+          </>)}
+          <PanelSlider label="Figure X" value={figureX} min={-200} max={200} step={2}  decimals={0} onChange={setFigureX} />
+          <PanelSlider label="Figure Y" value={figureY} min={-100} max={100} step={1}  decimals={0} onChange={setFigureY} />
+          <PanelSlider label="Figure Z" value={figureZ} min={-100} max={100} step={2}  decimals={0} onChange={setFigureZ} />
+        </PanelSection>
+      )}
 
       <PanelSection title="Upload to DB">
         <select value={uploadStudent} onChange={e => setUploadStudent(e.target.value)}
@@ -587,6 +611,39 @@ function AdminPanel({
         </button>
         {uploadError && <div style={{ marginTop: 6, fontSize: 10, color: '#f55' }}>{uploadError}</div>}
       </PanelSection>
+
+      {viewMode === 'room' && (
+        <PanelSection title="Nutsa — GLB models">
+          <label style={{ display: 'block', cursor: 'pointer', background: P.surface, border: `1px solid ${P.border}`, padding: '5px 10px', fontSize: 10, color: P.dim, marginBottom: 8, textAlign: 'center' as const }}>
+            + add .glb files
+            <input type="file" accept=".glb" multiple style={{ display: 'none' }} onChange={e => {
+              const urls = Array.from(e.target.files ?? []).map(f => URL.createObjectURL(f))
+              setNutsaGlbs(p => [...p, ...urls])
+              e.target.value = ''
+            }} />
+          </label>
+          <PanelSlider label="scale" value={nutsaGlbScale} min={0.001} max={0.5} step={0.001} decimals={3} onChange={setNutsaGlbScale} />
+          <PanelSlider label="repeat" value={nutsaGlbRepeat} min={1} max={200} step={1} decimals={0} onChange={setNutsaGlbRepeat} />
+          {nutsaGlbs.length === 0 && (
+            <div style={{ fontSize: 10, color: P.low, marginBottom: 8 }}>no models — using images</div>
+          )}
+          {nutsaGlbs.map((url, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <span style={{ fontSize: 10, color: P.dim }}>model {i + 1}</span>
+              <button onClick={() => setNutsaGlbs(p => p.filter((_, j) => j !== i))}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 10, color: P.low, padding: 0 }}>
+                remove
+              </button>
+            </div>
+          ))}
+          {nutsaGlbs.length > 0 && (
+            <button onClick={() => setNutsaGlbs([])}
+              style={{ width: '100%', fontFamily: P.font, fontSize: 10, padding: '4px 0', cursor: 'pointer', background: P.surface, color: P.low, border: `1px solid ${P.border}`, marginTop: 4 }}>
+              clear all
+            </button>
+          )}
+        </PanelSection>
+      )}
 
       <PanelSection title="About">
         <div style={{ fontSize: 10, color: P.low, lineHeight: 1.7 }}>
@@ -711,13 +768,14 @@ function HomeInner() {
   const [doggoY, setDoggoY] = useState(0)
   const [doggoZ, setDoggoZ] = useState(0)
   const [showFigure, setShowFigure] = useState(true)
-  const [figureRadius, setFigureRadius] = useState(145.5)
-  const [figureSpeed, setFigureSpeed] = useState(0.05)
+  const [figureRadius, setFigureRadius] = useState(160)
+  const [figureSpeed, setFigureSpeed] = useState(0.03)
   const [figureX, setFigureX] = useState(0)
   const [figureY, setFigureY] = useState(-10)
   const [figureZ, setFigureZ] = useState(0)
+  const [circleFigureY, setCircleFigureY] = useState(-10)
   const [figureScale, setFigureScale] = useState(200)
-  const [figureFacing, setFigureFacing] = useState(4.65)
+  const [figureFacing, setFigureFacing] = useState(4.80)
   const [figureWireframe, setFigureWireframe] = useState(true)
   const [wireframeStyle, setWireframeStyle] = useState<WireframeStyle>('points')
   const [dotSize, setDotSize] = useState(0.400)
@@ -762,6 +820,10 @@ function HomeInner() {
   const [bgImage, setBgImage] = useState<string | null>(null)
   const bgImageBlobRef = useRef<string | null>(null)
   const dissolveInitRef = useRef(false)
+  const circleCameraInfoRef = useRef<HTMLDivElement>(null)
+  const [nutsaGlbs, setNutsaGlbs] = useState<string[]>([])
+  const [nutsaGlbScale, setNutsaGlbScale] = useState(0.025)
+  const [nutsaGlbRepeat, setNutsaGlbRepeat] = useState(1)
 
   const [selectedStudents, setSelectedStudents] = useState<string[]>(['Salome Shalvashvili', 'Sergi Sarajevi'])
   const figureStudent  = selectedStudents[0] ?? null
@@ -1559,10 +1621,10 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           </div>
         )}
         {!loading && mountedView === 'room' && !selectedStudent && (
-          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} enableBloom={enableBloom} bloomIntensity={bloomIntensity} enableDOF={enableDOF} dofFocus={dofFocus} dofBokeh={dofBokeh} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} />
+          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} enableBloom={enableBloom} bloomIntensity={bloomIntensity} enableDOF={enableDOF} dofFocus={dofFocus} dofBokeh={dofBokeh} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} />
         )}
         {!loading && mountedView === 'circle' && !selectedStudent && (
-          <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={figureY} showVertexImages={false} vertexSettings={studentVertexSettings} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX} camY={circleCamY} camZ={circleCamZ} camFov={circleCamFov} camZoom={circleCamZoom} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} />
+          <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={circleFigureY} showVertexImages={false} vertexSettings={studentVertexSettings} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX} camY={circleCamY} camZ={circleCamZ} camFov={circleCamFov} camZoom={circleCamZoom} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} cameraInfoRef={isAdmin ? circleCameraInfoRef : undefined} isAdmin={isAdmin} />
         )}
         {!loading && posts.length > 0 && mountedView === 'globe' && !selectedStudent && (
           <GlobeCanvas
@@ -1595,7 +1657,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
 
         {/* Personal student room */}
         {mountedStudent && (
-          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} enableBloom={enableBloom} bloomIntensity={bloomIntensity} enableDOF={enableDOF} dofFocus={dofFocus} dofBokeh={dofBokeh} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} />
+          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} enableBloom={enableBloom} bloomIntensity={bloomIntensity} enableDOF={enableDOF} dofFocus={dofFocus} dofBokeh={dofBokeh} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} />
         )}
       </div>
 
@@ -1786,6 +1848,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           figureRings={figureRings} setFigureRings={setFigureRings}
           soloReact={soloReact} setSoloReact={setSoloReact}
           circleRadius={circleRadius} setCircleRadius={setCircleRadius}
+          circleFigureY={circleFigureY} setCircleFigureY={setCircleFigureY}
           circleCameraMode={circleCameraMode} setCircleCameraMode={setCircleCameraMode}
           circleCamX={circleCamX} setCircleCamX={setCircleCamX}
           circleCamY={circleCamY} setCircleCamY={setCircleCamY}
@@ -1803,6 +1866,10 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           roomCamZoom={roomCamZoom} setRoomCamZoom={setRoomCamZoom}
           roomCamXLoop={roomCamXLoop} setRoomCamXLoop={setRoomCamXLoop}
           roomCamXLoopSpeed={roomCamXLoopSpeed} setRoomCamXLoopSpeed={setRoomCamXLoopSpeed}
+          circleCameraInfoRef={circleCameraInfoRef}
+          nutsaGlbs={nutsaGlbs} setNutsaGlbs={setNutsaGlbs}
+          nutsaGlbScale={nutsaGlbScale} setNutsaGlbScale={setNutsaGlbScale}
+          nutsaGlbRepeat={nutsaGlbRepeat} setNutsaGlbRepeat={setNutsaGlbRepeat}
           phase={phase}
         />
       )}
@@ -1820,7 +1887,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
             src="/intro.mp4"
             preload="auto"
             playsInline
-            style={{ display: phase === 'video' ? 'block' : 'none' }}
+            style={{ display: phase === 'video' ? 'block' : 'none', outline: '1px solid white' }}
             className="h-screen w-full min-[960px]:h-[60vh] min-[960px]:w-auto object-contain"
             onLoadedData={() => setVideoReady(true)}
             onCanPlayThrough={() => setVideoReady(true)}
