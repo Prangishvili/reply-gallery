@@ -1414,11 +1414,10 @@ function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showF
   const figurePosts  = figureStudent  ? posts.filter(p => match(p.student_name, figureStudent))  : posts
   const mirrorPosts  = figureStudent2 ? posts.filter(p => match(p.student_name, figureStudent2)) : posts
   const isSergi  = (s: string | null) => !!s?.trim().toLowerCase().includes('sergi')
-  const isSesili = (s: string | null) => !!s?.trim().toLowerCase().includes('sesili')
   const figureRingsOrig   = figureRings && isSergi(figureStudent)
   const figureRingsMirror = figureRings && isSergi(figureStudent2)
-  const graffitiOrig   = isSesili(figureStudent)
-  const graffitiMirror = isSesili(figureStudent2)
+  const graffitiOrig   = false
+  const graffitiMirror = false
   const DEF = { imgSize: 0.025, repeat: 1, audioImgSize: undefined as number | undefined, audioRepeat: undefined as number | undefined, facing: 'normal' as 'camera' | 'normal' }
   const origVS   = (figureStudent  ? vertexSettings[figureStudent]  : null) ?? DEF
   const mirrorVS = (figureStudent2 ? vertexSettings[figureStudent2] : null) ?? DEF

@@ -32,7 +32,7 @@ const STUDENT_VERTEX_DEFAULTS: Record<string, VertexSettings> = {
   'Salome Shalvashvili':   { imgSize: 0.060, repeat: 17, audioImgSize: 0.060, audioRepeat: 17, facing: 'camera' },
   'Bako Shengelia':        { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
   'Mariam Wulaia':         { imgSize: 0.070, repeat: 5, audioImgSize: 0.050, audioRepeat: 5, facing: 'camera'},
-  'Mariam Qsovreli':       { imgSize: 0.075, repeat: 19, audioImgSize: 0.035, audioRepeat: 14, facing: 'normal' },
+  'Mariam Qsovreli':       { imgSize: 0.120, repeat: 19, audioImgSize: 0.035, audioRepeat: 14, facing: 'normal' },
 }
 
 type ImageItem = { file: File; preview: string; caption: string }
@@ -1408,69 +1408,6 @@ function HomeInner() {
         </div>
       )}
 
-      {/* Graffiti overlay — room view, when Sesili is selected */}
-      {phase === 'gallery' && mountedView === 'room' && !selectedStudent &&
-       selectedStudents.some(s => s.toLowerCase().includes('sesili')) && (
-        <div style={{
-          position: 'fixed', left: 170, bottom: 80, zIndex: 30,
-          display: 'flex', flexDirection: 'column', gap: 10,
-          pointerEvents: 'auto',
-        }}>
-          <button
-            onClick={() => setGraffitiMode(v => !v)}
-            style={{
-              fontFamily: 'ui-monospace, monospace', fontSize: 10, letterSpacing: 1,
-              textTransform: 'uppercase', padding: '5px 10px',
-              background: graffitiMode ? 'rgba(0,0,0,0.85)' : 'transparent',
-              color: graffitiMode ? '#fff' : 'rgba(0,0,0,0.5)',
-              border: '1px solid rgba(0,0,0,0.25)', cursor: 'pointer',
-            }}
-          >
-            {graffitiMode ? '✎ painting' : '✎ paint'}
-          </button>
-          {graffitiMode && (<>
-            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', maxWidth: 120 }}>
-              {['#ff2222','#ff8800','#ffee00','#22cc44','#2288ff','#cc22cc','#ffffff','#111111'].map(c => (
-                <button
-                  key={c}
-                  onClick={() => setGraffitiColor(c)}
-                  style={{
-                    width: 22, height: 22, background: c, border: 'none', cursor: 'pointer', padding: 0,
-                    outline: graffitiColor === c ? '2px solid rgba(0,0,0,0.7)' : '1px solid rgba(0,0,0,0.2)',
-                    outlineOffset: 1,
-                  }}
-                />
-              ))}
-              <input
-                type="color" value={graffitiColor}
-                onChange={e => setGraffitiColor(e.target.value)}
-                style={{ width: 22, height: 22, border: '1px solid rgba(0,0,0,0.2)', padding: 0, cursor: 'pointer', background: 'transparent' }}
-                title="Custom color"
-              />
-            </div>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.45)' }}>Brush</span>
-                <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.6)' }}>{graffitiBrushSize}</span>
-              </div>
-              <input
-                type="range" min={2} max={30} step={1} value={graffitiBrushSize}
-                onChange={e => setGraffitiBrushSize(Number(e.target.value))}
-                style={{ width: 120, accentColor: 'rgba(0,0,0,0.6)', cursor: 'pointer' }}
-              />
-            </div>
-            <button
-              onClick={() => setGraffitiClearKey(k => k + 1)}
-              style={{
-                fontFamily: 'ui-monospace, monospace', fontSize: 10, letterSpacing: 1,
-                textTransform: 'uppercase', padding: '4px 10px',
-                background: 'transparent', color: 'rgba(0,0,0,0.4)',
-                border: '1px solid rgba(0,0,0,0.2)', cursor: 'pointer',
-              }}
-            >clear</button>
-          </>)}
-        </div>
-      )}
 
       {/* SELF — camera permission overlay */}
       {phase === 'gallery' && viewMode === 'self' && selfPermission !== 'granted' && (
