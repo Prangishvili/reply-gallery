@@ -1523,9 +1523,9 @@ function CircleNameTag({ student, nameSize, blurNames, onNameClick, namesClickab
   )
 }
 
-function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexImages, vertexSettings, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, meshTexture, texScale, texRepeat, texOffsetX, texOffsetY, texRotation, student, onTextureUpload, analyserRef, isAdmin = false }: {
+function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexImages, imagesVisible = true, vertexSettings, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, meshTexture, texScale, texRepeat, texOffsetX, texOffsetY, texRotation, student, onTextureUpload, analyserRef, isAdmin = false }: {
   angle: number; radius: number; figureScale: number; figureY: number
-  posts: Post[]; showVertexImages: boolean; vertexSettings: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>
+  posts: Post[]; showVertexImages: boolean; imagesVisible?: boolean; vertexSettings: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>
   showWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
   meshTexture: string | null
   texScale: number; texRepeat: number; texOffsetX: number; texOffsetY: number; texRotation: number
@@ -1633,9 +1633,11 @@ function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexIm
           <FigureWireframe scene={cloned} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} transitionKey={0} enableDissolve={false} />
         )}
         {showVertexImages && posts.length > 0 && (
-          <Suspense fallback={null}>
-            <FigureVertexImages scene={cloned} posts={posts} size={vs.imgSize} repeat={vs.repeat} audioImgSize={vs.audioImgSize} audioRepeat={vs.audioRepeat} facing={vs.facing} analyserRef={analyserRef} />
-          </Suspense>
+          <group visible={imagesVisible}>
+            <Suspense fallback={null}>
+              <FigureVertexImages scene={cloned} posts={posts} size={vs.imgSize} repeat={vs.repeat} audioImgSize={vs.audioImgSize} audioRepeat={vs.audioRepeat} facing={vs.facing} analyserRef={analyserRef} />
+            </Suspense>
+          </group>
         )}
         {isAdmin && (
           <Html center position={[0, 2.5, 0]} style={{ pointerEvents: 'auto' }}>
@@ -1739,7 +1741,7 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, show
   soloReact?: boolean
   isAdmin?: boolean
 }) {
-  const [activeStudent, setActiveStudent] = useState(0)
+  const [activeStudents, setActiveStudents] = useState<Set<number>>(new Set([0]))
   const soloTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     if (soloTimerRef.current) clearTimeout(soloTimerRef.current)
@@ -1747,7 +1749,12 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, show
     const schedule = () => {
       const delay = (1 + Math.random() * 2) * 1000
       soloTimerRef.current = setTimeout(() => {
-        setActiveStudent(Math.floor(Math.random() * students.length))
+        const count = Math.floor(Math.random() * 3) + 1
+        const next = new Set<number>()
+        while (next.size < Math.min(count, students.length)) {
+          next.add(Math.floor(Math.random() * students.length))
+        }
+        setActiveStudents(next)
         schedule()
       }, delay)
     }
@@ -1781,6 +1788,7 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, show
             figureY={figureY}
             posts={studentPosts}
             showVertexImages={showVertexImages}
+            imagesVisible={!soloReact || activeStudents.has(i)}
             vertexSettings={vertexSettings}
             showWireframe={showWireframe}
             wireframeStyle={wireframeStyle}
@@ -1795,7 +1803,7 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, show
             texRotation={(studentTextureMappings[student] ?? DEFAULT_MAPPING).rotation}
             student={student}
             onTextureUpload={onTextureUpload}
-            analyserRef={!soloReact || activeStudent === i ? analyserRef : undefined}
+            analyserRef={!soloReact || activeStudents.has(i) ? analyserRef : undefined}
             isAdmin={isAdmin}
           />
         )
