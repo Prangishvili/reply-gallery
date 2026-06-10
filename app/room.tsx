@@ -15,6 +15,14 @@ const H   = 400   // room height
 const D   = W     // square floor plan
 const EYE = 22.5  // camera eye height
 
+// iOS Safari kills the tab when GPU memory spikes — cap texture size, sprite
+// count and render resolution on small/touch devices
+const IS_MOBILE = typeof window !== 'undefined' &&
+  (window.innerWidth < 1000 || /iPhone|iPad|Android/i.test(navigator.userAgent))
+const TEX_MAX_DIM = IS_MOBILE ? 256 : 512
+const MAX_DPR     = IS_MOBILE ? 1.5 : 2
+const POSTS_PER_FIGURE = IS_MOBILE ? 12 : 30
+
 // ── Background ────────────────────────────────────────────────────────────────
 function BackgroundSetter({ color, image }: { color: string; image: string | null }) {
   const { scene } = useThree()
@@ -291,14 +299,7 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
           newGifMap.set(url, { img, canvas, tex: canvasTex })
           tex = canvasTex
         } else {
-          tex = await new Promise<THREE.Texture>(resolve => {
-            new THREE.TextureLoader().load(
-              url,
-              t => { t.colorSpace = THREE.SRGBColorSpace; resolve(t) },
-              undefined,
-              () => resolve(new THREE.Texture())
-            )
-          })
+          tex = await loadCappedTex(url)
         }
         if (cancelled) { tex.dispose(); newMap.forEach(v => v.tex.dispose()); return }
         newMap.set(url, { tex, aspect: meta.aspect })
@@ -955,7 +956,7 @@ const _Z = new THREE.Vector3(0, 0, 1)
 async function loadImgMeta(url: string): Promise<{ aspect: number; isSvg: boolean; isGif: boolean }> {
   let isSvg = false, isGif = false
   try {
-    const r = await fetch(url)
+    const r = await fetch(url, { method: 'HEAD' })
     const ct = r.headers.get('content-type') ?? ''
     isSvg = ct.includes('svg')
     isGif = ct.includes('gif')
@@ -980,12 +981,34 @@ function loadVideoMeta(url: string): Promise<number> {
   })
 }
 
+// Decode an image and downscale to TEX_MAX_DIM before creating the GPU
+// texture — keeps old full-size uploads (1920px+) from exhausting iOS memory
+function loadCappedTex(url: string): Promise<THREE.Texture> {
+  return new Promise(resolve => {
+    const img = new window.Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      const w = img.naturalWidth || 1, h = img.naturalHeight || 1
+      const scale = Math.min(1, TEX_MAX_DIM / Math.max(w, h))
+      const canvas = document.createElement('canvas')
+      canvas.width  = Math.max(1, Math.round(w * scale))
+      canvas.height = Math.max(1, Math.round(h * scale))
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+      const tex = new THREE.CanvasTexture(canvas)
+      tex.colorSpace = THREE.SRGBColorSpace
+      resolve(tex)
+    }
+    img.onerror = () => resolve(new THREE.Texture())
+    img.src = url
+  })
+}
+
 function makeSvgTex(url: string, aspect: number, flip: boolean): Promise<THREE.CanvasTexture> {
   return new Promise(resolve => {
     const img = new window.Image()
     img.crossOrigin = 'anonymous'
     img.onload = () => {
-      const tW = 2048, tH = Math.round(tW / aspect)
+      const tW = IS_MOBILE ? 512 : 2048, tH = Math.round(tW / aspect)
       const canvas = document.createElement('canvas')
       canvas.width = tW; canvas.height = tH
       canvas.getContext('2d')!.drawImage(img, 0, 0, tW, tH)
@@ -1174,7 +1197,7 @@ export function SelfCanvas({ stream, figureScale = 200, figureFacing = 4.65, img
 }) {
   return (
     <Canvas
-      dpr={[1, 2]}
+      dpr={[1, MAX_DPR]}
       style={{ width: '100%', height: '100%', touchAction: 'none', background: bgColor }}
     >
       <PerspectiveCamera makeDefault position={[0, 150, 600]} fov={55} near={0.1} far={5000} />
@@ -1479,7 +1502,7 @@ export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, do
   return (
     <Canvas
       camera={{ position: [camX, camY, camZ], fov: 72 }}
-      dpr={[1, 2]}
+      dpr={[1, MAX_DPR]}
       style={{ width: '100%', height: '100%', touchAction: 'none', background: bgColor }}
     >
       <RoomScene posts={posts} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={vertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} />
@@ -1778,7 +1801,7 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, show
       )}
       {students.map((student, i) => {
         const angle = (i / students.length) * Math.PI * 2
-        const studentPosts = posts.filter(p => p.student_name?.trim().toLowerCase() === student.trim().toLowerCase()).slice(0, 30)
+        const studentPosts = posts.filter(p => p.student_name?.trim().toLowerCase() === student.trim().toLowerCase()).slice(0, POSTS_PER_FIGURE)
         return (
           <CircleFigure
             key={student}
@@ -1834,7 +1857,7 @@ export function CircleCanvas({ posts, students, circleRadius = 300, figureScale 
 }) {
   return (
     <Canvas
-      dpr={[1, 2]}
+      dpr={[1, MAX_DPR]}
       style={{ width: '100%', height: '100%', touchAction: 'none', background: bgColor }}
     >
       <CircleScene

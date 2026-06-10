@@ -6,6 +6,7 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { Post } from '@/lib/supabase'
 
+const MAX_DPR = typeof window !== 'undefined' && (window.innerWidth < 1000 || /iPhone|iPad|Android/i.test(navigator.userAgent)) ? 1.5 : 2
 const RADIUS = 3.2
 const INNER_RADIUS = 1.6
 
@@ -389,7 +390,7 @@ export default function GlobeCanvas({ posts, rotateSpeed = 0.05, scale = 1.5, sc
   bgImage?: string | null
 }) {
   return (
-    <Canvas camera={{ position: [0, 0, 7.5], fov: 50 }} dpr={[1, 2]} style={{ width: '100%', height: '100%', touchAction: 'none', background: bgColor }}>
+    <Canvas camera={{ position: [0, 0, 7.5], fov: 50 }} dpr={[1, MAX_DPR]} style={{ width: '100%', height: '100%', touchAction: 'none', background: bgColor }}>
       <Scene posts={posts} rotateSpeed={rotateSpeed} scale={scale} scaleX={scaleX} scaleY={scaleY} tileSize={tileSize} tileStyle={tileStyle} showNames={showNames} nameSize={nameSize} showWireframe={showWireframe} wireframeSegments={wireframeSegments} wireframeOpacity={wireframeOpacity} wireframeColor={wireframeColor} showNoiseGlobe={showNoiseGlobe} audioVolume={audioVolume} analyserRef={analyserRef} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} blurNames={blurNames} onNameClick={onNameClick} namesClickable={namesClickable} bgColor={bgColor} bgImage={bgImage} />
     </Canvas>
   )
