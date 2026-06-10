@@ -1031,6 +1031,7 @@ function SelfVertexImages({ scene, stream, count, size, images, facing, analyser
   const meshRefs = useRef<(THREE.Mesh | null)[]>([])
   const [mats,    setMats   ] = useState<THREE.MeshBasicMaterial[]>([])
   const [aspects, setAspects] = useState<number[]>([])
+  const [flips,   setFlips  ] = useState<number[]>([])
   const [ready,   setReady  ] = useState(false)
   const dataArrRef = useRef<Uint8Array | null>(null)
 
@@ -1049,7 +1050,7 @@ function SelfVertexImages({ scene, stream, count, size, images, facing, analyser
       vol = Math.min((sum / dataArrRef.current.length / 255) * 2, 1)
     }
     const s = 1 + vol * 3
-    meshRefs.current.forEach(m => { if (m) m.scale.set(s, s, 1) })
+    meshRefs.current.forEach((m, i) => { if (m) m.scale.set(s * (flips[i] ?? 1), s, 1) })
   })
 
   useEffect(() => {
@@ -1082,52 +1083,57 @@ function SelfVertexImages({ scene, stream, count, size, images, facing, analyser
 
       if (cancelled) return
 
+      // One texture (and one <video>) per unique source, shared by all sprites
+      // — per-sprite copies exhaust iOS GPU memory and kill the WebGL context.
+      // Mirror-flip is done per-mesh via negative X scale, not texture copies.
+      const camTex = camVid ? new THREE.VideoTexture(camVid) : null
+      if (camTex) camTex.colorSpace = THREE.SRGBColorSpace
+
+      const uploadTex = await Promise.all(images.map(async ({ url }, idx) => {
+        const meta = mediaMeta[idx]
+        if (meta.isVideo) {
+          const vid = document.createElement('video')
+          vid.src = url
+          vid.loop = true; vid.muted = true; vid.autoplay = true; vid.playsInline = true
+          vid.play().catch(() => {})
+          fileVids.push(vid)
+          const t = new THREE.VideoTexture(vid)
+          t.colorSpace = THREE.SRGBColorSpace
+          return t
+        }
+        if (meta.isSvg) return makeSvgTex(url, meta.aspect, false)
+        return loadCappedTex(url)
+      }))
+
+      if (cancelled) { camTex?.dispose(); uploadTex.forEach(t => t.dispose()); return }
+
       const newMats: THREE.MeshBasicMaterial[] = []
       const newAspects: number[] = []
+      const newFlips: number[] = []
 
       for (let i = 0; i < count; i++) {
-        const useUploaded = images.length > 0 && (!camVid || Math.random() < 0.5)
+        const useUploaded = images.length > 0 && (!camTex || Math.random() < 0.5)
         let tex: THREE.Texture
         let aspect: number
 
         if (useUploaded) {
-          const idx  = Math.floor(Math.random() * images.length)
-          const flip = Math.random() < 0.5
-          const meta = mediaMeta[idx]
-          aspect = meta.aspect
-
-          if (meta.isVideo) {
-            const vid = document.createElement('video')
-            vid.src = images[idx].url
-            vid.loop = true; vid.muted = true; vid.autoplay = true; vid.playsInline = true
-            vid.play().catch(() => {})
-            fileVids.push(vid)
-            tex = new THREE.VideoTexture(vid)
-            tex.colorSpace = THREE.SRGBColorSpace
-            if (flip) { tex.repeat.x = -1; tex.offset.x = 1 }
-          } else if (meta.isSvg) {
-            tex = await makeSvgTex(images[idx].url, aspect, flip)
-          } else {
-            tex = new THREE.TextureLoader().load(images[idx].url, t => {
-              t.colorSpace = THREE.SRGBColorSpace; t.needsUpdate = true
-            })
-            if (flip) { tex.repeat.x = -1; tex.offset.x = 1 }
-          }
+          const idx = Math.floor(Math.random() * images.length)
+          tex = uploadTex[idx]
+          aspect = mediaMeta[idx].aspect
         } else {
-          const flip = Math.random() < 0.5
-          tex = new THREE.VideoTexture(camVid!)
-          tex.colorSpace = THREE.SRGBColorSpace
-          if (flip) { tex.repeat.x = -1; tex.offset.x = 1 }
+          tex = camTex!
           aspect = camAspect
         }
 
         newMats.push(new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, transparent: true }))
         newAspects.push(aspect)
+        newFlips.push(Math.random() < 0.5 ? -1 : 1)
       }
 
       meshRefs.current = new Array(count).fill(null)
       setMats(newMats)
       setAspects(newAspects)
+      setFlips(newFlips)
       setReady(true)
     }
 
