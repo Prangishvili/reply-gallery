@@ -41,7 +41,7 @@ function fileToCaption(file: File): string {
   return file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ')
 }
 
-type Phase = 'entry' | 'loading' | 'video' | 'gallery'
+type Phase = 'entry' | 'gallery'
 
 // ─── Admin settings ───────────────────────────────────────────────────────────
 
@@ -122,7 +122,7 @@ const ADMIN_DEFAULTS: AdminSettings = {
   figureWireframe: true,
   wireframeStyle: 'points',
   dotSize: 0.400,
-  circleDotSize: 1,
+  circleDotSize: 0.400,
   circleShowImages: true,
   dotColor: '#000000',
   dotCount: 30000,
@@ -145,10 +145,10 @@ const ADMIN_DEFAULTS: AdminSettings = {
   circleFigureY: 200,
   circleCameraMode: 'orthographic',
   circleCamX: 150,
-  circleCamY: 930,
+  circleCamY: 4000,
   circleCamZ: -1350,
-  circleCamFov: 60,
-  circleCamZoom: 1.8,
+  circleCamFov: 20,
+  circleCamZoom: 1.2,
   circleCamXLoop: false,
   circleCamXLoopSpeed: 0.1,
   camX: 0,
@@ -175,7 +175,7 @@ const P = {
   dim: '#7a7a78',
   low: '#4a4a48',
   accent: '#f0eb5c',
-  font: 'ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, monospace',
+  font: 'var(--font-dm-mono), ui-monospace, monospace',
 }
 
 function PanelSection({ title, children }: { title: string; children: React.ReactNode }) {
@@ -494,7 +494,7 @@ function AdminPanel({
           {circleCameraInfoRef && (
             <div style={{ marginTop: 8 }}>
               <div style={{ fontSize: 11, color: P.dim, marginBottom: 6 }}>Live camera</div>
-              <div ref={circleCameraInfoRef} style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: P.text, lineHeight: 1.9 }} />
+              <div ref={circleCameraInfoRef} style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 10, color: P.text, lineHeight: 1.9 }} />
             </div>
           )}
         </PanelSection>
@@ -694,9 +694,7 @@ function AdminPanel({
 function HomeInner() {
   const [phase, setPhase] = useState<Phase>('entry')
   const [withSound, setWithSound] = useState(true)
-  const [barWidth, setBarWidth] = useState(0)
-  const [fadeOut, setFadeOut] = useState(false)
-  const videoRef = useRef<HTMLVideoElement>(null)
+  const [showQuote, setShowQuote] = useState(false)
   const cursorWrapRef = useRef<HTMLDivElement>(null)
   const cursorDotRef  = useRef<HTMLElement>(null)
 
@@ -813,30 +811,30 @@ function HomeInner() {
     return () => clearTimeout(id)
   }, [viewMode])
 
-  // Circle intro animation — starts after loading + video finish
+  // Circle intro animation — show quote first, then animate
   const circleAnimRef = useRef<number | null>(null)
   useEffect(() => {
-    if (viewMode !== 'circle' || phase !== 'gallery') return
+    if (viewMode !== 'circle' || phase !== 'gallery') { setShowQuote(false); return }
     if (circleAnimRef.current !== null) cancelAnimationFrame(circleAnimRef.current)
     const fromCamY = circleCamYRef.current
     const fromZoom = circleCamZoomRef.current
     const fromFigY = circleFigureYRef.current
-    const targetZoom = window.innerWidth < 1000 ? 2.6 : 3.3
-    const duration = 3500
+    const targetZoom = window.innerWidth < 1000 ? 0.6 : 1.8
+    const duration = 4500
     const start = performance.now()
-    const easeOut = (t: number) => 1 - Math.pow(1 - t, 2)
     const tick = (now: number) => {
       const t = Math.min((now - start) / duration, 1)
-      const e = easeOut(t)
+      const e = t
       setAdmin(prev => ({
         ...prev,
-        circleCamY: fromCamY + (150 - fromCamY) * e,
+        circleCamY: fromCamY + (400 - fromCamY) * e,
         circleCamZoom: fromZoom + (targetZoom - fromZoom) * e,
         circleFigureY: fromFigY + (160 - fromFigY) * e,
       }))
       if (t < 1) circleAnimRef.current = requestAnimationFrame(tick)
-      else setAdmin(prev => ({ ...prev, circleCamXLoop: true, circleCamXLoopSpeed: 0.1 }))
+      else { setAdmin(prev => ({ ...prev, circleCamXLoop: true, circleCamXLoopSpeed: 0.1 })); setTimeout(() => setShowQuote(false), 1000) }
     }
+    setShowQuote(true)
     circleAnimRef.current = requestAnimationFrame(tick)
     return () => { if (circleAnimRef.current !== null) cancelAnimationFrame(circleAnimRef.current) }
   }, [viewMode, phase]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -992,37 +990,6 @@ function HomeInner() {
     return () => clearInterval(id)
   }, [showTexture])
 
-  const [barDone, setBarDone] = useState(false)
-  const [videoReady, setVideoReady] = useState(false)
-
-  // Loading bar — sets barDone after animation
-  useEffect(() => {
-    if (phase !== 'loading') return
-    setBarDone(false)
-    setVideoReady(false)
-    requestAnimationFrame(() => setBarWidth(100))
-    const t = setTimeout(() => setBarDone(true), 2800)
-    return () => clearTimeout(t)
-  }, [phase])
-
-  // Advance to video only when both bar animation and video are ready.
-  // Fallback: if video never fires canplaythrough (iOS), proceed after 3s.
-  useEffect(() => {
-    if (phase === 'loading' && barDone && videoReady) setPhase('video')
-  }, [barDone, videoReady, phase])
-
-  useEffect(() => {
-    if (!barDone || phase !== 'loading') return
-    const fallback = setTimeout(() => setVideoReady(true), 3000)
-    return () => clearTimeout(fallback)
-  }, [barDone, phase])
-
-  useEffect(() => {
-    if (phase !== 'video' || !videoRef.current) return
-    const v = videoRef.current
-    v.muted = !withSound
-    v.play().catch(() => {})
-  }, [phase])
 
   function startBgAudio(sound: boolean) {
     if (!sound) return
@@ -1077,8 +1044,7 @@ function HomeInner() {
 
   function goToGallery() {
     localStorage.setItem('reply_visited', 'true')
-    setFadeOut(true)
-    setTimeout(() => setPhase('gallery'), 600)
+    setPhase('gallery')
   }
 
   useEffect(() => {
@@ -1183,7 +1149,7 @@ function HomeInner() {
                 key={mode}
                 onClick={() => switchView(mode)}
                 style={{
-                  fontFamily: 'ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5,
+                  fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5,
                   padding: 0, border: 'none', cursor: 'pointer', textTransform: 'uppercase',
                   background: 'transparent',
                   color: viewMode === mode ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.3)',
@@ -1205,10 +1171,10 @@ function HomeInner() {
           pointerEvents: 'auto',
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, letterSpacing: 1, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase' }}>
+            <span style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 10, letterSpacing: 1, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase' }}>
               {activeEditStudent.split(' ')[0]}
             </span>
-            <button onClick={() => setActiveEditStudent(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'ui-monospace, monospace', fontSize: 12, color: 'rgba(0,0,0,0.3)', padding: 0, lineHeight: 1 }}>×</button>
+            <button onClick={() => setActiveEditStudent(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 12, color: 'rgba(0,0,0,0.3)', padding: 0, lineHeight: 1 }}>×</button>
           </div>
           {([
             { label: 'Scale',    key: 'scale',    min: 0.1, max: 5,   step: 0.05, dec: 2 },
@@ -1221,8 +1187,8 @@ function HomeInner() {
             return (
               <div key={key} style={{ marginBottom: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.45)' }}>{label}</span>
-                  <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.6)', fontVariantNumeric: 'tabular-nums' }}>{dec === 0 ? val : (val as number).toFixed(dec)}</span>
+                  <span style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.45)' }}>{label}</span>
+                  <span style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.6)', fontVariantNumeric: 'tabular-nums' }}>{dec === 0 ? val : (val as number).toFixed(dec)}</span>
                 </div>
                 <input type="range" min={min} max={max} step={step} value={val}
                   onChange={e => setStudentTextureMappings(prev => ({
@@ -1253,8 +1219,8 @@ function HomeInner() {
           ] as { label: string; value: number; min: number; max: number; step: number; dec: number; set: (v: number) => void }[]).map(({ label, value, min, max, step, dec, set }) => (
             <div key={label} style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.45)' }}>{label}</span>
-                <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.6)', fontVariantNumeric: 'tabular-nums' }}>{dec === 0 ? value : value.toFixed(dec)}</span>
+                <span style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.45)' }}>{label}</span>
+                <span style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.6)', fontVariantNumeric: 'tabular-nums' }}>{dec === 0 ? value : value.toFixed(dec)}</span>
               </div>
               <input type="range" min={min} max={max} step={step} value={value}
                 onChange={e => set(Number(e.target.value))}
@@ -1282,7 +1248,7 @@ function HomeInner() {
             )}
             <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
               <span style={{
-                fontFamily: 'ui-monospace, monospace', fontSize: 10,
+                fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 10,
                 color: 'rgba(0,0,0,0.45)',
               }}>{meshTexture ? 'texture' : '+ texture'}</span>
               <input
@@ -1306,7 +1272,7 @@ function HomeInner() {
                   posts.filter(p => p.image_url.startsWith('blob:')).forEach(p => URL.revokeObjectURL(p.image_url))
                   setPosts(p => p.filter(post => !post.image_url.startsWith('blob:')))
                 }}
-                style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.4)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.4)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
               >remove all</button>
             </div>
           )}
@@ -1327,8 +1293,8 @@ function HomeInner() {
           ] as { label: string; value: number; min: number; max: number; step: number; dec: number; set: (v: number) => void }[]).map(({ label, value, min, max, step, dec, set }) => (
             <div key={label} style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.45)' }}>{label}</span>
-                <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.7)', fontVariantNumeric: 'tabular-nums' }}>{dec === 0 ? value : value.toFixed(dec)}</span>
+                <span style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.45)' }}>{label}</span>
+                <span style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.7)', fontVariantNumeric: 'tabular-nums' }}>{dec === 0 ? value : value.toFixed(dec)}</span>
               </div>
               <input type="range" min={min} max={max} step={step} value={value}
                 onChange={e => set(Number(e.target.value))}
@@ -1347,7 +1313,7 @@ function HomeInner() {
                 } catch {}
               }}
               style={{
-                fontFamily: 'ui-monospace, monospace', fontSize: 10,
+                fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 10,
                 background: 'none', border: 'none', cursor: 'pointer', padding: 0,
                 color: 'rgba(0,0,0,0.45)', display: 'block', marginBottom: 12,
               }}
@@ -1358,7 +1324,7 @@ function HomeInner() {
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             {(['camera', 'surface'] as const).map(mode => (
               <button key={mode} onClick={() => setSelfFacing(mode)} style={{
-                fontFamily: 'ui-monospace, monospace', fontSize: 10,
+                fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 10,
                 background: 'none', border: 'none', cursor: 'pointer', padding: 0,
                 color: selfFacing === mode ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.35)',
                 transition: 'color 0.15s',
@@ -1368,7 +1334,7 @@ function HomeInner() {
 
           {/* Sound react toggle */}
           <button onClick={() => setSelfSoundReact(v => !v)} style={{
-            fontFamily: 'ui-monospace, monospace', fontSize: 10,
+            fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 10,
             background: 'none', border: 'none', cursor: 'pointer', padding: 0,
             color: selfSoundReact ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.35)',
             transition: 'color 0.15s', display: 'block', marginBottom: 16,
@@ -1377,7 +1343,7 @@ function HomeInner() {
           {/* Uploaded media for mixing */}
           <div style={{ marginTop: 4 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.45)' }}>mix media</span>
+              <span style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.45)' }}>mix media</span>
               {selfImages.length > 0 && (
                 <button
                   onClick={() => {
@@ -1385,7 +1351,7 @@ function HomeInner() {
                     selfImagesBlobsRef.current = []
                     setSelfImages([])
                   }}
-                  style={{ fontFamily: 'ui-monospace, monospace', fontSize: 9, color: 'rgba(0,0,0,0.35)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                  style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 9, color: 'rgba(0,0,0,0.35)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                 >clear all</button>
               )}
             </div>
@@ -1433,7 +1399,7 @@ function HomeInner() {
               htmlFor="self-img-upload"
               style={{
                 display: 'block', textAlign: 'center', cursor: 'pointer',
-                fontFamily: 'ui-monospace, monospace', fontSize: 10, letterSpacing: 1,
+                fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 10, letterSpacing: 1,
                 color: 'rgba(0,0,0,0.45)',
                 border: '1px dashed rgba(0,0,0,0.2)',
                 padding: '5px 0',
@@ -1451,7 +1417,7 @@ function HomeInner() {
           background: 'rgba(8,8,8,0.94)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexDirection: 'column', gap: 24,
-          fontFamily: 'ui-monospace, monospace',
+          fontFamily: 'var(--font-dm-mono), ui-monospace, monospace',
         }}>
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', letterSpacing: 3, textTransform: 'uppercase' }}>
             self
@@ -1469,7 +1435,7 @@ function HomeInner() {
                   }
                 }}
                 style={{
-                  fontFamily: 'ui-monospace, monospace', fontSize: 11, letterSpacing: 2,
+                  fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 2,
                   textTransform: 'uppercase', padding: '10px 28px',
                   background: 'transparent', color: 'rgba(255,255,255,0.65)',
                   border: '1px solid rgba(255,255,255,0.18)', cursor: 'pointer',
@@ -1480,7 +1446,7 @@ function HomeInner() {
               <button
                 onClick={() => setSelfPermission('granted')}
                 style={{
-                  fontFamily: 'ui-monospace, monospace', fontSize: 10, letterSpacing: 1,
+                  fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 10, letterSpacing: 1,
                   background: 'none', border: 'none', cursor: 'pointer', padding: 0,
                   color: 'rgba(255,255,255,0.25)',
                 }}
@@ -1496,7 +1462,7 @@ function HomeInner() {
               <button
                 onClick={() => setSelfPermission('idle')}
                 style={{
-                  fontFamily: 'ui-monospace, monospace', fontSize: 10, letterSpacing: 1,
+                  fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 10, letterSpacing: 1,
                   padding: '6px 16px', background: 'transparent',
                   color: 'rgba(255,255,255,0.35)', border: '1px solid rgba(255,255,255,0.12)',
                   cursor: 'pointer',
@@ -1507,7 +1473,7 @@ function HomeInner() {
               <button
                 onClick={() => setSelfPermission('granted')}
                 style={{
-                  fontFamily: 'ui-monospace, monospace', fontSize: 10, letterSpacing: 1,
+                  fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 10, letterSpacing: 1,
                   background: 'none', border: 'none', cursor: 'pointer', padding: 0,
                   color: 'rgba(255,255,255,0.25)',
                 }}
@@ -1525,7 +1491,7 @@ function HomeInner() {
           onClick={() => setShowAbout(v => !v)}
           style={{
             position: 'fixed', top: 24, left: 24, zIndex: 60,
-            fontFamily: 'ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5,
+            fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5,
             textTransform: 'uppercase', background: 'transparent', border: 'none',
             cursor: 'pointer', padding: 0,
             color: showAbout ? 'rgb(0, 0, 0)' : 'rgb(0, 0, 0)',
@@ -1553,7 +1519,7 @@ function HomeInner() {
             style={{ maxWidth: 720, width: '100%' }}
           >
             <p style={{
-              fontFamily: 'ui-monospace, monospace', fontSize: 14, lineHeight: 2,
+              fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2,
               color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em',
               whiteSpace: 'pre-line',
             }}>{`The action of being is so revolutionary that society rejects it and concerns itself exclusively with the action of becoming. 
@@ -1591,7 +1557,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           width: 160,
           display: 'flex', flexDirection: 'column', justifyContent: 'center',
           padding: '32px 0',
-          fontFamily: 'ui-monospace, monospace',
+          fontFamily: 'var(--font-dm-mono), ui-monospace, monospace',
           overflowY: 'auto',
         }}>
           {STUDENTS.map(name => {
@@ -1680,7 +1646,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           onClick={closeStudentRoom}
           style={{
             position: 'fixed', top: 24, left: 24, zIndex: 60,
-            fontFamily: 'ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5,
+            fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5,
             textTransform: 'uppercase', background: 'transparent', border: 'none',
             cursor: 'pointer', padding: 0, color: 'rgba(255,255,255,0.7)',
             transition: 'color 0.15s',
@@ -1694,7 +1660,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
       {selectedStudent && (
         <div style={{
           position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 60,
-          fontFamily: 'ui-monospace, monospace', fontSize: 11, letterSpacing: 2,
+          fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 2,
           textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', pointerEvents: 'none',
         }}>
           {selectedStudent}
@@ -1740,7 +1706,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
         <div style={{
           position: 'fixed', bottom: 24, left: 24, zIndex: 20,
           display: 'flex', alignItems: 'center', gap: 8,
-          fontFamily: 'ui-monospace, monospace',
+          fontFamily: 'var(--font-dm-mono), ui-monospace, monospace',
         }}>
           {/* Color swatch — click to open color picker */}
           <label style={{ cursor: 'pointer', position: 'relative' }} title="Background color">
@@ -1756,9 +1722,9 @@ Reply is a virtual art exhibition that challenges the limits of natural language
               style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }}
             />
           </label>
-          {/* Upload image/SVG */}
-          <label style={{ cursor: 'pointer' }} title="Upload background image or SVG">
-            <span style={{ fontSize: 10, color: 'rgba(0,0,0,0.4)', letterSpacing: 0.5 }}>bg</span>
+          {/* Upload background image */}
+          <label style={{ cursor: 'pointer', fontSize: 10, color: 'rgba(0,0,0,0.4)', letterSpacing: 0.5, lineHeight: 1 }} title="Upload background image">
+            bg
             <input
               type="file" accept="image/*" style={{ display: 'none' }}
               onChange={e => {
@@ -1772,46 +1738,50 @@ Reply is a virtual art exhibition that challenges the limits of natural language
               }}
             />
           </label>
-          {/* Clear image */}
           {bgImage && (
             <button
               onClick={() => {
                 if (bgImageBlobRef.current) { URL.revokeObjectURL(bgImageBlobRef.current); bgImageBlobRef.current = null }
                 setBgImage(null)
               }}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-                fontSize: 13, color: 'rgba(0,0,0,0.35)', lineHeight: 1,
-              }}
-              title="Remove background image"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 13, color: 'rgba(0,0,0,0.35)', lineHeight: 1 }}
             >×</button>
           )}
+          {/* Upload post image */}
+          <button
+            onClick={() => setShowUpload(true)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 10, color: 'rgba(0,0,0,0.4)', letterSpacing: 0.5, lineHeight: 1, display: 'block' }}
+            title="Upload post image"
+          >img</button>
+          {/* Upload background audio */}
+          <label style={{ cursor: 'pointer', fontSize: 10, color: 'rgba(0,0,0,0.4)', letterSpacing: 0.5, lineHeight: 1 }} title="Replace background sound">
+            mp3
+            <input
+              ref={soundInputRef}
+              type="file" accept="audio/*" style={{ display: 'none' }}
+              onChange={e => { if (e.target.files?.[0]) replaceBgAudio(e.target.files[0]); e.target.value = '' }}
+            />
+          </label>
         </div>
       )}
 
-      {/* Upload FAB */}
+      {/* Intro quote overlay */}
       {phase === 'gallery' && (
-        <div className="fixed bottom-9 left-1/2 -translate-x-1/2 z-20 flex gap-3">
-          <button
-            onClick={() => setShowUpload(true)}
-            className="bg-white rounded-full px-7 py-[18px] font-mono text-black text-xl leading-none transition-colors hover:bg-black hover:text-white"
-            style={{ border: '1px solid black' }}
-            aria-label="Upload image"
-          >+</button>
-          <button
-            onClick={() => soundInputRef.current?.click()}
-            className="bg-white rounded-full px-5 py-[18px] font-mono text-black text-base leading-none transition-colors hover:bg-black hover:text-white"
-            style={{ border: '1px solid black' }}
-            aria-label="Upload sound"
-            title="Replace background sound"
-          >♫</button>
-          <input
-            ref={soundInputRef}
-            type="file"
-            accept="audio/*"
-            className="hidden"
-            onChange={e => { if (e.target.files?.[0]) replaceBgAudio(e.target.files[0]); e.target.value = '' }}
-          />
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 50,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'none',
+          opacity: showQuote ? 1 : 0,
+          transition: 'opacity 3.4s ease',
+        }}>
+          <p style={{
+            width: '50%', textAlign: 'center',
+            fontFamily: 'var(--font-dm-mono), ui-monospace, monospace',
+            fontWeight: 300, fontSize: 18, lineHeight: 1.75,
+            color: 'rgba(0, 0, 0, 0.85)', textTransform: 'uppercase',
+          }}>
+            The action of being is so revolutionary that society rejects it<br/>and concerns itself exclusively with the action of becoming.<br/>– Jiddu Krishnamurti
+          </p>
         </div>
       )}
 
@@ -1838,75 +1808,45 @@ Reply is a virtual art exhibition that challenges the limits of natural language
       {phase !== 'gallery' && (
         <div
           className="fixed inset-0 z-50 flex flex-col items-center justify-center"
-          style={{ background: phase === 'entry' ? 'transparent' : '#ffffff', opacity: fadeOut ? 0 : 1, transition: 'opacity 0.6s ease', right: isAdmin && !panelHidden ? 280 : 0 }}
-          onClick={phase === 'video' ? goToGallery : undefined}
+          style={{ right: isAdmin && !panelHidden ? 280 : 0 }}
         >
-          {/* Video element lives here from entry onwards so iOS gesture unlock works */}
-          <video
-            ref={videoRef}
-            src="/intro.mp4"
-            preload="auto"
-            playsInline
-            style={{ display: phase === 'video' ? 'block' : 'none', outline: '1px solid white' }}
-            className="h-screen w-full min-[960px]:h-[60vh] min-[960px]:w-auto object-contain"
-            onLoadedData={() => setVideoReady(true)}
-            onCanPlayThrough={() => setVideoReady(true)}
-            onEnded={goToGallery}
-          />
 
           {phase === 'entry' && (
-            <div className="flex flex-col items-center gap-8">
-              <p className="font-mono text-black/60 text-[11px] tracking-[0.2em] uppercase text-center">
-                this interactive audio piece is best experienced with sound on
-              </p>
-              <div className="flex items-center gap-6">
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#ffffff' }}>
+              {/* full-screen gradient blob */}
+              <div style={{
+                position: 'absolute', right: '2%', bottom: '10%',
+                width: '50%', height: '70%',
+                background: 'radial-gradient(ellipse at 60% 60%, rgba(210,155,165,0.45) 0%, rgba(185,145,175,0.25) 35%, transparent 68%)',
+                filter: 'blur(55px)',
+                pointerEvents: 'none',
+              }} />
+              {/* REPLY svg */}
+              <div style={{ flex: 1, width: '80%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src="/reply.svg" alt="REPLY" style={{ width: '88%', height: 'auto', position: 'relative' }} />
+              </div>
+              {/* buttons */}
+              <div style={{ paddingBottom: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
                 <button
                   onClick={() => {
                     setWithSound(true)
-                    if (videoRef.current) { videoRef.current.muted = true; videoRef.current.play().then(() => videoRef.current?.pause()).catch(() => {}) }
-                    if (localStorage.getItem('reply_visited')) { startBgAudio(true); goToGallery() }
-                    else { setBarWidth(0); setPhase('loading'); startBgAudio(true) }
+                    startBgAudio(true)
+                    goToGallery()
                   }}
-                  className="font-mono text-[11px] tracking-[0.2em] uppercase text-black border border-black px-5 py-2.5 hover:bg-black hover:text-white transition-colors"
-                >
-                  enable sound
-                </button>
+                  style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.75)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                >ENTER WITH SOUND</button>
                 <button
                   onClick={() => {
                     setWithSound(false)
-                    if (videoRef.current) { videoRef.current.muted = true; videoRef.current.play().then(() => videoRef.current?.pause()).catch(() => {}) }
-                    if (localStorage.getItem('reply_visited')) { goToGallery() }
-                    else { setBarWidth(0); setPhase('loading') }
+                    goToGallery()
                   }}
-                  className="font-mono text-[11px] tracking-[0.2em] uppercase text-black/40 hover:text-black transition-colors"
-                >
-                  disable sound
-                </button>
+                  style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.35)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                >ENTER WITHOUT SOUND</button>
               </div>
             </div>
           )}
 
-          {phase === 'loading' && (
-            <>
-              <div className="w-48 h-px bg-black/10 relative overflow-hidden">
-                <div
-                  className="absolute inset-y-0 left-0 bg-black/60"
-                  style={{ width: `${barWidth}%`, transition: 'width 2.6s cubic-bezier(0.4,0,0.2,1)' }}
-                />
-              </div>
-            </>
-          )}
 
-          {phase === 'video' && (
-            <>
-              <button
-                onClick={goToGallery}
-                className="absolute bottom-9 right-9 font-mono text-black/50 hover:text-black text-[11px] tracking-[0.2em] uppercase transition-colors"
-              >
-                skip →
-              </button>
-            </>
-          )}
         </div>
       )}
 
