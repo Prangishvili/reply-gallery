@@ -143,6 +143,7 @@ function AdminPanel({
   wireframeStyle, setWireframeStyle,
   dotSize, setDotSize,
   circleDotSize, setCircleDotSize,
+  circleShowImages, setCircleShowImages,
   dotColor, setDotColor,
   dotCount, setDotCount,
   showWalls, setShowWalls,
@@ -214,6 +215,7 @@ function AdminPanel({
   wireframeStyle: WireframeStyle; setWireframeStyle: (v: WireframeStyle) => void
   dotSize: number; setDotSize: (v: number) => void
   circleDotSize: number; setCircleDotSize: (v: number) => void
+  circleShowImages: boolean; setCircleShowImages: (v: boolean) => void
   dotColor: string; setDotColor: (v: string) => void
   dotCount: number; setDotCount: (v: number) => void
   showWalls: boolean; setShowWalls: (v: boolean) => void
@@ -461,6 +463,12 @@ function AdminPanel({
           <PanelSlider label="Circle R"  value={circleRadius}    min={100}  max={1500} step={10}  decimals={0} onChange={setCircleRadius} />
           <PanelSlider label="Figure Y"  value={circleFigureY}   min={-500} max={500}  step={1}   decimals={0} onChange={setCircleFigureY} />
           <PanelSlider label="Dot size"  value={circleDotSize}   min={0.001} max={1}   step={0.001} decimals={3} onChange={setCircleDotSize} />
+          <div style={{ fontSize: 11, color: P.dim, marginBottom: 8, marginTop: 4 }}>Student images</div>
+          <PanelToggle
+            options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
+            value={circleShowImages ? 'show' : 'hide'}
+            onChange={v => setCircleShowImages(v === 'show')}
+          />
           {circleCameraInfoRef && (
             <div style={{ marginTop: 8 }}>
               <div style={{ fontSize: 11, color: P.dim, marginBottom: 6 }}>Live camera</div>
@@ -667,6 +675,37 @@ function HomeInner() {
   const [barWidth, setBarWidth] = useState(0)
   const [fadeOut, setFadeOut] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const cursorWrapRef = useRef<HTMLDivElement>(null)
+  const cursorDotRef  = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const wrap = cursorWrapRef.current
+    const dot  = cursorDotRef.current
+    if (!wrap || !dot) return
+    const onMove = (e: MouseEvent) => {
+      wrap.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`
+      const el = e.target as Element
+      const isPointer = getComputedStyle(el).cursor === 'pointer' ||
+        !!el.closest('button, a, input, label, select, textarea, [role="button"]')
+      dot.style.width = dot.style.height = (isPointer ? 18 : 10) + 'px'
+    }
+    const onLeave = () => { wrap.style.transform = 'translate(-100px, -100px)' }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseleave', onLeave)
+    // Override any JS cursor changes (e.g. Three.js / OrbitControls)
+    const observer = new MutationObserver(() => {
+      document.querySelectorAll<HTMLElement>('canvas, [style*="cursor"]').forEach(el => {
+        if (el.style.cursor && el.style.cursor !== 'none') el.style.cursor = 'none'
+      })
+    })
+    observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['style'] })
+    return () => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseleave', onLeave)
+      observer.disconnect()
+    }
+  }, [])
+
   const bgAudioRef = useRef<HTMLAudioElement | null>(null)
   const bgAudioBlobRef = useRef<string | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
@@ -803,6 +842,7 @@ function HomeInner() {
   const [figureZ, setFigureZ] = useState(0)
   const [circleFigureY, setCircleFigureY] = useState(200)
   const [circleDotSize, setCircleDotSize] = useState(1)
+  const [circleShowImages, setCircleShowImages] = useState(true)
 
   // Refs so animation reads current values without stale closures
   const circleCamYRef = useRef(circleCamY)
@@ -1056,14 +1096,24 @@ function HomeInner() {
   }
 
   function goToGallery() {
+    localStorage.setItem('reply_visited', 'true')
     setFadeOut(true)
     setTimeout(() => setPhase('gallery'), 600)
   }
 
   useEffect(() => {
+    const CACHE_KEY = 'reply_posts_cache'
+    const cached = localStorage.getItem(CACHE_KEY)
+    if (cached) {
+      try { setPosts(JSON.parse(cached)); setLoading(false) } catch {}
+    }
     fetch('/api/posts')
       .then(r => r.ok ? r.json() : [])
-      .then(data => { setPosts(data); setLoading(false) })
+      .then(data => {
+        setPosts(data)
+        setLoading(false)
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data))
+      })
   }, [])
 
   function addFiles(files: FileList | File[]) {
@@ -1132,6 +1182,10 @@ function HomeInner() {
 
   return (
     <div suppressHydrationWarning className="w-screen h-screen overflow-hidden relative" style={{ background: bgImage ? `url(${bgImage}) center/cover no-repeat` : bgColor }}>
+      {/* Custom cursor */}
+      <div ref={cursorWrapRef} style={{ position: 'fixed', top: 0, left: 0, pointerEvents: 'none', zIndex: 99999, transform: 'translate(-100px, -100px)' }}>
+        <div ref={cursorDotRef} style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff6600', transform: 'translate(-50%, -50%)', transition: 'width 0.12s ease, height 0.12s ease' }} />
+      </div>
       {/* Logo */}
       <div className="fixed top-9 left-1/2 -translate-x-1/2 z-20 pointer-events-none select-none">
         <img src="/logo.svg" alt="Reply" className="h-10 w-auto" fetchPriority="low" />
@@ -1599,7 +1653,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} enableBloom={enableBloom} bloomIntensity={bloomIntensity} enableDOF={enableDOF} dofFocus={dofFocus} dofBokeh={dofBokeh} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} />
         )}
         {!loading && mountedView === 'circle' && !selectedStudent && (
-          <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={circleFigureY} showVertexImages={false} vertexSettings={studentVertexSettings} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={circleDotSize} dotColor={dotColor} dotCount={dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX} camY={circleCamY} camZ={circleCamZ} camFov={circleCamFov} camZoom={circleCamZoom} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} cameraInfoRef={isAdmin ? circleCameraInfoRef : undefined} isAdmin={isAdmin} />
+          <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={circleFigureY} showVertexImages={circleShowImages} vertexSettings={studentVertexSettings} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={circleDotSize} dotColor={dotColor} dotCount={dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX} camY={circleCamY} camZ={circleCamZ} camFov={circleCamFov} camZoom={circleCamZoom} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} cameraInfoRef={isAdmin ? circleCameraInfoRef : undefined} isAdmin={isAdmin} />
         )}
         {!loading && posts.length > 0 && mountedView === 'globe' && !selectedStudent && (
           <GlobeCanvas
@@ -1802,6 +1856,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           wireframeStyle={wireframeStyle} setWireframeStyle={setWireframeStyle}
           dotSize={dotSize} setDotSize={setDotSize}
           circleDotSize={circleDotSize} setCircleDotSize={setCircleDotSize}
+          circleShowImages={circleShowImages} setCircleShowImages={setCircleShowImages}
           dotColor={dotColor} setDotColor={setDotColor}
           dotCount={dotCount} setDotCount={setDotCount}
           showWalls={showWalls} setShowWalls={setShowWalls}
@@ -1879,9 +1934,9 @@ Reply is a virtual art exhibition that challenges the limits of natural language
                 <button
                   onClick={() => {
                     setWithSound(true)
-                    // Unlock video on iOS while gesture is fresh
                     if (videoRef.current) { videoRef.current.muted = true; videoRef.current.play().then(() => videoRef.current?.pause()).catch(() => {}) }
-                    setBarWidth(0); setPhase('loading'); startBgAudio(true)
+                    if (localStorage.getItem('reply_visited')) { startBgAudio(true); goToGallery() }
+                    else { setBarWidth(0); setPhase('loading'); startBgAudio(true) }
                   }}
                   className="font-mono text-[11px] tracking-[0.2em] uppercase text-black border border-black px-5 py-2.5 hover:bg-black hover:text-white transition-colors"
                 >
@@ -1891,7 +1946,8 @@ Reply is a virtual art exhibition that challenges the limits of natural language
                   onClick={() => {
                     setWithSound(false)
                     if (videoRef.current) { videoRef.current.muted = true; videoRef.current.play().then(() => videoRef.current?.pause()).catch(() => {}) }
-                    setBarWidth(0); setPhase('loading')
+                    if (localStorage.getItem('reply_visited')) { goToGallery() }
+                    else { setBarWidth(0); setPhase('loading') }
                   }}
                   className="font-mono text-[11px] tracking-[0.2em] uppercase text-black/40 hover:text-black transition-colors"
                 >
