@@ -20,6 +20,7 @@ body {
 *, *::before, *::after, canvas { cursor: none !important; }
 input, textarea, select { cursor: text !important; }
 
+
 @keyframes grain {
   0%,100%{transform:translate(0,0)} 10%{transform:translate(-2%,-3%)}
   20%{transform:translate(3%,1%)} 30%{transform:translate(-1%,4%)}

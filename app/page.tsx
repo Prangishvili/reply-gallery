@@ -695,6 +695,12 @@ function HomeInner() {
   const [phase, setPhase] = useState<Phase>('entry')
   const [withSound, setWithSound] = useState(true)
   const [showQuote, setShowQuote] = useState(false)
+  const [replyFrame, setReplyFrame] = useState(0)
+  useEffect(() => {
+    if (phase !== 'entry') return
+    const id = setInterval(() => setReplyFrame(f => (f + 1) % 3), 250)
+    return () => clearInterval(id)
+  }, [phase])
   const cursorWrapRef = useRef<HTMLDivElement>(null)
   const cursorDotRef  = useRef<HTMLElement>(null)
 
@@ -811,10 +817,13 @@ function HomeInner() {
     return () => clearTimeout(id)
   }, [viewMode])
 
-  // Circle intro animation — show quote first, then animate
+  // Circle intro animation — show quote first, then animate (only once per session)
   const circleAnimRef = useRef<number | null>(null)
+  const circleAnimPlayedRef = useRef(false)
   useEffect(() => {
     if (viewMode !== 'circle' || phase !== 'gallery') { setShowQuote(false); return }
+    if (circleAnimPlayedRef.current) return
+    circleAnimPlayedRef.current = true
     if (circleAnimRef.current !== null) cancelAnimationFrame(circleAnimRef.current)
     const fromCamY = circleCamYRef.current
     const fromZoom = circleCamZoomRef.current
@@ -1134,7 +1143,7 @@ function HomeInner() {
       </div>
       {/* Logo */}
       <div className="fixed top-9 left-1/2 -translate-x-1/2 z-20 pointer-events-none select-none">
-        <img src="/logo.svg" alt="Reply" className="h-10 w-auto" fetchPriority="low" />
+        <img src="/logo.svg" alt="Reply" className="h-12 w-auto" fetchPriority="low" />
       </div>
 
       {/* View toggle */}
@@ -1823,7 +1832,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
               }} />
               {/* REPLY svg */}
               <div style={{ flex: 1, width: '80%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <img src="/reply.svg" alt="REPLY" style={{ width: '88%', height: 'auto', position: 'relative' }} />
+                <img src={['/reply.svg', '/reply1.svg', '/reply2.svg'][replyFrame]} alt="REPLY" style={{ width: '88%', height: 'auto', position: 'relative' }} />
               </div>
               {/* buttons */}
               <div style={{ paddingBottom: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
