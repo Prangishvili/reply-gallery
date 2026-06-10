@@ -1235,7 +1235,7 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
     if (soloTimerRef.current) clearTimeout(soloTimerRef.current)
     if (!soloReact) return
     const schedule = () => {
-      const delay = (1 + Math.random() * 3) * 1000
+      const delay = (1 + Math.random() * 2) * 1000
       soloTimerRef.current = setTimeout(() => {
         setActiveReact(p => p === 0 ? 1 : 0)
         schedule()
@@ -1723,7 +1723,7 @@ function CircleCamDriver({ x, y, z, zoom, mode }: { x: number; y: number; z: num
   return null
 }
 
-function CircleScene({ posts, students, circleRadius, figureScale, figureY, showVertexImages, vertexSettings, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, studentTextures, studentTextureMappings, onTextureUpload, showNoiseGlobe, noiseColor1, noiseColor2, noiseSpeed, noiseScale, audioVolume, cameraMode, camX, camY, camZ, camFov, camZoom, camXLoop, camXLoopSpeed, bgColor, bgImage, analyserRef, cameraInfoRef, isAdmin = false }: {
+function CircleScene({ posts, students, circleRadius, figureScale, figureY, showVertexImages, vertexSettings, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, studentTextures, studentTextureMappings, onTextureUpload, showNoiseGlobe, noiseColor1, noiseColor2, noiseSpeed, noiseScale, audioVolume, cameraMode, camX, camY, camZ, camFov, camZoom, camXLoop, camXLoopSpeed, bgColor, bgImage, analyserRef, cameraInfoRef, soloReact = false, isAdmin = false }: {
   posts: Post[]; students: string[]; circleRadius: number; figureScale: number; figureY: number
   showVertexImages: boolean; vertexSettings: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>
   showWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
@@ -1736,8 +1736,25 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, show
   bgColor: string; bgImage: string | null
   analyserRef?: React.RefObject<AnalyserNode | null>
   cameraInfoRef?: React.RefObject<HTMLDivElement | null>
+  soloReact?: boolean
   isAdmin?: boolean
 }) {
+  const [activeStudent, setActiveStudent] = useState(0)
+  const soloTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (soloTimerRef.current) clearTimeout(soloTimerRef.current)
+    if (!soloReact || !students.length) return
+    const schedule = () => {
+      const delay = (1 + Math.random() * 2) * 1000
+      soloTimerRef.current = setTimeout(() => {
+        setActiveStudent(Math.floor(Math.random() * students.length))
+        schedule()
+      }, delay)
+    }
+    schedule()
+    return () => { if (soloTimerRef.current) clearTimeout(soloTimerRef.current) }
+  }, [soloReact, students.length])
+
   return (
     <>
       <BackgroundSetter color={bgColor} image={bgImage} />
@@ -1778,7 +1795,7 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, show
             texRotation={(studentTextureMappings[student] ?? DEFAULT_MAPPING).rotation}
             student={student}
             onTextureUpload={onTextureUpload}
-            analyserRef={analyserRef}
+            analyserRef={!soloReact || activeStudent === i ? analyserRef : undefined}
             isAdmin={isAdmin}
           />
         )
@@ -1790,7 +1807,7 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, show
 
 export type { CircleCameraMode, TextureMapping }
 
-export function CircleCanvas({ posts, students, circleRadius = 300, figureScale = 200, figureY = -10, showVertexImages = true, vertexSettings = {} as Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>, showWireframe = true, wireframeStyle = 'points' as WireframeStyle, dotSize = 0.800, dotColor = '#000000', dotCount = 30000, studentTextures = {}, studentTextureMappings = {}, onTextureUpload = () => {}, showNoiseGlobe = false, noiseColor1 = '#08003a', noiseColor2 = '#8c1aff', noiseSpeed = 0.5, noiseScale = 1.0, audioVolume = 0, cameraMode = 'orthographic' as CircleCameraMode, camX = 150, camY = 930, camZ = -1350, camFov = 60, camZoom = 1.8, camXLoop = false, camXLoopSpeed = 1.0, bgColor = '#ffffff', bgImage = null, analyserRef, cameraInfoRef, isAdmin = false }: {
+export function CircleCanvas({ posts, students, circleRadius = 300, figureScale = 200, figureY = -10, showVertexImages = true, vertexSettings = {} as Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>, showWireframe = true, wireframeStyle = 'points' as WireframeStyle, dotSize = 0.800, dotColor = '#000000', dotCount = 30000, studentTextures = {}, studentTextureMappings = {}, onTextureUpload = () => {}, showNoiseGlobe = false, noiseColor1 = '#08003a', noiseColor2 = '#8c1aff', noiseSpeed = 0.5, noiseScale = 1.0, audioVolume = 0, cameraMode = 'orthographic' as CircleCameraMode, camX = 150, camY = 930, camZ = -1350, camFov = 60, camZoom = 1.8, camXLoop = false, camXLoopSpeed = 1.0, bgColor = '#ffffff', bgImage = null, analyserRef, cameraInfoRef, soloReact = false, isAdmin = false }: {
   posts: Post[]; students: string[]
   circleRadius?: number; figureScale?: number; figureY?: number
   showVertexImages?: boolean; vertexSettings?: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>
@@ -1804,6 +1821,7 @@ export function CircleCanvas({ posts, students, circleRadius = 300, figureScale 
   bgColor?: string; bgImage?: string | null
   analyserRef?: React.RefObject<AnalyserNode | null>
   cameraInfoRef?: React.RefObject<HTMLDivElement | null>
+  soloReact?: boolean
   isAdmin?: boolean
 }) {
   return (
@@ -1824,6 +1842,7 @@ export function CircleCanvas({ posts, students, circleRadius = 300, figureScale 
         bgColor={bgColor} bgImage={bgImage}
         analyserRef={analyserRef}
         cameraInfoRef={cameraInfoRef}
+        soloReact={soloReact}
         isAdmin={isAdmin}
       />
     </Canvas>
