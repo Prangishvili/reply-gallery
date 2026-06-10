@@ -713,7 +713,7 @@ function HomeInner() {
   const [circleCamFov, setCircleCamFov] = useState(60)
   const [circleCamZoom, setCircleCamZoom] = useState(1.8)
   const [circleCamXLoop, setCircleCamXLoop] = useState(false)
-  const [circleCamXLoopSpeed, setCircleCamXLoopSpeed] = useState(0.03)
+  const [circleCamXLoopSpeed, setCircleCamXLoopSpeed] = useState(0.1)
   const [studentTextures, setStudentTextures] = useState<Record<string, string | null>>({})
   const [studentTextureMappings, setStudentTextureMappings] = useState<Record<string, TextureMapping>>({})
   const [activeEditStudent, setActiveEditStudent] = useState<string | null>(null)
@@ -771,7 +771,7 @@ function HomeInner() {
       setCircleCamZoom(fromZoom + (targetZoom - fromZoom) * e)
       setCircleFigureY(fromFigY + (160 - fromFigY) * e)
       if (t < 1) circleAnimRef.current = requestAnimationFrame(tick)
-      else { setCircleCamXLoop(true); setCircleCamXLoopSpeed(0.03) }
+      else { setCircleCamXLoop(true); setCircleCamXLoopSpeed(0.1) }
     }
     circleAnimRef.current = requestAnimationFrame(tick)
     return () => { if (circleAnimRef.current !== null) cancelAnimationFrame(circleAnimRef.current) }
@@ -802,7 +802,7 @@ function HomeInner() {
   const [figureY, setFigureY] = useState(-100)
   const [figureZ, setFigureZ] = useState(0)
   const [circleFigureY, setCircleFigureY] = useState(200)
-  const [circleDotSize, setCircleDotSize] = useState(0.775)
+  const [circleDotSize, setCircleDotSize] = useState(1)
 
   // Refs so animation reads current values without stale closures
   const circleCamYRef = useRef(circleCamY)
