@@ -456,7 +456,7 @@ function FigureVertexGLBModels({ scene, glbUrls, size, repeat, analyserRef }: { 
 export type WireframeStyle = 'edges' | 'dense' | 'dashed' | 'points'
 export type RoomCameraMode = 'freeroam' | 'perspective' | 'orthographic' | 'panoramic'
 
-function FigureWireframe({ scene, style, dotSize, dotColor, dotCount, transitionKey, enableDissolve }: { scene: THREE.Object3D; style: WireframeStyle; dotSize: number; dotColor: string; dotCount: number; transitionKey: number; enableDissolve: boolean }) {
+function FigureWireframe({ scene, style, dotSize, dotColor, dotCount, transitionKey, enableDissolve, flicker = false }: { scene: THREE.Object3D; style: WireframeStyle; dotSize: number; dotColor: string; dotCount: number; transitionKey: number; enableDissolve: boolean; flicker?: boolean }) {
   const geo = useMemo(() => {
     scene.updateMatrixWorld(true)
     const rootInv = new THREE.Matrix4().copy(scene.matrixWorld).invert()
@@ -500,6 +500,7 @@ function FigureWireframe({ scene, style, dotSize, dotColor, dotCount, transition
 
   const dashedRef = useRef<THREE.LineSegments>(null)
   const pointsMatRef = useRef<THREE.PointsMaterial>(null)
+  const flickerTimeRef = useRef(0)
 
   // Dissolve animation
   const baseRef = useRef<Float32Array | null>(null)
@@ -522,6 +523,12 @@ function FigureWireframe({ scene, style, dotSize, dotColor, dotCount, transition
     baseRef.current = new Float32Array(arr)
     animRef.current = 0
   }, [geo])
+
+  // Trigger flicker on student transition
+  useEffect(() => {
+    if (!flicker || transitionKey === 0) return
+    flickerTimeRef.current = 1.5
+  }, [transitionKey, flicker])
 
   // Trigger scatter on student transition
   useEffect(() => {
@@ -547,6 +554,15 @@ function FigureWireframe({ scene, style, dotSize, dotColor, dotCount, transition
   }, [transitionKey, enableDissolve, geo])
 
   useFrame((_, delta) => {
+    if (flickerTimeRef.current > 0 && pointsMatRef.current) {
+      flickerTimeRef.current -= delta
+      const elapsed = 1.5 - Math.max(flickerTimeRef.current, 0)
+      const amplitude = Math.max(0, 1 - elapsed / 1.5)  // 1→0 as flicker ends
+      const wave = 0.5 + 0.5 * Math.sin(elapsed * 3 * Math.PI * 2)
+      pointsMatRef.current.opacity = 1 - amplitude * 0.85 * wave
+      pointsMatRef.current.needsUpdate = true
+      if (flickerTimeRef.current <= 0) { pointsMatRef.current.opacity = 1; pointsMatRef.current.needsUpdate = true }
+    }
     if (animRef.current <= 0 || !baseRef.current || !velRef.current) return
     const t = animRef.current
     const posAttr = geo.attributes.position
@@ -569,7 +585,7 @@ function FigureWireframe({ scene, style, dotSize, dotColor, dotCount, transition
 
   if (style === 'points') return (
     <points geometry={geo}>
-      <pointsMaterial ref={pointsMatRef} color={dotColor} size={dotSize} sizeAttenuation />
+      <pointsMaterial ref={pointsMatRef} color={dotColor} size={dotSize} sizeAttenuation transparent />
     </points>
   )
   if (style === 'dashed') return (
@@ -1325,7 +1341,7 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
         ) : (
           <>
             <primitive object={orig} />
-            {figureWireframe && !figureRingsOrig && <FigureWireframe scene={orig} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} transitionKey={transitionKey} enableDissolve={enableDissolve} />}
+            {figureWireframe && !figureRingsOrig && <FigureWireframe scene={orig} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} transitionKey={transitionKey} enableDissolve={enableDissolve} flicker />}
             {figureRingsOrig && <FigureRings scene={orig} analyserRef={origAnalyser} />}
             {showVertexImages && origStudent === 'Nutsa Kavtelishvili' && !!nutsaGlbs?.length && (
               <FigureVertexGLBModels scene={orig} glbUrls={nutsaGlbs} size={nutsaGlbScale} repeat={nutsaGlbRepeat} analyserRef={origAnalyser} />
