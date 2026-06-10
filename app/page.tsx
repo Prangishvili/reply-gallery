@@ -676,7 +676,7 @@ function HomeInner() {
   const [fadeOut, setFadeOut] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const cursorWrapRef = useRef<HTMLDivElement>(null)
-  const cursorDotRef  = useRef<HTMLDivElement>(null)
+  const cursorDotRef  = useRef<HTMLElement>(null)
 
   useEffect(() => {
     const wrap = cursorWrapRef.current
@@ -687,7 +687,8 @@ function HomeInner() {
       const el = e.target as Element
       const isPointer = getComputedStyle(el).cursor === 'pointer' ||
         !!el.closest('button, a, input, label, select, textarea, [role="button"]')
-      dot.style.width = dot.style.height = (isPointer ? 18 : 10) + 'px'
+      dot.style.width = (isPointer ? 28 : 20) + 'px'
+      dot.style.height = (isPointer ? 33 : 24) + 'px'
     }
     const onLeave = () => { wrap.style.transform = 'translate(-100px, -100px)' }
     document.addEventListener('mousemove', onMove)
@@ -744,7 +745,7 @@ function HomeInner() {
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null)
   const [personalRoomKey, setPersonalRoomKey] = useState(0)
   const [circleKey, setCircleKey] = useState(0)
-  const [circleRadius, setCircleRadius] = useState(300)
+  const [circleRadius, setCircleRadius] = useState(340)
   const [circleCameraMode, setCircleCameraMode] = useState<CircleCameraMode>('orthographic')
   const [circleCamX, setCircleCamX] = useState(150)
   const [circleCamY, setCircleCamY] = useState(930)
@@ -1184,7 +1185,8 @@ function HomeInner() {
     <div suppressHydrationWarning className="w-screen h-screen overflow-hidden relative" style={{ background: bgImage ? `url(${bgImage}) center/cover no-repeat` : bgColor }}>
       {/* Custom cursor */}
       <div ref={cursorWrapRef} style={{ position: 'fixed', top: 0, left: 0, pointerEvents: 'none', zIndex: 99999, transform: 'translate(-100px, -100px)' }}>
-        <div ref={cursorDotRef} style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff6600', transform: 'translate(-50%, -50%)', transition: 'width 0.12s ease, height 0.12s ease' }} />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img ref={cursorDotRef as React.RefObject<HTMLImageElement>} src="/mouse.svg" alt="" style={{ width: 20, height: 24, display: 'block', transition: 'width 0.12s ease, height 0.12s ease' }} />
       </div>
       {/* Logo */}
       <div className="fixed top-9 left-1/2 -translate-x-1/2 z-20 pointer-events-none select-none">
