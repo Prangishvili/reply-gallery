@@ -43,6 +43,126 @@ function fileToCaption(file: File): string {
 
 type Phase = 'entry' | 'loading' | 'video' | 'gallery'
 
+// ─── Admin settings ───────────────────────────────────────────────────────────
+
+type AdminSettings = {
+  audioVolume: number
+  timebombActive: boolean
+  showTexture: boolean
+  grainOpacity: number
+  vignetteOpacity: number
+  wobbleScale: number
+  showFigure: boolean
+  figureRadius: number
+  figureSpeed: number
+  figureX: number
+  figureY: number
+  figureZ: number
+  figureScale: number
+  figureFacing: number
+  figureWireframe: boolean
+  wireframeStyle: WireframeStyle
+  dotSize: number
+  circleDotSize: number
+  circleShowImages: boolean
+  dotColor: string
+  dotCount: number
+  showWalls: boolean
+  meshTexture: string | null
+  texScale: number
+  texOffsetX: number
+  texOffsetY: number
+  texRotation: number
+  showVertexImages: boolean
+  enableBloom: boolean
+  bloomIntensity: number
+  enableDOF: boolean
+  dofFocus: number
+  dofBokeh: number
+  enableDissolve: boolean
+  figureRings: boolean
+  soloReact: boolean
+  circleRadius: number
+  circleFigureY: number
+  circleCameraMode: CircleCameraMode
+  circleCamX: number
+  circleCamY: number
+  circleCamZ: number
+  circleCamFov: number
+  circleCamZoom: number
+  circleCamXLoop: boolean
+  circleCamXLoopSpeed: number
+  camX: number
+  camY: number
+  camZ: number
+  roomCameraMode: RoomCameraMode
+  roomCamFov: number
+  roomCamZoom: number
+  roomCamXLoop: boolean
+  roomCamXLoopSpeed: number
+  nutsaGlbScale: number
+  nutsaGlbRepeat: number
+}
+
+const ADMIN_DEFAULTS: AdminSettings = {
+  audioVolume: 1.00,
+  timebombActive: false,
+  showTexture: false,
+  grainOpacity: 0.055,
+  vignetteOpacity: 0.6,
+  wobbleScale: 4,
+  showFigure: true,
+  figureRadius: 160,
+  figureSpeed: 0.03,
+  figureX: 0,
+  figureY: -100,
+  figureZ: 0,
+  figureScale: 200,
+  figureFacing: 4.80,
+  figureWireframe: true,
+  wireframeStyle: 'points',
+  dotSize: 0.400,
+  circleDotSize: 1,
+  circleShowImages: true,
+  dotColor: '#000000',
+  dotCount: 30000,
+  showWalls: false,
+  meshTexture: null,
+  texScale: 1,
+  texOffsetX: 0,
+  texOffsetY: 0,
+  texRotation: 0,
+  showVertexImages: true,
+  enableBloom: false,
+  bloomIntensity: 1.5,
+  enableDOF: false,
+  dofFocus: 0.01,
+  dofBokeh: 3,
+  enableDissolve: false,
+  figureRings: false,
+  soloReact: false,
+  circleRadius: 340,
+  circleFigureY: 200,
+  circleCameraMode: 'orthographic',
+  circleCamX: 150,
+  circleCamY: 930,
+  circleCamZ: -1350,
+  circleCamFov: 60,
+  circleCamZoom: 1.8,
+  circleCamXLoop: false,
+  circleCamXLoopSpeed: 0.1,
+  camX: 0,
+  camY: 140,
+  camZ: -35,
+  roomCameraMode: 'perspective',
+  roomCamFov: 90,
+  roomCamZoom: 1,
+  roomCamXLoop: false,
+  roomCamXLoopSpeed: 1,
+  nutsaGlbScale: 0.025,
+  nutsaGlbRepeat: 1,
+}
+
 // ─── Admin panel components ───────────────────────────────────────────────────
 
 const P = {
@@ -123,147 +243,47 @@ function PanelToggle({ options, value, onChange }: {
 }
 
 function AdminPanel({
-  audioVolume, setAudioVolume,
+  admin, setAdmin,
   viewMode, setViewMode,
-  timebombActive, setTimebombActive,
   hiddenCount, resetTimebomb,
-  showTexture, setShowTexture,
-  grainOpacity, setGrainOpacity,
-  vignetteOpacity, setVignetteOpacity,
-  wobbleScale, setWobbleScale,
-  showFigure, setShowFigure,
-  figureRadius, setFigureRadius,
-  figureSpeed, setFigureSpeed,
-  figureX, setFigureX,
-  figureY, setFigureY,
-  figureZ, setFigureZ,
-  figureScale, setFigureScale,
-  figureFacing, setFigureFacing,
-  figureWireframe, setFigureWireframe,
-  wireframeStyle, setWireframeStyle,
-  dotSize, setDotSize,
-  circleDotSize, setCircleDotSize,
-  circleShowImages, setCircleShowImages,
-  dotColor, setDotColor,
-  dotCount, setDotCount,
-  showWalls, setShowWalls,
-  meshTexture, setMeshTexture,
-  texScale, setTexScale,
-  texOffsetX, setTexOffsetX,
-  texOffsetY, setTexOffsetY,
-  texRotation, setTexRotation,
-  showVertexImages, setShowVertexImages,
   vertexImgSize, setVertexImgSize,
   vertexRepeat, setVertexRepeat,
   vertexAudioImgSize, setVertexAudioImgSize,
   vertexAudioRepeat, setVertexAudioRepeat,
-  enableBloom, setEnableBloom,
-  bloomIntensity, setBloomIntensity,
-  enableDOF, setEnableDOF,
-  dofFocus, setDofFocus,
-  dofBokeh, setDofBokeh,
-  enableDissolve, setEnableDissolve,
-  figureRings, setFigureRings,
-  soloReact, setSoloReact,
-  circleRadius, setCircleRadius,
-  circleFigureY, setCircleFigureY,
-  circleCameraMode, setCircleCameraMode,
-  circleCamX, setCircleCamX,
-  circleCamY, setCircleCamY,
-  circleCamZ, setCircleCamZ,
-  circleCamFov, setCircleCamFov,
-  circleCamZoom, setCircleCamZoom,
-  circleCamXLoop, setCircleCamXLoop,
-  circleCamXLoopSpeed, setCircleCamXLoopSpeed,
-  studentTextures, setStudentTextures,
-  camX, setCamX,
-  camY, setCamY,
-  camZ, setCamZ,
-  roomCameraMode, setRoomCameraMode,
-  roomCamFov, setRoomCamFov,
-  roomCamZoom, setRoomCamZoom,
-  roomCamXLoop, setRoomCamXLoop,
-  roomCamXLoopSpeed, setRoomCamXLoopSpeed,
   onAdminUpload,
   circleCameraInfoRef,
-  nutsaGlbs,
-  setNutsaGlbs,
-  nutsaGlbScale,
-  setNutsaGlbScale,
-  nutsaGlbRepeat,
-  setNutsaGlbRepeat,
+  studentTextures, setStudentTextures,
+  nutsaGlbs, setNutsaGlbs,
   phase,
   hidden,
 }: {
-  audioVolume: number; setAudioVolume: (v: number) => void
+  admin: AdminSettings
+  setAdmin: React.Dispatch<React.SetStateAction<AdminSettings>>
   viewMode: 'globe' | 'room' | 'circle' | 'self'; setViewMode: (v: 'globe' | 'room' | 'circle' | 'self') => void
-  timebombActive: boolean; setTimebombActive: (v: boolean) => void
   hiddenCount: number; resetTimebomb: () => void
-  showTexture: boolean; setShowTexture: (v: boolean) => void
-  grainOpacity: number; setGrainOpacity: (v: number) => void
-  vignetteOpacity: number; setVignetteOpacity: (v: number) => void
-  wobbleScale: number; setWobbleScale: (v: number) => void
-  showFigure: boolean; setShowFigure: (v: boolean) => void
-  figureRadius: number; setFigureRadius: (v: number) => void
-  figureSpeed: number; setFigureSpeed: (v: number) => void
-  figureX: number; setFigureX: (v: number) => void
-  figureY: number; setFigureY: (v: number) => void
-  figureZ: number; setFigureZ: (v: number) => void
-  figureScale: number; setFigureScale: (v: number) => void
-  figureFacing: number; setFigureFacing: (v: number) => void
-  figureWireframe: boolean; setFigureWireframe: (v: boolean) => void
-  wireframeStyle: WireframeStyle; setWireframeStyle: (v: WireframeStyle) => void
-  dotSize: number; setDotSize: (v: number) => void
-  circleDotSize: number; setCircleDotSize: (v: number) => void
-  circleShowImages: boolean; setCircleShowImages: (v: boolean) => void
-  dotColor: string; setDotColor: (v: string) => void
-  dotCount: number; setDotCount: (v: number) => void
-  showWalls: boolean; setShowWalls: (v: boolean) => void
-  meshTexture: string | null; setMeshTexture: (v: string | null) => void
-  texScale: number; setTexScale: (v: number) => void
-  texOffsetX: number; setTexOffsetX: (v: number) => void
-  texOffsetY: number; setTexOffsetY: (v: number) => void
-  texRotation: number; setTexRotation: (v: number) => void
-  showVertexImages: boolean; setShowVertexImages: (v: boolean) => void
   vertexImgSize: number; setVertexImgSize: (v: number) => void
   vertexRepeat: number; setVertexRepeat: (v: number) => void
   vertexAudioImgSize: number; setVertexAudioImgSize: (v: number) => void
   vertexAudioRepeat: number; setVertexAudioRepeat: (v: number) => void
-  enableBloom: boolean; setEnableBloom: (v: boolean) => void
-  bloomIntensity: number; setBloomIntensity: (v: number) => void
-  enableDOF: boolean; setEnableDOF: (v: boolean) => void
-  dofFocus: number; setDofFocus: (v: number) => void
-  dofBokeh: number; setDofBokeh: (v: number) => void
-  enableDissolve: boolean; setEnableDissolve: (v: boolean) => void
-  figureRings: boolean; setFigureRings: (v: boolean) => void
-  soloReact: boolean; setSoloReact: (v: boolean) => void
-  circleRadius: number; setCircleRadius: (v: number) => void
-  circleFigureY: number; setCircleFigureY: (v: number) => void
-  circleCameraMode: CircleCameraMode; setCircleCameraMode: (v: CircleCameraMode) => void
-  circleCamX: number; setCircleCamX: (v: number) => void
-  circleCamY: number; setCircleCamY: (v: number) => void
-  circleCamZ: number; setCircleCamZ: (v: number) => void
-  circleCamFov: number; setCircleCamFov: (v: number) => void
-  circleCamZoom: number; setCircleCamZoom: (v: number) => void
-  circleCamXLoop: boolean; setCircleCamXLoop: (v: boolean) => void
-  circleCamXLoopSpeed: number; setCircleCamXLoopSpeed: (v: number) => void
-  studentTextures: Record<string, string | null>; setStudentTextures: React.Dispatch<React.SetStateAction<Record<string, string | null>>>
-  camX: number; setCamX: (v: number) => void
-  camY: number; setCamY: (v: number) => void
-  camZ: number; setCamZ: (v: number) => void
-  roomCameraMode: RoomCameraMode; setRoomCameraMode: (v: RoomCameraMode) => void
-  roomCamFov: number; setRoomCamFov: (v: number) => void
-  roomCamZoom: number; setRoomCamZoom: (v: number) => void
-  roomCamXLoop: boolean; setRoomCamXLoop: (v: boolean) => void
-  roomCamXLoopSpeed: number; setRoomCamXLoopSpeed: (v: number) => void
   onAdminUpload: (file: File, studentName: string) => Promise<void>
   circleCameraInfoRef?: React.RefObject<HTMLDivElement | null>
+  studentTextures: Record<string, string | null>; setStudentTextures: React.Dispatch<React.SetStateAction<Record<string, string | null>>>
   nutsaGlbs: string[]; setNutsaGlbs: React.Dispatch<React.SetStateAction<string[]>>
-  nutsaGlbScale: number; setNutsaGlbScale: (v: number) => void
-  nutsaGlbRepeat: number; setNutsaGlbRepeat: (v: number) => void
   phase: Phase
   hidden: boolean
 }) {
+  const set = <K extends keyof AdminSettings>(key: K, value: AdminSettings[K]) =>
+    setAdmin(prev => ({ ...prev, [key]: value }))
+  const {
+    audioVolume, timebombActive, showTexture, grainOpacity, vignetteOpacity, wobbleScale,
+    showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing,
+    figureWireframe, wireframeStyle, dotSize, circleDotSize, circleShowImages, dotColor, dotCount,
+    showWalls, meshTexture, texScale, texOffsetX, texOffsetY, texRotation, showVertexImages,
+    enableBloom, bloomIntensity, enableDOF, dofFocus, dofBokeh, enableDissolve, figureRings,
+    soloReact, circleRadius, circleFigureY, circleCameraMode, circleCamX, circleCamY, circleCamZ,
+    circleCamFov, circleCamZoom, circleCamXLoop, circleCamXLoopSpeed, camX, camY, camZ,
+    roomCameraMode, roomCamFov, roomCamZoom, roomCamXLoop, roomCamXLoopSpeed, nutsaGlbScale, nutsaGlbRepeat,
+  } = admin
   const [uploadFiles, setUploadFiles] = useState<File[]>([])
   const [uploadStudent, setUploadStudent] = useState<string>(STUDENTS[0])
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null)
@@ -313,14 +333,14 @@ function AdminPanel({
       </PanelSection>
 
       <PanelSection title="Audio">
-        <PanelSlider label="Volume" value={audioVolume} min={0} max={1} step={0.01} decimals={2} onChange={setAudioVolume} />
+        <PanelSlider label="Volume" value={audioVolume} min={0} max={1} step={0.01} decimals={2} onChange={v => set('audioVolume', v)} />
       </PanelSection>
 
       <PanelSection title="Timebomb">
         <PanelToggle
           options={[{ label: 'Armed', value: 'on' }, { label: 'Safe', value: 'off' }]}
           value={timebombActive ? 'on' : 'off'}
-          onChange={v => setTimebombActive(v === 'on')}
+          onChange={v => set('timebombActive', v === 'on')}
         />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: 10, color: P.dim }}>
@@ -343,27 +363,27 @@ function AdminPanel({
         <PanelToggle
           options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
           value={showTexture ? 'show' : 'hide'}
-          onChange={v => setShowTexture(v === 'show')}
+          onChange={v => set('showTexture', v === 'show')}
         />
-        <PanelSlider label="Grain intensity" value={grainOpacity} min={0} max={0.15} step={0.005} decimals={3} onChange={setGrainOpacity} />
-        <PanelSlider label="Vignette intensity" value={vignetteOpacity} min={0} max={1} step={0.05} decimals={2} onChange={setVignetteOpacity} />
-        <PanelSlider label="Wobble scale" value={wobbleScale} min={0} max={12} step={0.5} decimals={1} onChange={setWobbleScale} />
+        <PanelSlider label="Grain intensity" value={grainOpacity} min={0} max={0.15} step={0.005} decimals={3} onChange={v => set('grainOpacity', v)} />
+        <PanelSlider label="Vignette intensity" value={vignetteOpacity} min={0} max={1} step={0.05} decimals={2} onChange={v => set('vignetteOpacity', v)} />
+        <PanelSlider label="Wobble scale" value={wobbleScale} min={0} max={12} step={0.5} decimals={1} onChange={v => set('wobbleScale', v)} />
       </PanelSection>
 
       <PanelSection title="Figure">
         <PanelToggle
           options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
           value={showFigure ? 'show' : 'hide'}
-          onChange={v => setShowFigure(v === 'show')}
+          onChange={v => set('showFigure', v === 'show')}
         />
-        <PanelSlider label="Scale"      value={figureScale}  min={200}  max={500}  step={1}    decimals={0} onChange={setFigureScale} />
-        <PanelSlider label="Radius"     value={figureRadius} min={0.5}  max={200}  step={1}    decimals={1} onChange={setFigureRadius} />
-        <PanelSlider label="Speed"      value={figureSpeed}  min={0}    max={5}    step={0.05} decimals={2} onChange={setFigureSpeed} />
-        <PanelSlider label="Facing"     value={figureFacing} min={0}    max={6.28} step={0.05} decimals={2} onChange={setFigureFacing} />
+        <PanelSlider label="Scale"      value={figureScale}  min={200}  max={500}  step={1}    decimals={0} onChange={v => set('figureScale', v)} />
+        <PanelSlider label="Radius"     value={figureRadius} min={0.5}  max={200}  step={1}    decimals={1} onChange={v => set('figureRadius', v)} />
+        <PanelSlider label="Speed"      value={figureSpeed}  min={0}    max={5}    step={0.05} decimals={2} onChange={v => set('figureSpeed', v)} />
+        <PanelSlider label="Facing"     value={figureFacing} min={0}    max={6.28} step={0.05} decimals={2} onChange={v => set('figureFacing', v)} />
         <PanelToggle
           options={[{ label: 'Solid', value: 'solid' }, { label: 'Wireframe', value: 'wire' }]}
           value={figureWireframe ? 'wire' : 'solid'}
-          onChange={v => setFigureWireframe(v === 'wire')}
+          onChange={v => set('figureWireframe', v === 'wire')}
         />
         {figureWireframe && (
           <>
@@ -375,18 +395,18 @@ function AdminPanel({
                 { label: 'Dots',  value: 'points' },
               ]}
               value={wireframeStyle}
-              onChange={v => setWireframeStyle(v as WireframeStyle)}
+              onChange={v => set('wireframeStyle', v as WireframeStyle)}
             />
             {wireframeStyle === 'points' && (
               <>
-                <PanelSlider label="Dot count" value={dotCount} min={100} max={50000} step={100} decimals={0} onChange={setDotCount} />
-                <PanelSlider label="Dot size"  value={dotSize}  min={0.001} max={1} step={0.001} decimals={3} onChange={setDotSize} />
+                <PanelSlider label="Dot count" value={dotCount} min={100} max={50000} step={100} decimals={0} onChange={v => set('dotCount', v)} />
+                <PanelSlider label="Dot size"  value={dotSize}  min={0.001} max={1} step={0.001} decimals={3} onChange={v => set('dotSize', v)} />
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0 8px' }}>
                   <span style={{ fontSize: 11, color: P.dim }}>Dot color</span>
                   <input
                     type="color"
                     value={dotColor}
-                    onChange={e => setDotColor(e.target.value)}
+                    onChange={e => set('dotColor', e.target.value)}
                     style={{ width: 32, height: 22, border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}
                   />
                 </div>
@@ -398,31 +418,31 @@ function AdminPanel({
         <PanelToggle
           options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
           value={showWalls ? 'show' : 'hide'}
-          onChange={v => setShowWalls(v === 'show')}
+          onChange={v => set('showWalls', v === 'show')}
         />
         <div style={{ fontSize: 11, color: P.dim, marginBottom: 8 }}>Dissolve transition</div>
         <PanelToggle
           options={[{ label: 'On', value: 'on' }, { label: 'Off', value: 'off' }]}
           value={enableDissolve ? 'on' : 'off'}
-          onChange={v => setEnableDissolve(v === 'on')}
+          onChange={v => set('enableDissolve', v === 'on')}
         />
         <div style={{ fontSize: 11, color: P.dim, marginBottom: 8 }}>Sergi rings</div>
         <PanelToggle
           options={[{ label: 'On', value: 'on' }, { label: 'Off', value: 'off' }]}
           value={figureRings ? 'on' : 'off'}
-          onChange={v => setFigureRings(v === 'on')}
+          onChange={v => set('figureRings', v === 'on')}
         />
         <div style={{ fontSize: 11, color: P.dim, marginBottom: 8 }}>Solo react</div>
         <PanelToggle
           options={[{ label: 'On', value: 'on' }, { label: 'Off', value: 'off' }]}
           value={soloReact ? 'on' : 'off'}
-          onChange={v => setSoloReact(v === 'on')}
+          onChange={v => set('soloReact', v === 'on')}
         />
         <div style={{ fontSize: 11, color: P.dim, marginBottom: 8 }}>Vertex images</div>
         <PanelToggle
           options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
           value={showVertexImages ? 'show' : 'hide'}
-          onChange={v => setShowVertexImages(v === 'show')}
+          onChange={v => set('showVertexImages', v === 'show')}
         />
         <PanelSlider label="Image size"       value={vertexImgSize}      min={0.005} max={3}  step={0.005} decimals={3} onChange={setVertexImgSize} />
         <PanelSlider label="Image repeat"     value={vertexRepeat}       min={1}     max={50} step={1}     decimals={0} onChange={setVertexRepeat} />
@@ -437,37 +457,39 @@ function AdminPanel({
             value={circleCameraMode}
             onChange={v => {
               const mode = v as CircleCameraMode
-              setCircleCameraMode(mode)
-              if (mode === 'panoramic') setCircleCamFov(150)
-              else if (mode === 'perspective') setCircleCamFov(60)
+              setAdmin(prev => ({
+                ...prev,
+                circleCameraMode: mode,
+                ...(mode === 'panoramic' ? { circleCamFov: 150 } : mode === 'perspective' ? { circleCamFov: 60 } : {}),
+              }))
             }}
           />
-          <PanelSlider label="Cam X"     value={circleCamX}      min={-2000} max={2000} step={10}  decimals={0} onChange={setCircleCamX} />
-          <PanelSlider label="Cam Y"     value={circleCamY}      min={-500}  max={2000} step={10}  decimals={0} onChange={setCircleCamY} />
-          <PanelSlider label="Cam Z"     value={circleCamZ}      min={-2000} max={2000} step={10}  decimals={0} onChange={setCircleCamZ} />
+          <PanelSlider label="Cam X"     value={circleCamX}      min={-2000} max={2000} step={10}  decimals={0} onChange={v => set('circleCamX', v)} />
+          <PanelSlider label="Cam Y"     value={circleCamY}      min={-500}  max={2000} step={10}  decimals={0} onChange={v => set('circleCamY', v)} />
+          <PanelSlider label="Cam Z"     value={circleCamZ}      min={-2000} max={2000} step={10}  decimals={0} onChange={v => set('circleCamZ', v)} />
           {circleCameraMode !== 'orthographic' && (
-            <PanelSlider label="FOV"     value={circleCamFov}    min={10} max={175} step={1} decimals={0} onChange={setCircleCamFov} />
+            <PanelSlider label="FOV"     value={circleCamFov}    min={10} max={175} step={1} decimals={0} onChange={v => set('circleCamFov', v)} />
           )}
           {circleCameraMode === 'orthographic' && (
-            <PanelSlider label="Zoom"    value={circleCamZoom}   min={0.1} max={10} step={0.1} decimals={1} onChange={setCircleCamZoom} />
+            <PanelSlider label="Zoom"    value={circleCamZoom}   min={0.1} max={10} step={0.1} decimals={1} onChange={v => set('circleCamZoom', v)} />
           )}
           <div style={{ fontSize: 11, color: P.dim, marginBottom: 8, marginTop: 4 }}>Cam X loop</div>
           <PanelToggle
             options={[{ label: 'On', value: 'on' }, { label: 'Off', value: 'off' }]}
             value={circleCamXLoop ? 'on' : 'off'}
-            onChange={v => setCircleCamXLoop(v === 'on')}
+            onChange={v => set('circleCamXLoop', v === 'on')}
           />
           {circleCamXLoop && (
-            <PanelSlider label="Speed"   value={circleCamXLoopSpeed} min={0.1} max={10} step={0.1} decimals={1} onChange={setCircleCamXLoopSpeed} />
+            <PanelSlider label="Speed"   value={circleCamXLoopSpeed} min={0.1} max={10} step={0.1} decimals={1} onChange={v => set('circleCamXLoopSpeed', v)} />
           )}
-          <PanelSlider label="Circle R"  value={circleRadius}    min={100}  max={1500} step={10}  decimals={0} onChange={setCircleRadius} />
-          <PanelSlider label="Figure Y"  value={circleFigureY}   min={-500} max={500}  step={1}   decimals={0} onChange={setCircleFigureY} />
-          <PanelSlider label="Dot size"  value={circleDotSize}   min={0.001} max={1}   step={0.001} decimals={3} onChange={setCircleDotSize} />
+          <PanelSlider label="Circle R"  value={circleRadius}    min={100}  max={1500} step={10}  decimals={0} onChange={v => set('circleRadius', v)} />
+          <PanelSlider label="Figure Y"  value={circleFigureY}   min={-500} max={500}  step={1}   decimals={0} onChange={v => set('circleFigureY', v)} />
+          <PanelSlider label="Dot size"  value={circleDotSize}   min={0.001} max={1}   step={0.001} decimals={3} onChange={v => set('circleDotSize', v)} />
           <div style={{ fontSize: 11, color: P.dim, marginBottom: 8, marginTop: 4 }}>Student images</div>
           <PanelToggle
             options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
             value={circleShowImages ? 'show' : 'hide'}
-            onChange={v => setCircleShowImages(v === 'show')}
+            onChange={v => set('circleShowImages', v === 'show')}
           />
           {circleCameraInfoRef && (
             <div style={{ marginTop: 8 }}>
@@ -483,7 +505,7 @@ function AdminPanel({
           <div style={{ marginBottom: 10 }}>
             <img src={meshTexture} style={{ width: '100%', height: 80, objectFit: 'cover', display: 'block', marginBottom: 8 }} />
             <button
-              onClick={() => { URL.revokeObjectURL(meshTexture); setMeshTexture(null) }}
+              onClick={() => { URL.revokeObjectURL(meshTexture as string); set('meshTexture', null) }}
               style={{
                 fontFamily: P.font, fontSize: 10, letterSpacing: 0.5, width: '100%',
                 padding: '5px 0', background: 'transparent', color: P.dim,
@@ -497,10 +519,10 @@ function AdminPanel({
           <div style={{ fontSize: 10, color: P.low, marginBottom: 10 }}>No texture applied</div>
         )}
         {meshTexture && (<>
-          <PanelSlider label="Scale"    value={texScale}   min={0.1} max={5}  step={0.05} decimals={2} onChange={setTexScale} />
-          <PanelSlider label="Offset X" value={texOffsetX} min={-1}  max={1}  step={0.01} decimals={2} onChange={setTexOffsetX} />
-          <PanelSlider label="Offset Y" value={texOffsetY} min={-1}  max={1}  step={0.01} decimals={2} onChange={setTexOffsetY} />
-          <PanelSlider label="Rotation" value={texRotation} min={0}  max={360} step={1}   decimals={0} onChange={setTexRotation} />
+          <PanelSlider label="Scale"    value={texScale}   min={0.1} max={5}  step={0.05} decimals={2} onChange={v => set('texScale', v)} />
+          <PanelSlider label="Offset X" value={texOffsetX} min={-1}  max={1}  step={0.01} decimals={2} onChange={v => set('texOffsetX', v)} />
+          <PanelSlider label="Offset Y" value={texOffsetY} min={-1}  max={1}  step={0.01} decimals={2} onChange={v => set('texOffsetY', v)} />
+          <PanelSlider label="Rotation" value={texRotation} min={0}  max={360} step={1}   decimals={0} onChange={v => set('texRotation', v)} />
         </>)}
         <label style={{
           display: 'block', fontFamily: P.font, fontSize: 10, letterSpacing: 0.5,
@@ -515,7 +537,7 @@ function AdminPanel({
               const file = e.target.files?.[0]
               if (!file) return
               if (meshTexture) URL.revokeObjectURL(meshTexture)
-              setMeshTexture(URL.createObjectURL(file))
+              set('meshTexture', URL.createObjectURL(file))
               e.target.value = ''
             }}
           />
@@ -557,20 +579,20 @@ function AdminPanel({
         <PanelToggle
           options={[{ label: 'On', value: 'on' }, { label: 'Off', value: 'off' }]}
           value={enableBloom ? 'on' : 'off'}
-          onChange={v => setEnableBloom(v === 'on')}
+          onChange={v => set('enableBloom', v === 'on')}
         />
         {enableBloom && (
-          <PanelSlider label="Intensity" value={bloomIntensity} min={0.1} max={5} step={0.1} decimals={1} onChange={setBloomIntensity} />
+          <PanelSlider label="Intensity" value={bloomIntensity} min={0.1} max={5} step={0.1} decimals={1} onChange={v => set('bloomIntensity', v)} />
         )}
         <div style={{ fontSize: 11, color: P.dim, marginBottom: 8, marginTop: 8 }}>Depth of field</div>
         <PanelToggle
           options={[{ label: 'On', value: 'on' }, { label: 'Off', value: 'off' }]}
           value={enableDOF ? 'on' : 'off'}
-          onChange={v => setEnableDOF(v === 'on')}
+          onChange={v => set('enableDOF', v === 'on')}
         />
         {enableDOF && (<>
-          <PanelSlider label="Focus"  value={dofFocus}  min={0}   max={0.1} step={0.001} decimals={3} onChange={setDofFocus} />
-          <PanelSlider label="Bokeh"  value={dofBokeh}  min={1}   max={10}  step={0.5}   decimals={1} onChange={setDofBokeh} />
+          <PanelSlider label="Focus"  value={dofFocus}  min={0}   max={0.1} step={0.001} decimals={3} onChange={v => set('dofFocus', v)} />
+          <PanelSlider label="Bokeh"  value={dofBokeh}  min={1}   max={10}  step={0.5}   decimals={1} onChange={v => set('dofBokeh', v)} />
         </>)}
       </PanelSection>
 
@@ -579,31 +601,31 @@ function AdminPanel({
           <PanelToggle
             options={[{ label: 'Free', value: 'freeroam' }, { label: 'Persp', value: 'perspective' }, { label: 'Ortho', value: 'orthographic' }, { label: 'Pano', value: 'panoramic' }]}
             value={roomCameraMode}
-            onChange={v => setRoomCameraMode(v as RoomCameraMode)}
+            onChange={v => set('roomCameraMode', v as RoomCameraMode)}
           />
-          <PanelSlider label="Cam X"    value={camX}  min={-2000} max={2000} step={10}  decimals={0} onChange={setCamX} />
-          <PanelSlider label="Cam Y"    value={camY}  min={-500}  max={2000} step={10}  decimals={0} onChange={setCamY} />
-          <PanelSlider label="Cam Z"    value={camZ}  min={-2000} max={2000} step={10}  decimals={0} onChange={setCamZ} />
+          <PanelSlider label="Cam X"    value={camX}  min={-2000} max={2000} step={10}  decimals={0} onChange={v => set('camX', v)} />
+          <PanelSlider label="Cam Y"    value={camY}  min={-500}  max={2000} step={10}  decimals={0} onChange={v => set('camY', v)} />
+          <PanelSlider label="Cam Z"    value={camZ}  min={-2000} max={2000} step={10}  decimals={0} onChange={v => set('camZ', v)} />
           {roomCameraMode === 'orthographic' && (
-            <PanelSlider label="Zoom"   value={roomCamZoom} min={0.1} max={10} step={0.1} decimals={1} onChange={setRoomCamZoom} />
+            <PanelSlider label="Zoom"   value={roomCamZoom} min={0.1} max={10} step={0.1} decimals={1} onChange={v => set('roomCamZoom', v)} />
           )}
           {roomCameraMode !== 'orthographic' && roomCameraMode !== 'freeroam' && (
-            <PanelSlider label="FOV"    value={roomCamFov}  min={10} max={175} step={1}  decimals={0} onChange={setRoomCamFov} />
+            <PanelSlider label="FOV"    value={roomCamFov}  min={10} max={175} step={1}  decimals={0} onChange={v => set('roomCamFov', v)} />
           )}
           {roomCameraMode !== 'freeroam' && (<>
             <div style={{ fontSize: 11, color: P.dim, marginBottom: 8, marginTop: 4 }}>Cam X loop</div>
             <PanelToggle
               options={[{ label: 'On', value: 'on' }, { label: 'Off', value: 'off' }]}
               value={roomCamXLoop ? 'on' : 'off'}
-              onChange={v => setRoomCamXLoop(v === 'on')}
+              onChange={v => set('roomCamXLoop', v === 'on')}
             />
             {roomCamXLoop && (
-              <PanelSlider label="Speed" value={roomCamXLoopSpeed} min={0.1} max={10} step={0.1} decimals={1} onChange={setRoomCamXLoopSpeed} />
+              <PanelSlider label="Speed" value={roomCamXLoopSpeed} min={0.1} max={10} step={0.1} decimals={1} onChange={v => set('roomCamXLoopSpeed', v)} />
             )}
           </>)}
-          <PanelSlider label="Figure X" value={figureX} min={-200} max={200} step={2}  decimals={0} onChange={setFigureX} />
-          <PanelSlider label="Figure Y" value={figureY} min={-500} max={500} step={1}  decimals={0} onChange={setFigureY} />
-          <PanelSlider label="Figure Z" value={figureZ} min={-100} max={100} step={2}  decimals={0} onChange={setFigureZ} />
+          <PanelSlider label="Figure X" value={figureX} min={-200} max={200} step={2}  decimals={0} onChange={v => set('figureX', v)} />
+          <PanelSlider label="Figure Y" value={figureY} min={-500} max={500} step={1}  decimals={0} onChange={v => set('figureY', v)} />
+          <PanelSlider label="Figure Z" value={figureZ} min={-100} max={100} step={2}  decimals={0} onChange={v => set('figureZ', v)} />
         </PanelSection>
       )}
 
@@ -633,8 +655,8 @@ function AdminPanel({
               e.target.value = ''
             }} />
           </label>
-          <PanelSlider label="scale" value={nutsaGlbScale} min={0.001} max={0.5} step={0.001} decimals={3} onChange={setNutsaGlbScale} />
-          <PanelSlider label="repeat" value={nutsaGlbRepeat} min={1} max={200} step={1} decimals={0} onChange={setNutsaGlbRepeat} />
+          <PanelSlider label="scale" value={nutsaGlbScale} min={0.001} max={0.5} step={0.001} decimals={3} onChange={v => set('nutsaGlbScale', v)} />
+          <PanelSlider label="repeat" value={nutsaGlbRepeat} min={1} max={200} step={1} decimals={0} onChange={v => set('nutsaGlbRepeat', v)} />
           {nutsaGlbs.length === 0 && (
             <div style={{ fontSize: 10, color: P.low, marginBottom: 8 }}>no models — using images</div>
           )}
@@ -685,9 +707,8 @@ function HomeInner() {
     const onMove = (e: MouseEvent) => {
       wrap.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`
       const el = e.target as Element
-      const isPointer = getComputedStyle(el).cursor === 'pointer' ||
-        !!el.closest('button, a, input, label, select, textarea, [role="button"]')
-      dot.style.width = dot.style.height = (isPointer ? 18 : 10) + 'px'
+      const isPointer = !!el.closest('button, a, input, label, select, textarea, [role="button"]')
+      dot.style.transform = `translate(-50%, -50%) scale(${isPointer ? 1.8 : 1})`
     }
     const onLeave = () => { wrap.style.transform = 'translate(-100px, -100px)' }
     document.addEventListener('mousemove', onMove)
@@ -724,7 +745,18 @@ function HomeInner() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [roomKey, setRoomKey] = useState(0)
 
-  const [audioVolume, setAudioVolume] = useState(1.00)
+  const [admin, setAdmin] = useState<AdminSettings>(ADMIN_DEFAULTS)
+  const {
+    audioVolume, timebombActive, showTexture, grainOpacity, vignetteOpacity, wobbleScale,
+    showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing,
+    figureWireframe, wireframeStyle, dotSize, circleDotSize, circleShowImages, dotColor, dotCount,
+    showWalls, meshTexture, texScale, texOffsetX, texOffsetY, texRotation, showVertexImages,
+    enableBloom, bloomIntensity, enableDOF, dofFocus, dofBokeh, enableDissolve, figureRings,
+    soloReact, circleRadius, circleFigureY, circleCameraMode, circleCamX, circleCamY, circleCamZ,
+    circleCamFov, circleCamZoom, circleCamXLoop, circleCamXLoopSpeed, camX, camY, camZ,
+    roomCameraMode, roomCamFov, roomCamZoom, roomCamXLoop, roomCamXLoopSpeed, nutsaGlbScale, nutsaGlbRepeat,
+  } = admin
+
   const [showNames, setShowNames] = useState(true)
   const [nameSize, setNameSize] = useState(10)
   const [showNoiseGlobe, setShowNoiseGlobe] = useState(false)
@@ -736,7 +768,6 @@ function HomeInner() {
   const [wireframeSegments, setWireframeSegments] = useState(16)
   const [wireframeOpacity, setWireframeOpacity] = useState(0.15)
   const [wireframeColor, setWireframeColor] = useState('#000000')
-  const [timebombActive, setTimebombActive] = useState(false)
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set())
   const [showAbout, setShowAbout] = useState(false)
 
@@ -744,15 +775,6 @@ function HomeInner() {
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null)
   const [personalRoomKey, setPersonalRoomKey] = useState(0)
   const [circleKey, setCircleKey] = useState(0)
-  const [circleRadius, setCircleRadius] = useState(340)
-  const [circleCameraMode, setCircleCameraMode] = useState<CircleCameraMode>('orthographic')
-  const [circleCamX, setCircleCamX] = useState(150)
-  const [circleCamY, setCircleCamY] = useState(930)
-  const [circleCamZ, setCircleCamZ] = useState(-1350)
-  const [circleCamFov, setCircleCamFov] = useState(60)
-  const [circleCamZoom, setCircleCamZoom] = useState(1.8)
-  const [circleCamXLoop, setCircleCamXLoop] = useState(false)
-  const [circleCamXLoopSpeed, setCircleCamXLoopSpeed] = useState(0.1)
   const [studentTextures, setStudentTextures] = useState<Record<string, string | null>>({})
   const [studentTextureMappings, setStudentTextureMappings] = useState<Record<string, TextureMapping>>({})
   const [activeEditStudent, setActiveEditStudent] = useState<string | null>(null)
@@ -806,11 +828,14 @@ function HomeInner() {
     const tick = (now: number) => {
       const t = Math.min((now - start) / duration, 1)
       const e = easeOut(t)
-      setCircleCamY(fromCamY + (150 - fromCamY) * e)
-      setCircleCamZoom(fromZoom + (targetZoom - fromZoom) * e)
-      setCircleFigureY(fromFigY + (160 - fromFigY) * e)
+      setAdmin(prev => ({
+        ...prev,
+        circleCamY: fromCamY + (150 - fromCamY) * e,
+        circleCamZoom: fromZoom + (targetZoom - fromZoom) * e,
+        circleFigureY: fromFigY + (160 - fromFigY) * e,
+      }))
       if (t < 1) circleAnimRef.current = requestAnimationFrame(tick)
-      else { setCircleCamXLoop(true); setCircleCamXLoopSpeed(0.1) }
+      else setAdmin(prev => ({ ...prev, circleCamXLoop: true, circleCamXLoopSpeed: 0.1 }))
     }
     circleAnimRef.current = requestAnimationFrame(tick)
     return () => { if (circleAnimRef.current !== null) cancelAnimationFrame(circleAnimRef.current) }
@@ -825,24 +850,11 @@ function HomeInner() {
   }, [selectedStudent])
 
   const grainRef = useRef<SVGFETurbulenceElement>(null)
-  const [showTexture, setShowTexture] = useState(false)
-  const [grainOpacity, setGrainOpacity] = useState(0.055)
-  const [vignetteOpacity, setVignetteOpacity] = useState(0.6)
-  const [wobbleScale, setWobbleScale] = useState(4)
   const [showDoggo, setShowDoggo] = useState(false)
   const [doggoScale, setDoggoScale] = useState(40)
   const [doggoX, setDoggoX] = useState(0)
   const [doggoY, setDoggoY] = useState(0)
   const [doggoZ, setDoggoZ] = useState(0)
-  const [showFigure, setShowFigure] = useState(true)
-  const [figureRadius, setFigureRadius] = useState(160)
-  const [figureSpeed, setFigureSpeed] = useState(0.03)
-  const [figureX, setFigureX] = useState(0)
-  const [figureY, setFigureY] = useState(-100)
-  const [figureZ, setFigureZ] = useState(0)
-  const [circleFigureY, setCircleFigureY] = useState(200)
-  const [circleDotSize, setCircleDotSize] = useState(1)
-  const [circleShowImages, setCircleShowImages] = useState(true)
 
   // Refs so animation reads current values without stale closures
   const circleCamYRef = useRef(circleCamY)
@@ -852,20 +864,6 @@ function HomeInner() {
   const circleFigureYRef = useRef(circleFigureY)
   circleFigureYRef.current = circleFigureY
 
-  const [figureScale, setFigureScale] = useState(200)
-  const [figureFacing, setFigureFacing] = useState(4.80)
-  const [figureWireframe, setFigureWireframe] = useState(true)
-  const [wireframeStyle, setWireframeStyle] = useState<WireframeStyle>('points')
-  const [dotSize, setDotSize] = useState(0.400)
-  const [meshTexture, setMeshTexture] = useState<string | null>(null)
-  const [texScale, setTexScale] = useState(1)
-  const [texOffsetX, setTexOffsetX] = useState(0)
-  const [texOffsetY, setTexOffsetY] = useState(0)
-  const [texRotation, setTexRotation] = useState(0)
-  const [dotColor, setDotColor] = useState('#000000')
-  const [dotCount, setDotCount] = useState(30000)
-  const [showWalls, setShowWalls] = useState(false)
-  const [showVertexImages, setShowVertexImages] = useState(true)
   const [studentVertexSettings, setStudentVertexSettings] = useState<Record<string, VertexSettings>>(() => ({ ...STUDENT_VERTEX_DEFAULTS }))
   const DEF_VS: VertexSettings = { imgSize: 0.025, repeat: 1 }
   const getVS = (name: string | null): VertexSettings => name ? (studentVertexSettings[name] ?? DEF_VS) : DEF_VS
@@ -873,14 +871,6 @@ function HomeInner() {
     if (!name) return
     setStudentVertexSettings(p => ({ ...p, [name]: { ...(p[name] ?? DEF_VS), [key]: val } }))
   }
-  const [enableBloom, setEnableBloom] = useState(false)
-  const [bloomIntensity, setBloomIntensity] = useState(1.5)
-  const [enableDOF, setEnableDOF] = useState(false)
-  const [dofFocus, setDofFocus] = useState(0.01)
-  const [dofBokeh, setDofBokeh] = useState(3)
-  const [enableDissolve, setEnableDissolve] = useState(false)
-  const [figureRings, setFigureRings] = useState(false)
-  const [soloReact, setSoloReact] = useState(false)
   const [graffitiMode, setGraffitiMode] = useState(false)
   const [graffitiColor, setGraffitiColor] = useState('#ff2222')
   const [graffitiBrushSize, setGraffitiBrushSize] = useState(8)
@@ -900,8 +890,6 @@ function HomeInner() {
   const dissolveInitRef = useRef(false)
   const circleCameraInfoRef = useRef<HTMLDivElement>(null)
   const [nutsaGlbs, setNutsaGlbs] = useState<string[]>([])
-  const [nutsaGlbScale, setNutsaGlbScale] = useState(0.025)
-  const [nutsaGlbRepeat, setNutsaGlbRepeat] = useState(1)
 
   const [selectedStudents, setSelectedStudents] = useState<string[]>(['Salome Shalvashvili', 'Sergi Sarajevi'])
   const figureStudent  = selectedStudents[0] ?? null
@@ -936,14 +924,6 @@ function HomeInner() {
     }
   }, [viewMode]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [camX, setCamX] = useState(0)
-  const [camY, setCamY] = useState(140)
-  const [camZ, setCamZ] = useState(-35)
-  const [roomCameraMode, setRoomCameraMode] = useState<RoomCameraMode>('perspective')
-  const [roomCamFov, setRoomCamFov] = useState(90)
-  const [roomCamZoom, setRoomCamZoom] = useState(1)
-  const [roomCamXLoop, setRoomCamXLoop] = useState(false)
-  const [roomCamXLoopSpeed, setRoomCamXLoopSpeed] = useState(1)
   const [panelHidden, setPanelHidden] = useState(false)
 
   const isAdmin = useSearchParams().get('admin') === 'true'
@@ -955,7 +935,7 @@ function HomeInner() {
       if (e.key === 'h' || e.key === 'H') {
         setPanelHidden(prev => {
           const hiding = !prev
-          if (hiding) setShowTexture(false)
+          if (hiding) setAdmin(a => ({ ...a, showTexture: false }))
           return hiding
         })
       }
@@ -1078,7 +1058,7 @@ function HomeInner() {
     const audio = new Audio(url)
     audio.loop = true
     audio.volume = 1
-    setAudioVolume(1)
+    setAdmin(prev => ({ ...prev, audioVolume: 1 }))
     try {
       const ctx = new AudioContext()
       const source = ctx.createMediaElementSource(audio)
@@ -1183,8 +1163,8 @@ function HomeInner() {
   return (
     <div suppressHydrationWarning className="w-screen h-screen overflow-hidden relative" style={{ background: bgImage ? `url(${bgImage}) center/cover no-repeat` : bgColor }}>
       {/* Custom cursor */}
-      <div ref={cursorWrapRef} style={{ position: 'fixed', top: 0, left: 0, pointerEvents: 'none', zIndex: 99999, transform: 'translate(-100px, -100px)' }}>
-        <div ref={cursorDotRef as React.RefObject<HTMLDivElement>} style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff6600', transform: 'translate(-50%, -50%)', transition: 'width 0.12s ease, height 0.12s ease' }} />
+      <div ref={cursorWrapRef} style={{ position: 'fixed', top: 0, left: 0, pointerEvents: 'none', zIndex: 99999, transform: 'translate(-100px, -100px)', willChange: 'transform' }}>
+        <div ref={cursorDotRef as React.RefObject<HTMLDivElement>} style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff6600', transform: 'translate(-50%, -50%) scale(1)', transition: 'transform 0.12s ease' }} />
       </div>
       {/* Logo */}
       <div className="fixed top-9 left-1/2 -translate-x-1/2 z-20 pointer-events-none select-none">
@@ -1289,7 +1269,7 @@ function HomeInner() {
               <div style={{ position: 'relative', width: 32, height: 32, flexShrink: 0 }}>
                 <img src={meshTexture} style={{ width: 32, height: 32, objectFit: 'cover', display: 'block' }} />
                 <button
-                  onClick={() => { URL.revokeObjectURL(meshTexture); setMeshTexture(null) }}
+                  onClick={() => { URL.revokeObjectURL(meshTexture as string); setAdmin(prev => ({ ...prev, meshTexture: null })) }}
                   style={{
                     position: 'absolute', top: -4, right: -4,
                     width: 13, height: 13, borderRadius: '50%',
@@ -1312,7 +1292,7 @@ function HomeInner() {
                   const file = e.target.files?.[0]
                   if (!file) return
                   if (meshTexture) URL.revokeObjectURL(meshTexture)
-                  setMeshTexture(URL.createObjectURL(file))
+                  setAdmin(prev => ({ ...prev, meshTexture: URL.createObjectURL(file) }))
                   e.target.value = ''
                 }}
               />
@@ -1834,73 +1814,18 @@ Reply is a virtual art exhibition that challenges the limits of natural language
       {/* Admin panel */}
       {isAdmin && (
         <AdminPanel
-          onAdminUpload={handleAdminUpload}
-          hidden={panelHidden}
-          audioVolume={audioVolume} setAudioVolume={setAudioVolume}
+          admin={admin} setAdmin={setAdmin}
           viewMode={viewMode} setViewMode={switchView}
-          timebombActive={timebombActive} setTimebombActive={setTimebombActive}
           hiddenCount={hiddenIds.size} resetTimebomb={() => setHiddenIds(new Set())}
-          showTexture={showTexture} setShowTexture={setShowTexture}
-          grainOpacity={grainOpacity} setGrainOpacity={setGrainOpacity}
-          vignetteOpacity={vignetteOpacity} setVignetteOpacity={setVignetteOpacity}
-          wobbleScale={wobbleScale} setWobbleScale={setWobbleScale}
-          showFigure={showFigure} setShowFigure={setShowFigure}
-          figureRadius={figureRadius} setFigureRadius={setFigureRadius}
-          figureSpeed={figureSpeed} setFigureSpeed={setFigureSpeed}
-          figureX={figureX} setFigureX={setFigureX}
-          figureY={figureY} setFigureY={setFigureY}
-          figureZ={figureZ} setFigureZ={setFigureZ}
-          figureScale={figureScale} setFigureScale={setFigureScale}
-          figureFacing={figureFacing} setFigureFacing={setFigureFacing}
-          figureWireframe={figureWireframe} setFigureWireframe={setFigureWireframe}
-          wireframeStyle={wireframeStyle} setWireframeStyle={setWireframeStyle}
-          dotSize={dotSize} setDotSize={setDotSize}
-          circleDotSize={circleDotSize} setCircleDotSize={setCircleDotSize}
-          circleShowImages={circleShowImages} setCircleShowImages={setCircleShowImages}
-          dotColor={dotColor} setDotColor={setDotColor}
-          dotCount={dotCount} setDotCount={setDotCount}
-          showWalls={showWalls} setShowWalls={setShowWalls}
-          meshTexture={meshTexture} setMeshTexture={setMeshTexture}
-          texScale={texScale} setTexScale={setTexScale}
-          texOffsetX={texOffsetX} setTexOffsetX={setTexOffsetX}
-          texOffsetY={texOffsetY} setTexOffsetY={setTexOffsetY}
-          texRotation={texRotation} setTexRotation={setTexRotation}
-          showVertexImages={showVertexImages} setShowVertexImages={setShowVertexImages}
           vertexImgSize={getVS(figureStudent).imgSize} setVertexImgSize={v => setVSKey(figureStudent, 'imgSize', v)}
           vertexRepeat={getVS(figureStudent).repeat} setVertexRepeat={v => setVSKey(figureStudent, 'repeat', v)}
           vertexAudioImgSize={getVS(figureStudent).audioImgSize ?? getVS(figureStudent).imgSize} setVertexAudioImgSize={v => setVSKey(figureStudent, 'audioImgSize', v)}
           vertexAudioRepeat={getVS(figureStudent).audioRepeat ?? getVS(figureStudent).repeat} setVertexAudioRepeat={v => setVSKey(figureStudent, 'audioRepeat', v)}
-          enableBloom={enableBloom} setEnableBloom={setEnableBloom}
-          bloomIntensity={bloomIntensity} setBloomIntensity={setBloomIntensity}
-          enableDOF={enableDOF} setEnableDOF={setEnableDOF}
-          dofFocus={dofFocus} setDofFocus={setDofFocus}
-          dofBokeh={dofBokeh} setDofBokeh={setDofBokeh}
-          enableDissolve={enableDissolve} setEnableDissolve={setEnableDissolve}
-          figureRings={figureRings} setFigureRings={setFigureRings}
-          soloReact={soloReact} setSoloReact={setSoloReact}
-          circleRadius={circleRadius} setCircleRadius={setCircleRadius}
-          circleFigureY={circleFigureY} setCircleFigureY={setCircleFigureY}
-          circleCameraMode={circleCameraMode} setCircleCameraMode={setCircleCameraMode}
-          circleCamX={circleCamX} setCircleCamX={setCircleCamX}
-          circleCamY={circleCamY} setCircleCamY={setCircleCamY}
-          circleCamZ={circleCamZ} setCircleCamZ={setCircleCamZ}
-          circleCamFov={circleCamFov} setCircleCamFov={setCircleCamFov}
-          circleCamZoom={circleCamZoom} setCircleCamZoom={setCircleCamZoom}
-          circleCamXLoop={circleCamXLoop} setCircleCamXLoop={setCircleCamXLoop}
-          circleCamXLoopSpeed={circleCamXLoopSpeed} setCircleCamXLoopSpeed={setCircleCamXLoopSpeed}
-          studentTextures={studentTextures} setStudentTextures={setStudentTextures}
-          camX={camX} setCamX={setCamX}
-          camY={camY} setCamY={setCamY}
-          camZ={camZ} setCamZ={setCamZ}
-          roomCameraMode={roomCameraMode} setRoomCameraMode={setRoomCameraMode}
-          roomCamFov={roomCamFov} setRoomCamFov={setRoomCamFov}
-          roomCamZoom={roomCamZoom} setRoomCamZoom={setRoomCamZoom}
-          roomCamXLoop={roomCamXLoop} setRoomCamXLoop={setRoomCamXLoop}
-          roomCamXLoopSpeed={roomCamXLoopSpeed} setRoomCamXLoopSpeed={setRoomCamXLoopSpeed}
+          onAdminUpload={handleAdminUpload}
           circleCameraInfoRef={circleCameraInfoRef}
+          studentTextures={studentTextures} setStudentTextures={setStudentTextures}
           nutsaGlbs={nutsaGlbs} setNutsaGlbs={setNutsaGlbs}
-          nutsaGlbScale={nutsaGlbScale} setNutsaGlbScale={setNutsaGlbScale}
-          nutsaGlbRepeat={nutsaGlbRepeat} setNutsaGlbRepeat={setNutsaGlbRepeat}
+          hidden={panelHidden}
           phase={phase}
         />
       )}
