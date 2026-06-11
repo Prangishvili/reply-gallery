@@ -270,68 +270,34 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
     () => posts.map(p => p.image_url).sort().join('\n'),
     [posts]
   )
-  const loadedUrlsRef = useRef<Set<string>>(new Set())
   useEffect(() => {
     if (posts.length === 0) return
     const uniqueUrls = new Set(posts.map(p => p.image_url))
     let cancelled = false
 
-    // Drop textures for URLs no longer in the post set
+    // Drop entries for URLs no longer in the post set (textures belong to the
+    // session cache — no disposal)
     setLoadedTex(prev => {
       let changed = false
       const keep = new Map(prev)
-      prev.forEach((v, k) => {
-        if (!uniqueUrls.has(k)) { v.tex.dispose(); keep.delete(k); loadedUrlsRef.current.delete(k); changed = true }
-      })
-      gifAnimRef.current.forEach((g, k) => {
-        if (!uniqueUrls.has(k)) {
-          if (g.img.parentNode) g.img.parentNode.removeChild(g.img)
-          gifAnimRef.current.delete(k)
-        }
+      prev.forEach((_, k) => {
+        if (!uniqueUrls.has(k)) { keep.delete(k); changed = true }
       })
       return changed ? keep : prev
     })
+    gifAnimRef.current.forEach((_, k) => {
+      if (!uniqueUrls.has(k)) gifAnimRef.current.delete(k)
+    })
 
-    // Each image goes through the global queue; textures appear progressively
+    // Subscribe to the shared cache; textures appear as their loads complete
     uniqueUrls.forEach(url => {
-      if (loadedUrlsRef.current.has(url)) return
-      loadedUrlsRef.current.add(url)
-      queueImageLoad(async () => {
-        if (cancelled) { loadedUrlsRef.current.delete(url); return }
-        const meta = await loadImgMeta(url)
-        if (cancelled) { loadedUrlsRef.current.delete(url); return }
-        let tex: THREE.Texture
-        if (meta.isSvg) {
-          tex = await makeSvgTex(url, meta.aspect, false)
-        } else if (meta.isGif) {
-          const tW = 512, tH = Math.round(tW / meta.aspect)
-          const canvas = document.createElement('canvas')
-          canvas.width = tW; canvas.height = tH
-          const img = new window.Image()
-          // Must be in DOM for the browser to advance GIF animation frames
-          img.style.cssText = 'position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:-9999px;left:-9999px'
-          document.body.appendChild(img)
-          img.src = url
-          const canvasTex = new THREE.CanvasTexture(canvas)
-          canvasTex.colorSpace = THREE.SRGBColorSpace
-          gifAnimRef.current.set(url, { img, canvas, tex: canvasTex })
-          tex = canvasTex
-        } else {
-          tex = await loadCappedTex(url)
-        }
-        if (cancelled) {
-          tex.dispose()
-          loadedUrlsRef.current.delete(url)
-          const g = gifAnimRef.current.get(url)
-          if (g) {
-            if (g.img.parentNode) g.img.parentNode.removeChild(g.img)
-            gifAnimRef.current.delete(url)
-          }
-          return
-        }
+      getCachedTex(url).then(r => {
+        if (cancelled) return
+        if (r.gif) gifAnimRef.current.set(url, r.gif)
         setLoadedTex(prev => {
+          if (prev.get(url)?.tex === r.tex) return prev
           const next = new Map(prev)
-          next.set(url, { tex, aspect: meta.aspect })
+          next.set(url, { tex: r.tex, aspect: r.aspect })
           return next
         })
       })
@@ -339,13 +305,6 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlsKey])
-
-  // Dispose all textures on unmount
-  useEffect(() => () => {
-    setLoadedTex(prev => { prev.forEach(v => v.tex.dispose()); return new Map() })
-    gifAnimRef.current.forEach(({ img }) => { if (img.parentNode) img.parentNode.removeChild(img) })
-    gifAnimRef.current.clear()
-  }, [])
 
   // Effect 2: rebuild per-sprite data whenever repeat/vertices change — instant, no network.
   // Sprites stay hidden until every image of this figure has loaded, so each
@@ -1008,6 +967,46 @@ function makeSvgTex(url: string, aspect: number, flip: boolean): Promise<THREE.C
     img.onerror = () => resolve(new THREE.CanvasTexture(document.createElement('canvas')))
     img.src = url
   })
+}
+
+// Session-level texture cache — each post image URL is fetched/decoded exactly
+// once, shared across figures and remounts. Textures live for the session
+// (never disposed), which also makes view switching instant.
+type CachedTex = {
+  tex: THREE.Texture
+  aspect: number
+  gif?: { img: HTMLImageElement; canvas: HTMLCanvasElement; tex: THREE.CanvasTexture }
+}
+const texCache = new Map<string, Promise<CachedTex>>()
+function getCachedTex(url: string): Promise<CachedTex> {
+  let p = texCache.get(url)
+  if (p) return p
+  p = new Promise<CachedTex>(resolve => {
+    queueImageLoad(async () => {
+      const meta = await loadImgMeta(url)
+      if (meta.isSvg) {
+        const tex = await makeSvgTex(url, meta.aspect, false)
+        resolve({ tex, aspect: meta.aspect })
+      } else if (meta.isGif) {
+        const tW = 512, tH = Math.max(1, Math.round(tW / meta.aspect))
+        const canvas = document.createElement('canvas')
+        canvas.width = tW; canvas.height = tH
+        const img = new window.Image()
+        // Must be in DOM for the browser to advance GIF animation frames
+        img.style.cssText = 'position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:-9999px;left:-9999px'
+        document.body.appendChild(img)
+        img.src = url
+        const canvasTex = new THREE.CanvasTexture(canvas)
+        canvasTex.colorSpace = THREE.SRGBColorSpace
+        resolve({ tex: canvasTex, aspect: meta.aspect, gif: { img, canvas, tex: canvasTex } })
+      } else {
+        const tex = await loadCappedTex(url)
+        resolve({ tex, aspect: meta.aspect })
+      }
+    })
+  })
+  texCache.set(url, p)
+  return p
 }
 
 function SelfVertexImages({ scene, stream, count, size, images, facing, analyserRef }: {
