@@ -1076,7 +1076,7 @@ function HomeInner() {
   return (
     <div suppressHydrationWarning className="w-screen h-screen overflow-hidden relative" style={{ background: bgImage ? `url(${bgImage}) center/cover no-repeat` : bgColor }}>
       {/* Custom cursor */}
-      <div ref={cursorWrapRef} style={{ position: 'fixed', top: 0, left: 0, pointerEvents: 'none', zIndex: 99999, transform: 'translate(-100px, -100px)', willChange: 'transform' }}>
+      <div ref={cursorWrapRef} className="custom-cursor" style={{ position: 'fixed', top: 0, left: 0, pointerEvents: 'none', zIndex: 99999, transform: 'translate(-100px, -100px)', willChange: 'transform' }}>
         <div ref={cursorDotRef as React.RefObject<HTMLDivElement>} style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff6600', transform: 'translate(-50%, -50%) scale(1)', transition: 'transform 0.12s ease' }} />
       </div>
       {/* Logo */}

@@ -20,6 +20,11 @@ body {
 *, *::before, *::after, canvas { cursor: none !important; }
 input, textarea, select { cursor: text !important; }
 
+/* No custom cursor dot on touch devices */
+@media (hover: none), (pointer: coarse) {
+  .custom-cursor { display: none !important; }
+}
+
 /* About overlay scrollbar — hairline solid black.
    scrollbar-width/scrollbar-color override ::-webkit-scrollbar when both are
    set, so the standard properties are scoped to browsers (Firefox) that lack
