@@ -24,6 +24,11 @@ input, textarea, select { cursor: text !important; }
    scrollbar-width/scrollbar-color override ::-webkit-scrollbar when both are
    set, so the standard properties are scoped to browsers (Firefox) that lack
    ::-webkit-scrollbar support */
+.about-scroll {
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
 .about-scroll::-webkit-scrollbar { -webkit-appearance: none; width: 1px; height: 1px; }
 .about-scroll::-webkit-scrollbar-track { background: transparent; }
 .about-scroll::-webkit-scrollbar-thumb { background: #000000; border-radius: 0; }
