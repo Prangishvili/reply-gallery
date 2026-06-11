@@ -1462,14 +1462,6 @@ function HomeInner() {
             padding: '64px 24px 40px',
           }}
         >
-          {/* Blurred strip behind the close button — covers UI above the overlay's z-index */}
-          <div style={{
-            position: 'fixed', top: 0, left: 0, right: 0, height: 56, zIndex: 59,
-            background: 'rgba(255,255,255,0.55)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            pointerEvents: 'none',
-          }} />
           <div
             onClick={e => e.stopPropagation()}
             className="about-scroll"
