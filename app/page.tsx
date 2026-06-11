@@ -791,7 +791,7 @@ function HomeInner() {
     const start = performance.now()
     const tick = (now: number) => {
       const t = Math.min((now - start) / duration, 1)
-      const e = t
+      const e = 1 - Math.pow(1 - t, 3)
       setAdmin(prev => ({
         ...prev,
         circleCamY: fromCamY + (400 - fromCamY) * e,
