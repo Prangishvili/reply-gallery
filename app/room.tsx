@@ -24,7 +24,7 @@ const TEX_MAX_DIM = IS_MOBILE ? 256 : 512
 // afford higher resolution than the 144-texture circle view
 const SELF_TEX_MAX_DIM = IS_MOBILE ? 512 : 1000
 const MAX_DPR     = IS_MOBILE ? 1.5 : 2
-const POSTS_PER_FIGURE = IS_MOBILE ? 12 : 100
+const POSTS_PER_FIGURE = IS_MOBILE ? 12 : 200
 
 // ── Background ────────────────────────────────────────────────────────────────
 function BackgroundSetter({ color, image }: { color: string; image: string | null }) {
