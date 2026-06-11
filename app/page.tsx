@@ -787,7 +787,7 @@ function HomeInner() {
     const fromZoom = circleCamZoomRef.current
     const fromFigY = circleFigureYRef.current
     const targetZoom = window.innerWidth < 1000 ? 0.6 : 1.8
-    const duration = 4500
+    const duration = 5500
     const start = performance.now()
     const tick = (now: number) => {
       const t = Math.min((now - start) / duration, 1)
@@ -1728,7 +1728,7 @@ Free University of Georgia`}</p>
           <p style={{
             width: '50%', textAlign: 'center',
             fontFamily: 'var(--font-dm-mono), ui-monospace, monospace',
-            fontWeight: 300, fontSize: 18, lineHeight: 1.75,
+            fontWeight: 300, fontSize: isMobileVp ? 16 : 18, lineHeight: 1.75,
             color: 'rgba(0, 0, 0, 0.85)', textTransform: 'uppercase',
           }}>
             The action of being is so revolutionary that society rejects it<br/>and concerns itself exclusively with the action of becoming.<br/>– Jiddu Krishnamurti
