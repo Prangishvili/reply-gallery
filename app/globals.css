@@ -29,6 +29,9 @@ input, textarea, select { cursor: text !important; }
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
 }
+@media (max-width: 999px) {
+  .about-scroll { margin-top: 20px; }
+}
 .about-scroll::-webkit-scrollbar { -webkit-appearance: none; width: 1px; height: 1px; }
 .about-scroll::-webkit-scrollbar-track { background: transparent; }
 .about-scroll::-webkit-scrollbar-thumb { background: #000000; border-radius: 0; }
