@@ -20,8 +20,10 @@ body {
 *, *::before, *::after, canvas { cursor: none !important; }
 input, textarea, select { cursor: text !important; }
 
-/* About overlay scrollbar — thin solid black line */
+/* About overlay scrollbar — thin solid black line.
+   -webkit-appearance: none opts out of macOS overlay scrollbars (Safari
+   ignores custom styles otherwise) */
 .about-scroll { scrollbar-width: thin; scrollbar-color: #000000 transparent; }
-.about-scroll::-webkit-scrollbar { width: 2px; }
+.about-scroll::-webkit-scrollbar { -webkit-appearance: none; width: 2px; height: 2px; }
 .about-scroll::-webkit-scrollbar-track { background: transparent; }
 .about-scroll::-webkit-scrollbar-thumb { background: #000000; border-radius: 0; }
