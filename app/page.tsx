@@ -1463,6 +1463,7 @@ function HomeInner() {
         >
           <div
             onClick={e => e.stopPropagation()}
+            className="about-scroll"
             style={{ maxWidth: 720, width: '100%', maxHeight: '85vh', overflowY: 'auto' }}
           >
             <p style={{
