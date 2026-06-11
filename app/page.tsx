@@ -1516,7 +1516,7 @@ Free University of Georgia`}</p>
       </a>
 
       {/* Open mark */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none select-none">
+      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-20 pointer-events-none select-none">
         <img src="/OPEN.svg" alt="Open" className="h-8 w-auto" fetchPriority="low" />
       </div>
 
