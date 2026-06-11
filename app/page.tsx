@@ -68,6 +68,7 @@ type AdminSettings = {
   circleShowImages: boolean
   dotColor: string
   dotCount: number
+  circleDotCountMobile: number
   showWalls: boolean
   meshTexture: string | null
   texScale: number
@@ -128,6 +129,7 @@ const ADMIN_DEFAULTS: AdminSettings = {
   circleShowImages: true,
   dotColor: '#000000',
   dotCount: 30000,
+  circleDotCountMobile: 8000,
   showWalls: false,
   meshTexture: null,
   texScale: 1,
@@ -279,7 +281,7 @@ function AdminPanel({
   const {
     audioVolume, timebombActive, showTexture, grainOpacity, vignetteOpacity, wobbleScale,
     showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing,
-    figureWireframe, wireframeStyle, dotSize, circleDotSize, circleDotSizeMobile, circleShowImages, dotColor, dotCount,
+    figureWireframe, wireframeStyle, dotSize, circleDotSize, circleDotSizeMobile, circleShowImages, dotColor, dotCount, circleDotCountMobile,
     showWalls, meshTexture, texScale, texOffsetX, texOffsetY, texRotation, showVertexImages,
     enableBloom, bloomIntensity, enableDOF, dofFocus, dofBokeh, enableDissolve, figureRings,
     soloReact, circleRadius, circleFigureY, circleCameraMode, circleCamX, circleCamY, circleCamZ,
@@ -488,6 +490,7 @@ function AdminPanel({
           <PanelSlider label="Figure Y"  value={circleFigureY}   min={-500} max={500}  step={1}   decimals={0} onChange={v => set('circleFigureY', v)} />
           <PanelSlider label="Dot size"  value={circleDotSize}   min={0.001} max={1}   step={0.001} decimals={3} onChange={v => set('circleDotSize', v)} />
           <PanelSlider label="Dot size M" value={circleDotSizeMobile} min={0.001} max={2} step={0.001} decimals={3} onChange={v => set('circleDotSizeMobile', v)} />
+          <PanelSlider label="Dot count M" value={circleDotCountMobile} min={100} max={50000} step={100} decimals={0} onChange={v => set('circleDotCountMobile', v)} />
           <div style={{ fontSize: 11, color: P.dim, marginBottom: 8, marginTop: 4 }}>Student images</div>
           <PanelToggle
             options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
@@ -757,7 +760,7 @@ function HomeInner() {
   const {
     audioVolume, timebombActive, showTexture, grainOpacity, vignetteOpacity, wobbleScale,
     showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing,
-    figureWireframe, wireframeStyle, dotSize, circleDotSize, circleDotSizeMobile, circleShowImages, dotColor, dotCount,
+    figureWireframe, wireframeStyle, dotSize, circleDotSize, circleDotSizeMobile, circleShowImages, dotColor, dotCount, circleDotCountMobile,
     showWalls, meshTexture, texScale, texOffsetX, texOffsetY, texRotation, showVertexImages,
     enableBloom, bloomIntensity, enableDOF, dofFocus, dofBokeh, enableDissolve, figureRings,
     soloReact, circleRadius, circleFigureY, circleCameraMode, circleCamX, circleCamY, circleCamZ,
@@ -1621,7 +1624,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} enableBloom={enableBloom} bloomIntensity={bloomIntensity} enableDOF={enableDOF} dofFocus={dofFocus} dofBokeh={dofBokeh} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} />
         )}
         {!loading && mountedView === 'circle' && !selectedStudent && (
-          <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={circleFigureY} showVertexImages={circleShowImages} vertexSettings={studentVertexSettings} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotSizeMobile : circleDotSize} dotColor={dotColor} dotCount={dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX} camY={circleCamY} camZ={circleCamZ} camFov={circleCamFov} camZoom={circleCamZoom} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} cameraInfoRef={isAdmin ? circleCameraInfoRef : undefined} soloReact={false} isAdmin={isAdmin} />
+          <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={circleFigureY} showVertexImages={circleShowImages} vertexSettings={studentVertexSettings} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotSizeMobile : circleDotSize} dotColor={dotColor} dotCount={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotCountMobile : dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX} camY={circleCamY} camZ={circleCamZ} camFov={circleCamFov} camZoom={circleCamZoom} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} cameraInfoRef={isAdmin ? circleCameraInfoRef : undefined} soloReact={false} isAdmin={isAdmin} />
         )}
         {!loading && posts.length > 0 && mountedView === 'globe' && !selectedStudent && (
           <GlobeCanvas
