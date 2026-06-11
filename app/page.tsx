@@ -1529,6 +1529,11 @@ Lecturer
 Oto Prangishvili
 
 Free University of Georgia`}</p>
+            <img
+              src="/FREEUNI.svg"
+              alt="Free University of Georgia"
+              style={{ height: 48, width: 'auto', display: 'block', margin: '24px 0 8px' }}
+            />
           </div>
         </div>
       )}
