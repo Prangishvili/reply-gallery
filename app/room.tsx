@@ -544,7 +544,7 @@ function FigureWireframe({ scene, style, dotSize, dotColor, dotCount, transition
     for (let i = 0; i < count; i++) {
       const theta = Math.random() * Math.PI * 2
       const phi = Math.acos(2 * Math.random() - 1)
-      const spd = 30 + Math.random() * 50
+      const spd = 15 + Math.random() * 25
       vels[i * 3]     = Math.sin(phi) * Math.cos(theta) * spd
       vels[i * 3 + 1] = Math.sin(phi) * Math.sin(theta) * spd
       vels[i * 3 + 2] = Math.cos(phi) * spd
@@ -573,10 +573,10 @@ function FigureWireframe({ scene, style, dotSize, dotColor, dotCount, transition
     const pos = posAttr.array as Float32Array
     const base = baseRef.current
     const vel = velRef.current
-    if (t < 0.4) {
+    if (t < 0.8) {
       for (let i = 0; i < pos.length; i++) pos[i] += vel[i] * delta
-    } else if (t < 0.8) {
-      for (let i = 0; i < pos.length; i++) pos[i] += (base[i] - pos[i]) * delta * 8
+    } else if (t < 1.6) {
+      for (let i = 0; i < pos.length; i++) pos[i] += (base[i] - pos[i]) * delta * 4
     } else {
       pos.set(base)
       animRef.current = 0
