@@ -1463,25 +1463,40 @@ function HomeInner() {
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ maxWidth: 720, width: '100%' }}
+            style={{ maxWidth: 720, width: '100%', maxHeight: '85vh', overflowY: 'auto' }}
           >
             <p style={{
               fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2,
               color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em',
               whiteSpace: 'pre-line',
-            }}>{`The action of being is so revolutionary that society rejects it and concerns itself exclusively with the action of becoming. 
+            }}>{`"The action of being is so revolutionary that society rejects it and concerns itself exclusively with the action of becoming."
 
-– Jiddu Krishnamurti
+— Jiddu Krishnamurti
 
-Reply is a concept rooted in the constant communication of the digital world, a collaborative work by students of the Free University of Georgia, and a dialogue between selves and their relationships.
+Reply is a collaborative work by students of the Free University of Georgia, a meditation on digital identity, performed selfhood, and what gets lost in translation.
 
-While the physical self can be expressed in countless ways, Reply explores our virtual identities, the endless demands of digital presence, and the fragmented versions of ourselves we perform across platforms.
+Every platform demands a different version of us. The visual self. The political self. The one who informs, the one who entertains. Collectively, they account for everything except the self that simply exists.
 
-Each platform demands a different self, the visual one, the political one, the informed one, the one who dances. Not one of them leaves room for the self that simply is.
+To push past this, each student developed their own writing system, a personal visual language designed not for legibility, but for honesty. Something to be felt rather than decoded.
 
-To explore this idea further, the students created their own writing systems, ways of saying what they truly feel, without being observed, evaluated, or judged. Only felt.
+Reply is a virtual art exhibition that abandons natural language as its framework, presenting each participant through a visual representation that resists performance and asks, instead, for presence.
 
-Reply is a virtual art exhibition that challenges the limits of natural language as a form of communication, and instead invites visitors to experience each person through a unique visual representation of who they are.`}</p>
+Visitors are also invited to construct their own version, to reply, and in that act, to consider what genuine dialogue between selves might actually look like, to say what they truly feel, without being observed, evaluated, or judged. Only felt.
+
+——
+
+Students
+Mariam Wulaia, Nodar Gogichaishvili, Sesili Gurgenidze, Dominika Davshrishovi, Salome Shalvashvili, Nutsa Kavtelishvili, Ketevan Lomiashvili, Mariam Qsovreli, Ana Mamniashvili, Bako Shengelia, Sergi Sarajevi, Natali Chixelidze
+
+Lecturer
+Oto Prangishvili
+
+Free University of Georgia`}</p>
+            <img
+              src="/credits.png"
+              alt="Student signatures"
+              style={{ width: '100%', maxWidth: 560, display: 'block', margin: '32px auto 0', mixBlendMode: 'multiply' }}
+            />
           </div>
         </div>
       )}
