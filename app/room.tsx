@@ -347,9 +347,12 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
     gifAnimRef.current.clear()
   }, [])
 
-  // Effect 2: rebuild per-sprite data whenever repeat/vertices change — instant, no network
+  // Effect 2: rebuild per-sprite data whenever repeat/vertices change — instant, no network.
+  // Sprites stay hidden until every image of this figure has loaded, so each
+  // student appears complete rather than image by image.
   useEffect(() => {
-    if (loadedTex.size === 0 || vertices.length === 0 || repeatedPosts.length === 0) {
+    const uniqueCount = new Set(posts.map(p => p.image_url)).size
+    if (loadedTex.size < uniqueCount || loadedTex.size === 0 || vertices.length === 0 || repeatedPosts.length === 0) {
       setSpriteData([])
       return
     }
@@ -357,7 +360,7 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
       const url = repeatedPosts[i % repeatedPosts.length].image_url
       return loadedTex.get(url) ?? null
     }).filter((d): d is { tex: THREE.Texture; aspect: number } => d !== null))
-  }, [loadedTex, vertices, repeatedPosts])
+  }, [loadedTex, vertices, repeatedPosts, posts])
 
   if (vertices.length === 0 || spriteData.length === 0) return null
 
