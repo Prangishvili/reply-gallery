@@ -1515,6 +1515,11 @@ Free University of Georgia`}</p>
         <img src="/UNI.svg" alt="Free University of Tbilisi" className="h-10 w-auto" fetchPriority="low" />
       </a>
 
+      {/* Open mark */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none select-none">
+        <img src="/OPEN.svg" alt="Open" className="h-8 w-auto" fetchPriority="low" />
+      </div>
+
       {/* Student selector — left panel, room view only */}
       {phase === 'gallery' && mountedView === 'room' && !selectedStudent && (
         <div style={{
