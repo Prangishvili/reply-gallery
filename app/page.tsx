@@ -1482,22 +1482,23 @@ To push past this, each student developed their own writing system, a personal v
 
 Reply is a virtual art exhibition that abandons natural language as its framework, presenting each participant through a visual representation that resists performance and asks, instead, for presence.
 
-Visitors are also invited to construct their own version, to reply, and in that act, to consider what genuine dialogue between selves might actually look like, to say what they truly feel, without being observed, evaluated, or judged. Only felt.
-
-——
-
-Students
+Visitors are also invited to construct their own version, to reply, and in that act, to consider what genuine dialogue between selves might actually look like, to say what they truly feel, without being observed, evaluated, or judged. Only felt.`}</p>
+            <img
+              src="/credits.png"
+              alt="Student signatures"
+              style={{ width: '100%', maxWidth: 560, display: 'block', margin: '32px auto', mixBlendMode: 'multiply' }}
+            />
+            <p style={{
+              fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2,
+              color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em',
+              whiteSpace: 'pre-line',
+            }}>{`Students
 Mariam Wulaia, Nodar Gogichaishvili, Sesili Gurgenidze, Dominika Davshrishovi, Salome Shalvashvili, Nutsa Kavtelishvili, Ketevan Lomiashvili, Mariam Qsovreli, Ana Mamniashvili, Bako Shengelia, Sergi Sarajevi, Natali Chixelidze
 
 Lecturer
 Oto Prangishvili
 
 Free University of Georgia`}</p>
-            <img
-              src="/credits.png"
-              alt="Student signatures"
-              style={{ width: '100%', maxWidth: 560, display: 'block', margin: '32px auto 0', mixBlendMode: 'multiply' }}
-            />
           </div>
         </div>
       )}
