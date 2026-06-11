@@ -53,9 +53,11 @@ export async function POST(request: NextRequest) {
     contentType = 'image/webp'
   }
 
+  // Filenames are UUIDs (content never changes), so cache for a year —
+  // avoids a ~1s revalidation round trip per image on repeat visits
   const { error: uploadError } = await supabase.storage
     .from('images')
-    .upload(fileName, uploadBuffer, { contentType })
+    .upload(fileName, uploadBuffer, { contentType, cacheControl: '31536000' })
 
   if (uploadError) {
     return NextResponse.json({ error: uploadError.message }, { status: 500 })
