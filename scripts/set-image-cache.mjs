@@ -55,9 +55,10 @@ if (failed.length) {
   process.exit(1)
 }
 
-// Verify: check the served header on one file
+// Verify: check the served header on one file. Must be a GET — Supabase
+// answers HEAD requests with cache-control: no-cache regardless of metadata.
 if (files.length) {
-  const sample = `${url}/storage/v1/object/public/images/${files[0].name}`
-  const res = await fetch(sample, { method: 'HEAD' })
+  const sample = `${url}/storage/v1/object/public/images/${files[0].name}?verify=${Date.now()}`
+  const res = await fetch(sample)
   console.log('verify', files[0].name, '→ cache-control:', res.headers.get('cache-control'))
 }
