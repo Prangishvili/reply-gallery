@@ -1733,7 +1733,7 @@ Free University of Georgia`}</p>
             fontWeight: 300, fontSize: isMobileVp ? 16 : 18, lineHeight: 1.75,
             color: 'rgba(0, 0, 0, 0.85)', textTransform: 'uppercase',
           }}>
-            The action of being is so revolutionary that society rejects it<br/>and concerns itself exclusively with the action of becoming.<br/>– Jiddu Krishnamurti
+            The action of being is so revolutionary that society rejects it{isMobileVp ? ' ' : <br/>}and concerns itself exclusively with the action of becoming.<br/>– Jiddu Krishnamurti
           </p>
         </div>
       )}
