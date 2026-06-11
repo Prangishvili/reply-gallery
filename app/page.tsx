@@ -30,9 +30,9 @@ const STUDENT_VERTEX_DEFAULTS: Record<string, VertexSettings> = {
   'Sergi Sarajevi':        { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
   'Natali Chixelidze':     { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
   'Salome Shalvashvili':   { imgSize: 0.060, repeat: 17, audioImgSize: 0.060, audioRepeat: 17, facing: 'camera' },
-  'Bako Shengelia':        { imgSize: 0.090, repeat: 30, audioImgSize: 0.050, audioRepeat: 17, facing: 'normal' },
+  'Bako Shengelia':        { imgSize: 0.090, repeat: 30, audioImgSize: 0.090, audioRepeat: 17, facing: 'normal' },
   'Mariam Wulaia':         { imgSize: 0.070, repeat: 5, audioImgSize: 0.050, audioRepeat: 5, facing: 'camera'},
-  'Mariam Qsovreli':       { imgSize: 0.120, repeat: 19, audioImgSize: 0.035, audioRepeat: 14, facing: 'normal' },
+  'Mariam Qsovreli':       { imgSize: 0.120, repeat: 19, audioImgSize: 0.090, audioRepeat: 15, facing: 'normal' },
 }
 
 type ImageItem = { file: File; preview: string; caption: string }
