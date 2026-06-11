@@ -298,35 +298,26 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
       loadedUrlsRef.current.add(url)
       queueImageLoad(async () => {
         if (cancelled) { loadedUrlsRef.current.delete(url); return }
-        // Type from the URL extension — uploads always carry one, and this
-        // avoids a HEAD round trip per image (slow on mobile networks)
-        const ext = url.split('?')[0].split('.').pop()?.toLowerCase() ?? ''
+        const meta = await loadImgMeta(url)
+        if (cancelled) { loadedUrlsRef.current.delete(url); return }
         let tex: THREE.Texture
-        let aspect: number
-        if (ext === 'svg') {
-          const meta = await loadImgMeta(url)
-          if (cancelled) { loadedUrlsRef.current.delete(url); return }
-          aspect = meta.aspect
-          tex = await makeSvgTex(url, aspect, false)
-        } else if (ext === 'gif') {
+        if (meta.isSvg) {
+          tex = await makeSvgTex(url, meta.aspect, false)
+        } else if (meta.isGif) {
+          const tW = 512, tH = Math.round(tW / meta.aspect)
+          const canvas = document.createElement('canvas')
+          canvas.width = tW; canvas.height = tH
           const img = new window.Image()
           // Must be in DOM for the browser to advance GIF animation frames
           img.style.cssText = 'position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:-9999px;left:-9999px'
           document.body.appendChild(img)
           img.src = url
-          await new Promise<void>(r => { img.onload = () => r(); img.onerror = () => r() })
-          aspect = (img.naturalWidth || 1) / (img.naturalHeight || 1)
-          const tW = 512, tH = Math.max(1, Math.round(tW / aspect))
-          const canvas = document.createElement('canvas')
-          canvas.width = tW; canvas.height = tH
           const canvasTex = new THREE.CanvasTexture(canvas)
           canvasTex.colorSpace = THREE.SRGBColorSpace
           gifAnimRef.current.set(url, { img, canvas, tex: canvasTex })
           tex = canvasTex
         } else {
-          const r = await loadCappedTexMeta(url)
-          tex = r.tex
-          aspect = r.aspect
+          tex = await loadCappedTex(url)
         }
         if (cancelled) {
           tex.dispose()
@@ -340,7 +331,7 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
         }
         setLoadedTex(prev => {
           const next = new Map(prev)
-          next.set(url, { tex, aspect })
+          next.set(url, { tex, aspect: meta.aspect })
           return next
         })
       })
@@ -960,11 +951,10 @@ function loadVideoMeta(url: string): Promise<number> {
   })
 }
 
-// Decode an image once and downscale to TEX_MAX_DIM before creating the GPU
+// Decode an image and downscale to TEX_MAX_DIM before creating the GPU
 // texture — keeps old full-size uploads (1920px+) from exhausting iOS memory.
-// img.decode() keeps the decode off the main thread; aspect comes from the
-// same decode so no extra fetch is needed.
-function loadCappedTexMeta(url: string, maxDim = TEX_MAX_DIM): Promise<{ tex: THREE.Texture; aspect: number }> {
+// img.decode() keeps the decode off the main thread.
+function loadCappedTex(url: string, maxDim = TEX_MAX_DIM): Promise<THREE.Texture> {
   return new Promise(resolve => {
     const img = new window.Image()
     img.crossOrigin = 'anonymous'
@@ -979,17 +969,14 @@ function loadCappedTexMeta(url: string, maxDim = TEX_MAX_DIM): Promise<{ tex: TH
       canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
       const tex = new THREE.CanvasTexture(canvas)
       tex.colorSpace = THREE.SRGBColorSpace
-      resolve({ tex, aspect: w / h })
-    }).catch(() => resolve({ tex: new THREE.Texture(), aspect: 1 }))
+      resolve(tex)
+    }).catch(() => resolve(new THREE.Texture()))
   })
-}
-function loadCappedTex(url: string, maxDim = TEX_MAX_DIM): Promise<THREE.Texture> {
-  return loadCappedTexMeta(url, maxDim).then(r => r.tex)
 }
 
 // Global image-load queue — bounds concurrent fetch/decode/GPU-upload cycles
 // so texture bursts don't freeze the frame loop (loading starts post-intro)
-const MAX_CONCURRENT_IMG_LOADS = IS_MOBILE ? 12 : 16
+const MAX_CONCURRENT_IMG_LOADS = IS_MOBILE ? 6 : 16
 let activeImgLoads = 0
 const pendingImgLoads: (() => void)[] = []
 function queueImageLoad(task: () => Promise<void>) {
