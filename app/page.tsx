@@ -782,7 +782,9 @@ function HomeInner() {
   const circleAnimPlayedRef = useRef(false)
   useEffect(() => {
     if (viewMode !== 'circle' || phase !== 'gallery') { setShowQuote(false); return }
-    if (circleAnimPlayedRef.current) return
+    // Animation already ran (or was cancelled mid-way / StrictMode remount):
+    // don't replay it, but make sure images aren't gated forever
+    if (circleAnimPlayedRef.current) { setIntroImagesReady(true); return }
     circleAnimPlayedRef.current = true
     if (circleAnimRef.current !== null) cancelAnimationFrame(circleAnimRef.current)
     const fromCamY = circleCamYRef.current
