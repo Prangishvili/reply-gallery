@@ -1457,14 +1457,14 @@ function HomeInner() {
             position: 'fixed', inset: 0, zIndex: 55,
             background: 'rgba(255,255,255,0.55)',
             backdropFilter: 'blur(12px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: '40px 24px',
+            display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+            padding: '64px 24px 40px',
           }}
         >
           <div
             onClick={e => e.stopPropagation()}
             className="about-scroll"
-            style={{ maxWidth: 720, width: '100%', maxHeight: '85vh', overflowY: 'auto', paddingRight: 28 }}
+            style={{ maxWidth: 720, width: '100%', maxHeight: '100%', overflowY: 'auto', paddingRight: 28 }}
           >
             <p style={{
               fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2,
