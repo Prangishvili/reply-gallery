@@ -7,7 +7,6 @@ const dmMono = DM_Mono({
   subsets: ["latin"],
   weight: ["300", "400", "500"],
   style: ["normal", "italic"],
-  preload: false,
 });
 
 export const metadata: Metadata = {

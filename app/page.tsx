@@ -1071,6 +1071,13 @@ function HomeInner() {
     setPhase('gallery')
   }
 
+  // Preload the 3D chunks + figure GLB during the entry screen so the gallery
+  // appears instantly when a sound option is clicked (images still load lazily)
+  useEffect(() => {
+    import('./room')
+    import('./globe')
+  }, [])
+
   useEffect(() => {
     const CACHE_KEY = 'reply_posts_cache'
     const cached = localStorage.getItem(CACHE_KEY)
