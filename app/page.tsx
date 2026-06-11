@@ -137,7 +137,7 @@ const ADMIN_DEFAULTS: AdminSettings = {
   circleCamXM: 0,
   circleCamYM: 0,
   circleCamZM: 0,
-  circleCamZoomM: 0.40,
+  circleCamZoomM: 0.20,
   circleFigureYM: 0,
   circleCamFov: 20,
   circleCamZoom: 1.2,
