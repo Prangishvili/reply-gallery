@@ -730,6 +730,8 @@ function HomeInner() {
   } = admin
 
   const isMobileVp = typeof window !== 'undefined' && window.innerWidth < 1000
+  // Safari (and all iOS browsers) — the only engines exposing GestureEvent
+  const isWebKit = typeof window !== 'undefined' && 'GestureEvent' in window
 
   const [showNames, setShowNames] = useState(true)
   const [nameSize, setNameSize] = useState(10)
@@ -1606,10 +1608,12 @@ Oto Prangishvili`}</p>
         </div>
       )}
 
-      {/* View */}
+      {/* View — Safari/WebKit renders large blurs poorly, so it gets a plain
+          opacity fade on the entry screen instead */}
       <div className="absolute inset-0" style={{
         ...(isAdmin && !panelHidden ? { right: 280 } : {}),
-        filter: phase === 'entry' ? 'blur(42.5px)' : undefined,
+        filter: phase === 'entry' && !isWebKit ? 'blur(42.5px)' : undefined,
+        opacity: phase === 'entry' && isWebKit ? 0.2 : undefined,
       }}>
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center">
