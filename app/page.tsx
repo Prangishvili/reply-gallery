@@ -1728,7 +1728,7 @@ Free University of Georgia`}</p>
           transition: 'opacity 3.4s ease',
         }}>
           <p style={{
-            width: '50%', textAlign: 'center',
+            width: isMobileVp ? '70%' : '50%', textAlign: 'center',
             fontFamily: 'var(--font-dm-mono), ui-monospace, monospace',
             fontWeight: 300, fontSize: isMobileVp ? 16 : 18, lineHeight: 1.75,
             color: 'rgba(0, 0, 0, 0.85)', textTransform: 'uppercase',
