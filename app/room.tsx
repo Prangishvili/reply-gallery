@@ -1009,6 +1009,20 @@ function getCachedTex(url: string): Promise<CachedTex> {
   return p
 }
 
+// Warm the texture cache before the gallery is revealed — called as soon as
+// posts arrive so downloads run during the entry screen / intro animation.
+// Respects the same per-figure post cap as CircleScene.
+export function prefetchPostImages(posts: Post[]) {
+  const perStudent = new Map<string, number>()
+  for (const p of posts) {
+    const key = p.student_name?.trim().toLowerCase() ?? ''
+    const n = perStudent.get(key) ?? 0
+    if (n >= POSTS_PER_FIGURE) continue
+    perStudent.set(key, n + 1)
+    getCachedTex(p.image_url)
+  }
+}
+
 function SelfVertexImages({ scene, stream, count, size, images, facing, analyserRef }: {
   scene: THREE.Object3D; stream: MediaStream | null; count: number; size: number
   images: { url: string; isVideo: boolean }[]; facing: 'camera' | 'surface'

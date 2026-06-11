@@ -22,13 +22,13 @@ const STUDENTS = ['Mariam Wulaia','Nodar Gogichaishvili','Sesili Gurgenidze','Do
 type VertexSettings = { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }
 const STUDENT_VERTEX_DEFAULTS: Record<string, VertexSettings> = {
   'Nodar Gogichaishvili':  { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
-  'Sesili Gurgenidze':     { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
-  'Dominika Davshrishovi': { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
+  'Sesili Gurgenidze':     { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1, facing: 'camera' },
+  'Dominika Davshrishovi': { imgSize: 0.275, repeat: 17, audioImgSize: 0.150, audioRepeat: 17, facing: 'camera' },
   'Nutsa Kavtelishvili':   { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
   'Ketevan Lomiashvili':   { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
   'Ana Mamniashvili':      { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
   'Sergi Sarajevi':        { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
-  'Natali Chixelidze':     { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
+  'Natali Chixelidze':     { imgSize: 0.155, repeat: 15, audioImgSize: 0.100, audioRepeat: 17, facing: 'camera' },
   'Salome Shalvashvili':   { imgSize: 0.060, repeat: 17, audioImgSize: 0.060, audioRepeat: 17, facing: 'camera' },
   'Bako Shengelia':        { imgSize: 0.090, repeat: 30, audioImgSize: 0.090, audioRepeat: 17, facing: 'normal' },
   'Mariam Wulaia':         { imgSize: 0.070, repeat: 5, audioImgSize: 0.050, audioRepeat: 5, facing: 'camera'},
@@ -1030,6 +1030,13 @@ function HomeInner() {
         localStorage.setItem(CACHE_KEY, JSON.stringify(data))
       })
   }, [])
+
+  // Start downloading figure images as soon as posts are known — they land in
+  // the session texture cache while the user is still on the entry screen
+  useEffect(() => {
+    if (posts.length === 0) return
+    import('./room').then(m => m.prefetchPostImages(posts))
+  }, [posts])
 
   function addFiles(files: FileList | File[]) {
     const incoming = Array.from(files).filter(f => f.type.startsWith('image/'))
