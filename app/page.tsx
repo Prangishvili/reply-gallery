@@ -1578,7 +1578,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
         className="fixed bottom-6 right-6 z-20"
         style={isAdmin && !panelHidden ? { right: 286 } : {}}
       >
-        <img src="/UNI.svg" alt="Free University of Tbilisi" className="h-12 w-auto" fetchPriority="low" />
+        <img src="/UNI.svg" alt="Free University of Tbilisi" className="h-8 w-auto" fetchPriority="low" />
       </a>
 
       {/* Student selector — left panel, room view only */}
