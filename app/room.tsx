@@ -955,7 +955,7 @@ function makeSvgTex(url: string, aspect: number, flip: boolean): Promise<THREE.C
     const img = new window.Image()
     img.crossOrigin = 'anonymous'
     img.onload = () => {
-      const tW = IS_MOBILE ? 512 : 2048, tH = Math.round(tW / aspect)
+      const tW = IS_MOBILE ? 512 : 1024, tH = Math.round(tW / aspect)
       const canvas = document.createElement('canvas')
       canvas.width = tW; canvas.height = tH
       canvas.getContext('2d')!.drawImage(img, 0, 0, tW, tH)
@@ -1011,16 +1011,21 @@ function getCachedTex(url: string): Promise<CachedTex> {
 
 // Warm the texture cache before the gallery is revealed — called as soon as
 // posts arrive so downloads run during the entry screen / intro animation.
-// Respects the same per-figure post cap as CircleScene.
+// Respects the same per-figure post cap as CircleScene. Queues one student's
+// images at a time: figures reveal all-or-nothing, so grouping lets students
+// complete one after another instead of everyone waiting on a mixed queue.
 export function prefetchPostImages(posts: Post[]) {
-  const perStudent = new Map<string, number>()
+  const perStudent = new Map<string, Post[]>()
   for (const p of posts) {
     const key = p.student_name?.trim().toLowerCase() ?? ''
-    const n = perStudent.get(key) ?? 0
-    if (n >= POSTS_PER_FIGURE) continue
-    perStudent.set(key, n + 1)
-    getCachedTex(p.image_url)
+    const list = perStudent.get(key) ?? []
+    if (list.length >= POSTS_PER_FIGURE) continue
+    list.push(p)
+    perStudent.set(key, list)
   }
+  // Smallest collections first — earliest possible reveals
+  const groups = [...perStudent.values()].sort((a, b) => a.length - b.length)
+  for (const group of groups) for (const p of group) getCachedTex(p.image_url)
 }
 
 function SelfVertexImages({ scene, stream, count, size, images, facing, analyserRef }: {
