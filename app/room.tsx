@@ -1775,7 +1775,7 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, show
         : <PerspectiveCamera makeDefault fov={camFov} near={0.1} far={10000} />
       }
       <CircleCamDriver key={cameraMode} x={camX} y={camY} z={camZ} zoom={camZoom} mode={cameraMode} />
-      <OrbitControls target={[0, 150, 0]} enableDamping dampingFactor={0.08} autoRotate={camXLoop} autoRotateSpeed={camXLoopSpeed} enablePan={false} />
+      <OrbitControls target={[0, 150, 0]} enableDamping dampingFactor={0.08} autoRotate={camXLoop} autoRotateSpeed={camXLoopSpeed} enablePan={false} minZoom={0.5} maxZoom={4} minDistance={500} maxDistance={2500} />
       {showNoiseGlobe && analyserRef && (
         <group scale={circleRadius * 0.6}>
           <NoiseGlobe audioVolume={audioVolume} analyserRef={analyserRef} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} />
