@@ -20,6 +20,9 @@ const EYE = 22.5  // camera eye height
 const IS_MOBILE = typeof window !== 'undefined' &&
   (window.innerWidth < 1000 || /iPhone|iPad|Android/i.test(navigator.userAgent))
 const TEX_MAX_DIM = IS_MOBILE ? 256 : 512
+// SELF view holds only a handful of textures (one per upload), so it can
+// afford higher resolution than the 144-texture circle view
+const SELF_TEX_MAX_DIM = IS_MOBILE ? 512 : 1000
 const MAX_DPR     = IS_MOBILE ? 1.5 : 2
 const POSTS_PER_FIGURE = IS_MOBILE ? 12 : 30
 
@@ -983,13 +986,13 @@ function loadVideoMeta(url: string): Promise<number> {
 
 // Decode an image and downscale to TEX_MAX_DIM before creating the GPU
 // texture — keeps old full-size uploads (1920px+) from exhausting iOS memory
-function loadCappedTex(url: string): Promise<THREE.Texture> {
+function loadCappedTex(url: string, maxDim = TEX_MAX_DIM): Promise<THREE.Texture> {
   return new Promise(resolve => {
     const img = new window.Image()
     img.crossOrigin = 'anonymous'
     img.onload = () => {
       const w = img.naturalWidth || 1, h = img.naturalHeight || 1
-      const scale = Math.min(1, TEX_MAX_DIM / Math.max(w, h))
+      const scale = Math.min(1, maxDim / Math.max(w, h))
       const canvas = document.createElement('canvas')
       canvas.width  = Math.max(1, Math.round(w * scale))
       canvas.height = Math.max(1, Math.round(h * scale))
@@ -1102,7 +1105,7 @@ function SelfVertexImages({ scene, stream, count, size, images, facing, analyser
           return t
         }
         if (meta.isSvg) return makeSvgTex(url, meta.aspect, false)
-        return loadCappedTex(url)
+        return loadCappedTex(url, SELF_TEX_MAX_DIM)
       }))
 
       if (cancelled) { camTex?.dispose(); uploadTex.forEach(t => t.dispose()); return }
