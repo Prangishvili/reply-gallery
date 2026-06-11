@@ -971,9 +971,9 @@ function loadCappedTex(url: string, maxDim = TEX_MAX_DIM): Promise<THREE.Texture
   })
 }
 
-// Global image-load queue — only a few fetch/decode/GPU-upload cycles run at
-// once, so mounting 12 figures doesn't stall the intro animation
-const MAX_CONCURRENT_IMG_LOADS = IS_MOBILE ? 2 : 4
+// Global image-load queue — bounds concurrent fetch/decode/GPU-upload cycles
+// so texture bursts don't freeze the frame loop (loading starts post-intro)
+const MAX_CONCURRENT_IMG_LOADS = IS_MOBILE ? 6 : 16
 let activeImgLoads = 0
 const pendingImgLoads: (() => void)[] = []
 function queueImageLoad(task: () => Promise<void>) {
