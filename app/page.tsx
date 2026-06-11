@@ -124,7 +124,7 @@ const ADMIN_DEFAULTS: AdminSettings = {
   wireframeStyle: 'points',
   dotSize: 0.400,
   circleDotSize: 0.400,
-  circleDotSizeMobile: 0.400,
+  circleDotSizeMobile: 0.100,
   circleShowImages: true,
   dotColor: '#000000',
   dotCount: 30000,
