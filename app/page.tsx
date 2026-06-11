@@ -1526,14 +1526,18 @@ Visitors are also invited to construct their own version, to reply, and in that 
 Mariam Wulaia, Nodar Gogichaishvili, Sesili Gurgenidze, Dominika Davshrishovi, Salome Shalvashvili, Nutsa Kavtelishvili, Ketevan Lomiashvili, Mariam Qsovreli, Ana Mamniashvili, Bako Shengelia, Sergi Sarajevi, Natali Chixelidze
 
 Lecturer
-Oto Prangishvili
-
-Free University of Georgia`}</p>
-            <img
-              src="/FREEUNI.svg"
-              alt="Free University of Georgia"
-              style={{ height: 48, width: 'auto', display: 'block', margin: '24px 0 8px' }}
-            />
+Oto Prangishvili`}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, margin: '24px 0 8px' }}>
+              <img
+                src="/FREEUNI.svg"
+                alt="Free University of Georgia"
+                style={{ height: 48, width: 'auto', display: 'block' }}
+              />
+              <span style={{
+                fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2,
+                color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em',
+              }}>Free University of Georgia</span>
+            </div>
           </div>
         </div>
       )}
