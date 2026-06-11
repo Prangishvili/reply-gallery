@@ -48,10 +48,6 @@ type Phase = 'entry' | 'gallery'
 type AdminSettings = {
   audioVolume: number
   timebombActive: boolean
-  showTexture: boolean
-  grainOpacity: number
-  vignetteOpacity: number
-  wobbleScale: number
   showFigure: boolean
   figureRadius: number
   figureSpeed: number
@@ -110,10 +106,6 @@ type AdminSettings = {
 const ADMIN_DEFAULTS: AdminSettings = {
   audioVolume: 1.00,
   timebombActive: false,
-  showTexture: false,
-  grainOpacity: 0.055,
-  vignetteOpacity: 0.6,
-  wobbleScale: 4,
   showFigure: true,
   figureRadius: 160,
   figureSpeed: 0.03,
@@ -281,7 +273,7 @@ function AdminPanel({
   const set = <K extends keyof AdminSettings>(key: K, value: AdminSettings[K]) =>
     setAdmin(prev => ({ ...prev, [key]: value }))
   const {
-    audioVolume, timebombActive, showTexture, grainOpacity, vignetteOpacity, wobbleScale,
+    audioVolume, timebombActive,
     showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing,
     figureWireframe, wireframeStyle, dotSize, circleDotSize, circleDotSizeMobile, circleShowImages, dotColor, dotCount, circleDotCountMobile,
     showWalls, wallTexture, meshTexture, texScale, texOffsetX, texOffsetY, texRotation, showVertexImages,
@@ -363,17 +355,6 @@ function AdminPanel({
             Reset
           </button>
         </div>
-      </PanelSection>
-
-      <PanelSection title="Texture">
-        <PanelToggle
-          options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
-          value={showTexture ? 'show' : 'hide'}
-          onChange={v => set('showTexture', v === 'show')}
-        />
-        <PanelSlider label="Grain intensity" value={grainOpacity} min={0} max={0.15} step={0.005} decimals={3} onChange={v => set('grainOpacity', v)} />
-        <PanelSlider label="Vignette intensity" value={vignetteOpacity} min={0} max={1} step={0.05} decimals={2} onChange={v => set('vignetteOpacity', v)} />
-        <PanelSlider label="Wobble scale" value={wobbleScale} min={0} max={12} step={0.5} decimals={1} onChange={v => set('wobbleScale', v)} />
       </PanelSection>
 
       <PanelSection title="Figure">
@@ -794,7 +775,7 @@ function HomeInner() {
 
   const [admin, setAdmin] = useState<AdminSettings>(ADMIN_DEFAULTS)
   const {
-    audioVolume, timebombActive, showTexture, grainOpacity, vignetteOpacity, wobbleScale,
+    audioVolume, timebombActive,
     showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing,
     figureWireframe, wireframeStyle, dotSize, circleDotSize, circleDotSizeMobile, circleShowImages, dotColor, dotCount, circleDotCountMobile,
     showWalls, wallTexture, meshTexture, texScale, texOffsetX, texOffsetY, texRotation, showVertexImages,
@@ -899,7 +880,6 @@ function HomeInner() {
     return () => clearTimeout(id)
   }, [selectedStudent])
 
-  const grainRef = useRef<SVGFETurbulenceElement>(null)
   const [showDoggo, setShowDoggo] = useState(false)
   const [doggoScale, setDoggoScale] = useState(40)
   const [doggoX, setDoggoX] = useState(0)
@@ -978,16 +958,12 @@ function HomeInner() {
 
   const isAdmin = useSearchParams().get('admin') === 'true'
 
-  // H key toggles admin panel; enabling texture when hiding
+  // H key toggles admin panel
   useEffect(() => {
     if (!isAdmin) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'h' || e.key === 'H') {
-        setPanelHidden(prev => {
-          const hiding = !prev
-          if (hiding) setAdmin(a => ({ ...a, showTexture: false }))
-          return hiding
-        })
+        setPanelHidden(prev => !prev)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -1033,15 +1009,6 @@ function HomeInner() {
     return () => clearInterval(timer)
   }, [timebombActive, posts])
 
-  useEffect(() => {
-    if (!showTexture) return
-    let s = 0
-    const id = setInterval(() => {
-      s = (s + 1) % 100
-      grainRef.current?.setAttribute('seed', String(s))
-    }, 100)
-    return () => clearInterval(id)
-  }, [showTexture])
 
 
   function startBgAudio(sound: boolean) {
@@ -1646,10 +1613,7 @@ Reply is a virtual art exhibition that challenges the limits of natural language
       {/* View */}
       <div className="absolute inset-0" style={{
         ...(isAdmin && !panelHidden ? { right: 280 } : {}),
-        filter: [
-          isAdmin && showTexture && wobbleScale > 0 ? 'url(#hand-drawn-filter)' : '',
-          phase === 'entry' ? 'blur(42.5px)' : '',
-        ].filter(Boolean).join(' ') || undefined,
+        filter: phase === 'entry' ? 'blur(42.5px)' : undefined,
       }}>
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center">
@@ -1723,40 +1687,6 @@ Reply is a virtual art exhibition that challenges the limits of natural language
           {selectedStudent}
         </div>
       )}
-
-      {/* Texture overlays */}
-      {isAdmin && showTexture && (<>
-        <svg style={{ display: 'none', position: 'absolute' }} aria-hidden="true">
-          <defs>
-            <filter id="hand-drawn-filter">
-              <feTurbulence type="turbulence" baseFrequency="0.025" numOctaves="3" seed="7" stitchTiles="stitch" result="noise" />
-              <feDisplacementMap in="SourceGraphic" in2="noise" scale={wobbleScale} xChannelSelector="R" yChannelSelector="G" />
-            </filter>
-          </defs>
-        </svg>
-        <div style={{ position: 'fixed', inset: 0, zIndex: 55, pointerEvents: 'none', opacity: 0.18, mixBlendMode: 'multiply' } as React.CSSProperties}>
-          <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <filter id="paper-fiber-filter" x="0%" y="0%" width="100%" height="100%">
-                <feTurbulence type="fractalNoise" baseFrequency="0.65 0.08" numOctaves="5" seed="3" stitchTiles="stitch" />
-                <feColorMatrix type="saturate" values="0" />
-              </filter>
-            </defs>
-            <rect width="100%" height="100%" filter="url(#paper-fiber-filter)" fill="#8B7355" />
-          </svg>
-        </div>
-        <div style={{ position: 'fixed', inset: '-50%', zIndex: 56, width: '200%', height: '200%', pointerEvents: 'none', opacity: grainOpacity, mixBlendMode: 'overlay' } as React.CSSProperties}>
-          <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <filter id="grain-filter" x="0%" y="0%" width="100%" height="100%">
-                <feTurbulence ref={grainRef} type="fractalNoise" baseFrequency="0.85" numOctaves="4" seed="0" stitchTiles="stitch" />
-              </filter>
-            </defs>
-            <rect width="100%" height="100%" filter="url(#grain-filter)" />
-          </svg>
-        </div>
-        <div style={{ position: 'fixed', inset: 0, zIndex: 57, pointerEvents: 'none', background: `radial-gradient(ellipse at center, transparent 30%, rgba(10,5,0,${vignetteOpacity}) 100%)` }} />
-      </>)}
 
       {/* Background controls */}
       {phase === 'gallery' && !selectedStudent && (
