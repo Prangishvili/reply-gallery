@@ -1445,7 +1445,7 @@ function HomeInner() {
             transition: 'color 0.15s',
           }}
         >
-          about
+          {showAbout ? 'close' : 'about'}
         </button>
       )}
 
