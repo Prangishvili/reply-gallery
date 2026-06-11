@@ -1430,6 +1430,7 @@ type RoomSceneProps = {
   camX: number; camY: number; camZ: number
   roomCameraMode: RoomCameraMode; roomCamFov: number; roomCamZoom: number; roomCamXLoop: boolean; roomCamXLoopSpeed: number
   showWalls: boolean
+  wallTexture: string | null
   meshTexture: string | null
   texScale: number; texOffsetX: number; texOffsetY: number; texRotation: number
   transitionKey: number; enableDissolve: boolean
@@ -1440,7 +1441,21 @@ type RoomSceneProps = {
   nutsaGlbs?: string[]
   nutsaGlbScale?: number; nutsaGlbRepeat?: number
 }
-function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, showVertexImages, vertexSettings, figureStudent, figureStudent2, figureOrbiting, camX, camY, camZ, roomCameraMode, roomCamFov, roomCamZoom, roomCamXLoop, roomCamXLoopSpeed, showWalls, meshTexture, texScale, texOffsetX, texOffsetY, texRotation, transitionKey, enableDissolve, figureRings, soloReact, graffitiMode, graffitiColor, graffitiBrushSize, graffitiClearKey, bgColor, bgImage, analyserRef, nutsaGlbs, nutsaGlbScale, nutsaGlbRepeat }: RoomSceneProps) {
+function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, showVertexImages, vertexSettings, figureStudent, figureStudent2, figureOrbiting, camX, camY, camZ, roomCameraMode, roomCamFov, roomCamZoom, roomCamXLoop, roomCamXLoopSpeed, showWalls, wallTexture, meshTexture, texScale, texOffsetX, texOffsetY, texRotation, transitionKey, enableDissolve, figureRings, soloReact, graffitiMode, graffitiColor, graffitiBrushSize, graffitiClearKey, bgColor, bgImage, analyserRef, nutsaGlbs, nutsaGlbScale, nutsaGlbRepeat }: RoomSceneProps) {
+  const [wallTex, setWallTex] = useState<THREE.Texture | null>(null)
+  useEffect(() => {
+    if (!wallTexture) { setWallTex(null); return }
+    let cancelled = false
+    let tex: THREE.Texture | null = null
+    new THREE.TextureLoader().load(wallTexture, t => {
+      if (cancelled) { t.dispose(); return }
+      t.colorSpace = THREE.SRGBColorSpace
+      tex = t
+      setWallTex(t)
+    })
+    return () => { cancelled = true; tex?.dispose(); setWallTex(null) }
+  }, [wallTexture])
+
   const match = (a: string | null | undefined, b: string | null) =>
     a != null && b != null && a.trim().toLowerCase() === b.trim().toLowerCase()
   const figurePosts  = figureStudent  ? posts.filter(p => match(p.student_name, figureStudent))  : posts
@@ -1470,15 +1485,18 @@ function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showF
       {showWalls && (<>
         {/* Back wall */}
         <mesh position={[0, H / 2, -D]}>
-          <planeGeometry args={[W, H]} /><meshBasicMaterial color="#dddddd" />
+          <planeGeometry args={[W, H]} />
+          {wallTex ? <meshBasicMaterial map={wallTex} /> : <meshBasicMaterial color="#dddddd" />}
         </mesh>
         {/* Left wall */}
         <mesh position={[-W / 2, H / 2, -D / 2]} rotation={[0, Math.PI / 2, 0]}>
-          <planeGeometry args={[D, H]} /><meshBasicMaterial color="#d2d2d2" />
+          <planeGeometry args={[D, H]} />
+          {wallTex ? <meshBasicMaterial map={wallTex} /> : <meshBasicMaterial color="#d2d2d2" />}
         </mesh>
         {/* Right wall */}
         <mesh position={[W / 2, H / 2, -D / 2]} rotation={[0, -Math.PI / 2, 0]}>
-          <planeGeometry args={[D, H]} /><meshBasicMaterial color="#d2d2d2" />
+          <planeGeometry args={[D, H]} />
+          {wallTex ? <meshBasicMaterial map={wallTex} /> : <meshBasicMaterial color="#d2d2d2" />}
         </mesh>
         {/* Floor */}
         <mesh position={[0, 0, -D / 2]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -1507,14 +1525,14 @@ function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showF
 }
 
 // ── Entry point — pre-loads image dimensions before mounting scene ─────────────
-export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, doggoX = 0, doggoY = 0, doggoZ = 0, showFigure = true, figureRadius = 5, figureSpeed = 0.5, figureX = 0, figureY = 0, figureZ = 0, figureScale = 1, figureFacing = 0, figureWireframe = true, wireframeStyle = 'edges', dotSize = 0.200, dotColor = '#000000', dotCount = 30000, showVertexImages = false, vertexSettings = {} as Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>, figureStudent = null, figureStudent2 = null, figureOrbiting = true, camX = 0, camY = EYE, camZ = 55, roomCameraMode = 'freeroam' as RoomCameraMode, roomCamFov = 72, roomCamZoom = 1, roomCamXLoop = false, roomCamXLoopSpeed = 1, showWalls = false, meshTexture = null, texScale = 1, texOffsetX = 0, texOffsetY = 0, texRotation = 0, transitionKey = 0, enableDissolve = false, figureRings = false, soloReact = false, graffitiMode = false, graffitiColor = '#ff2222', graffitiBrushSize = 8, graffitiClearKey = 0, enableBloom = false, bloomIntensity = 1.5, enableDOF = false, dofFocus = 0.01, dofBokeh = 3, bgColor = '#ffffff', bgImage = null, analyserRef, nutsaGlbs, nutsaGlbScale, nutsaGlbRepeat }: { posts: Post[]; showDoggo?: boolean; doggoScale?: number; doggoX?: number; doggoY?: number; doggoZ?: number; showFigure?: boolean; figureRadius?: number; figureSpeed?: number; figureX?: number; figureY?: number; figureZ?: number; figureScale?: number; figureFacing?: number; figureWireframe?: boolean; wireframeStyle?: WireframeStyle; dotSize?: number; dotColor?: string; dotCount?: number; showVertexImages?: boolean; vertexSettings?: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>; figureStudent?: string | null; figureStudent2?: string | null; figureOrbiting?: boolean; camX?: number; camY?: number; camZ?: number; roomCameraMode?: RoomCameraMode; roomCamFov?: number; roomCamZoom?: number; roomCamXLoop?: boolean; roomCamXLoopSpeed?: number; showWalls?: boolean; meshTexture?: string | null; texScale?: number; texOffsetX?: number; texOffsetY?: number; texRotation?: number; transitionKey?: number; enableDissolve?: boolean; figureRings?: boolean; soloReact?: boolean; graffitiMode?: boolean; graffitiColor?: string; graffitiBrushSize?: number; graffitiClearKey?: number; enableBloom?: boolean; bloomIntensity?: number; enableDOF?: boolean; dofFocus?: number; dofBokeh?: number; bgColor?: string; bgImage?: string | null; analyserRef?: React.RefObject<AnalyserNode | null>; nutsaGlbs?: string[]; nutsaGlbScale?: number; nutsaGlbRepeat?: number }) {
+export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, doggoX = 0, doggoY = 0, doggoZ = 0, showFigure = true, figureRadius = 5, figureSpeed = 0.5, figureX = 0, figureY = 0, figureZ = 0, figureScale = 1, figureFacing = 0, figureWireframe = true, wireframeStyle = 'edges', dotSize = 0.200, dotColor = '#000000', dotCount = 30000, showVertexImages = false, vertexSettings = {} as Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>, figureStudent = null, figureStudent2 = null, figureOrbiting = true, camX = 0, camY = EYE, camZ = 55, roomCameraMode = 'freeroam' as RoomCameraMode, roomCamFov = 72, roomCamZoom = 1, roomCamXLoop = false, roomCamXLoopSpeed = 1, showWalls = false, wallTexture = null, meshTexture = null, texScale = 1, texOffsetX = 0, texOffsetY = 0, texRotation = 0, transitionKey = 0, enableDissolve = false, figureRings = false, soloReact = false, graffitiMode = false, graffitiColor = '#ff2222', graffitiBrushSize = 8, graffitiClearKey = 0, enableBloom = false, bloomIntensity = 1.5, enableDOF = false, dofFocus = 0.01, dofBokeh = 3, bgColor = '#ffffff', bgImage = null, analyserRef, nutsaGlbs, nutsaGlbScale, nutsaGlbRepeat }: { posts: Post[]; showDoggo?: boolean; doggoScale?: number; doggoX?: number; doggoY?: number; doggoZ?: number; showFigure?: boolean; figureRadius?: number; figureSpeed?: number; figureX?: number; figureY?: number; figureZ?: number; figureScale?: number; figureFacing?: number; figureWireframe?: boolean; wireframeStyle?: WireframeStyle; dotSize?: number; dotColor?: string; dotCount?: number; showVertexImages?: boolean; vertexSettings?: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>; figureStudent?: string | null; figureStudent2?: string | null; figureOrbiting?: boolean; camX?: number; camY?: number; camZ?: number; roomCameraMode?: RoomCameraMode; roomCamFov?: number; roomCamZoom?: number; roomCamXLoop?: boolean; roomCamXLoopSpeed?: number; showWalls?: boolean; wallTexture?: string | null; meshTexture?: string | null; texScale?: number; texOffsetX?: number; texOffsetY?: number; texRotation?: number; transitionKey?: number; enableDissolve?: boolean; figureRings?: boolean; soloReact?: boolean; graffitiMode?: boolean; graffitiColor?: string; graffitiBrushSize?: number; graffitiClearKey?: number; enableBloom?: boolean; bloomIntensity?: number; enableDOF?: boolean; dofFocus?: number; dofBokeh?: number; bgColor?: string; bgImage?: string | null; analyserRef?: React.RefObject<AnalyserNode | null>; nutsaGlbs?: string[]; nutsaGlbScale?: number; nutsaGlbRepeat?: number }) {
   return (
     <Canvas
       camera={{ position: [camX, camY, camZ], fov: 72 }}
       dpr={[1, MAX_DPR]}
       style={{ width: '100%', height: '100%', touchAction: 'none', background: bgColor }}
     >
-      <RoomScene posts={posts} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={vertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} showWalls={showWalls} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} />
+      <RoomScene posts={posts} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={vertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} showWalls={showWalls} wallTexture={wallTexture} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} enableDissolve={enableDissolve} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} />
       {(enableBloom || enableDOF) && (
         <EffectComposer>
           {enableBloom ? <Bloom intensity={bloomIntensity} luminanceThreshold={0.2} luminanceSmoothing={0.9} /> : <></>}
