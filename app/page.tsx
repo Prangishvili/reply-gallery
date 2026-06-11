@@ -79,6 +79,10 @@ type AdminSettings = {
   circleCamX: number
   circleCamY: number
   circleCamZ: number
+  circleCamXM: number
+  circleCamYM: number
+  circleCamZM: number
+  circleCamZoomM: number
   circleCamFov: number
   circleCamZoom: number
   circleCamXLoop: boolean
@@ -129,6 +133,10 @@ const ADMIN_DEFAULTS: AdminSettings = {
   circleCamX: 150,
   circleCamY: 4000,
   circleCamZ: -1350,
+  circleCamXM: 0,
+  circleCamYM: 0,
+  circleCamZM: 0,
+  circleCamZoomM: 0,
   circleCamFov: 20,
   circleCamZoom: 1.2,
   circleCamXLoop: false,
@@ -262,7 +270,7 @@ function AdminPanel({
     figureWireframe, wireframeStyle, dotSize, circleDotSize, circleDotSizeMobile, circleShowImages, dotColor, dotCount, circleDotCountMobile,
     meshTexture, texScale, texOffsetX, texOffsetY, texRotation, showVertexImages,
     figureRings,
-    soloReact, circleRadius, circleFigureY, circleCameraMode, circleCamX, circleCamY, circleCamZ,
+    soloReact, circleRadius, circleFigureY, circleCameraMode, circleCamX, circleCamY, circleCamZ, circleCamXM, circleCamYM, circleCamZM, circleCamZoomM,
     circleCamFov, circleCamZoom, circleCamXLoop, circleCamXLoopSpeed, camX, camY, camZ,
     roomCameraMode, roomCamFov, roomCamZoom, roomCamXLoop, roomCamXLoopSpeed, nutsaGlbScale, nutsaGlbRepeat,
   } = admin
@@ -432,6 +440,11 @@ function AdminPanel({
           {circleCameraMode === 'orthographic' && (
             <PanelSlider label="Zoom"    value={circleCamZoom}   min={0.1} max={10} step={0.1} decimals={1} onChange={v => set('circleCamZoom', v)} />
           )}
+          <div style={{ fontSize: 11, color: P.dim, marginBottom: 8, marginTop: 4 }}>Mobile offsets (&lt;1000px)</div>
+          <PanelSlider label="Cam X M"  value={circleCamXM}    min={-1000} max={1000} step={10}   decimals={0} onChange={v => set('circleCamXM', v)} />
+          <PanelSlider label="Cam Y M"  value={circleCamYM}    min={-1000} max={1000} step={10}   decimals={0} onChange={v => set('circleCamYM', v)} />
+          <PanelSlider label="Cam Z M"  value={circleCamZM}    min={-1000} max={1000} step={10}   decimals={0} onChange={v => set('circleCamZM', v)} />
+          <PanelSlider label="Zoom M"   value={circleCamZoomM} min={-1.5}  max={1.5}  step={0.01} decimals={2} onChange={v => set('circleCamZoomM', v)} />
           <div style={{ fontSize: 11, color: P.dim, marginBottom: 8, marginTop: 4 }}>Cam X loop</div>
           <PanelToggle
             options={[{ label: 'On', value: 'on' }, { label: 'Off', value: 'off' }]}
@@ -696,10 +709,12 @@ function HomeInner() {
     figureWireframe, wireframeStyle, dotSize, circleDotSize, circleDotSizeMobile, circleShowImages, dotColor, dotCount, circleDotCountMobile,
     meshTexture, texScale, texOffsetX, texOffsetY, texRotation, showVertexImages,
     figureRings,
-    soloReact, circleRadius, circleFigureY, circleCameraMode, circleCamX, circleCamY, circleCamZ,
+    soloReact, circleRadius, circleFigureY, circleCameraMode, circleCamX, circleCamY, circleCamZ, circleCamXM, circleCamYM, circleCamZM, circleCamZoomM,
     circleCamFov, circleCamZoom, circleCamXLoop, circleCamXLoopSpeed, camX, camY, camZ,
     roomCameraMode, roomCamFov, roomCamZoom, roomCamXLoop, roomCamXLoopSpeed, nutsaGlbScale, nutsaGlbRepeat,
   } = admin
+
+  const isMobileVp = typeof window !== 'undefined' && window.innerWidth < 1000
 
   const [showNames, setShowNames] = useState(true)
   const [nameSize, setNameSize] = useState(10)
@@ -1570,7 +1585,7 @@ Free University of Georgia`}</p>
           <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} />
         )}
         {!loading && mountedView === 'circle' && !selectedStudent && (
-          <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={circleFigureY} showVertexImages={circleShowImages} vertexSettings={studentVertexSettings} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotSizeMobile : circleDotSize} dotColor={dotColor} dotCount={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotCountMobile : dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX} camY={circleCamY} camZ={circleCamZ} camFov={circleCamFov} camZoom={circleCamZoom} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} cameraInfoRef={isAdmin ? circleCameraInfoRef : undefined} soloReact={false} isAdmin={isAdmin} />
+          <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={circleFigureY} showVertexImages={circleShowImages} vertexSettings={studentVertexSettings} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotSizeMobile : circleDotSize} dotColor={dotColor} dotCount={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotCountMobile : dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX + (isMobileVp ? circleCamXM : 0)} camY={circleCamY + (isMobileVp ? circleCamYM : 0)} camZ={circleCamZ + (isMobileVp ? circleCamZM : 0)} camFov={circleCamFov} camZoom={circleCamZoom + (isMobileVp ? circleCamZoomM : 0)} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} cameraInfoRef={isAdmin ? circleCameraInfoRef : undefined} soloReact={false} isAdmin={isAdmin} />
         )}
         {!loading && posts.length > 0 && mountedView === 'globe' && !selectedStudent && (
           <GlobeCanvas
