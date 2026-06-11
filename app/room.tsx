@@ -270,20 +270,36 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
     () => posts.map(p => p.image_url).sort().join('\n'),
     [posts]
   )
+  const loadedUrlsRef = useRef<Set<string>>(new Set())
   useEffect(() => {
     if (posts.length === 0) return
-    const uniqueUrls = [...new Set(posts.map(p => p.image_url))]
+    const uniqueUrls = new Set(posts.map(p => p.image_url))
     let cancelled = false
 
-    const load = async () => {
-      const metaMap = new Map<string, { aspect: number; isSvg: boolean; isGif: boolean }>()
-      await Promise.all(uniqueUrls.map(async url => { metaMap.set(url, await loadImgMeta(url)) }))
-      if (cancelled) return
+    // Drop textures for URLs no longer in the post set
+    setLoadedTex(prev => {
+      let changed = false
+      const keep = new Map(prev)
+      prev.forEach((v, k) => {
+        if (!uniqueUrls.has(k)) { v.tex.dispose(); keep.delete(k); loadedUrlsRef.current.delete(k); changed = true }
+      })
+      gifAnimRef.current.forEach((g, k) => {
+        if (!uniqueUrls.has(k)) {
+          if (g.img.parentNode) g.img.parentNode.removeChild(g.img)
+          gifAnimRef.current.delete(k)
+        }
+      })
+      return changed ? keep : prev
+    })
 
-      const newMap = new Map<string, { tex: THREE.Texture; aspect: number }>()
-      const newGifMap = new Map<string, { img: HTMLImageElement; canvas: HTMLCanvasElement; tex: THREE.CanvasTexture }>()
-      for (const url of uniqueUrls) {
-        const meta = metaMap.get(url)!
+    // Each image goes through the global queue; textures appear progressively
+    uniqueUrls.forEach(url => {
+      if (loadedUrlsRef.current.has(url)) return
+      loadedUrlsRef.current.add(url)
+      queueImageLoad(async () => {
+        if (cancelled) { loadedUrlsRef.current.delete(url); return }
+        const meta = await loadImgMeta(url)
+        if (cancelled) { loadedUrlsRef.current.delete(url); return }
         let tex: THREE.Texture
         if (meta.isSvg) {
           tex = await makeSvgTex(url, meta.aspect, false)
@@ -298,25 +314,28 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
           img.src = url
           const canvasTex = new THREE.CanvasTexture(canvas)
           canvasTex.colorSpace = THREE.SRGBColorSpace
-          newGifMap.set(url, { img, canvas, tex: canvasTex })
+          gifAnimRef.current.set(url, { img, canvas, tex: canvasTex })
           tex = canvasTex
         } else {
           tex = await loadCappedTex(url)
         }
-        if (cancelled) { tex.dispose(); newMap.forEach(v => v.tex.dispose()); return }
-        newMap.set(url, { tex, aspect: meta.aspect })
-      }
-      if (cancelled) { newMap.forEach(v => v.tex.dispose()); return }
-
-      setLoadedTex(prev => {
-        prev.forEach((v, k) => { if (!newMap.has(k)) v.tex.dispose() })
-        return newMap
+        if (cancelled) {
+          tex.dispose()
+          loadedUrlsRef.current.delete(url)
+          const g = gifAnimRef.current.get(url)
+          if (g) {
+            if (g.img.parentNode) g.img.parentNode.removeChild(g.img)
+            gifAnimRef.current.delete(url)
+          }
+          return
+        }
+        setLoadedTex(prev => {
+          const next = new Map(prev)
+          next.set(url, { tex, aspect: meta.aspect })
+          return next
+        })
       })
-      gifAnimRef.current.forEach(({ img }) => { if (img.parentNode) img.parentNode.removeChild(img) })
-      gifAnimRef.current = newGifMap
-    }
-
-    load()
+    })
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlsKey])
@@ -930,12 +949,15 @@ function loadVideoMeta(url: string): Promise<number> {
 }
 
 // Decode an image and downscale to TEX_MAX_DIM before creating the GPU
-// texture — keeps old full-size uploads (1920px+) from exhausting iOS memory
+// texture — keeps old full-size uploads (1920px+) from exhausting iOS memory.
+// img.decode() keeps the decode off the main thread.
 function loadCappedTex(url: string, maxDim = TEX_MAX_DIM): Promise<THREE.Texture> {
   return new Promise(resolve => {
     const img = new window.Image()
     img.crossOrigin = 'anonymous'
-    img.onload = () => {
+    img.decoding = 'async'
+    img.src = url
+    img.decode().then(() => {
       const w = img.naturalWidth || 1, h = img.naturalHeight || 1
       const scale = Math.min(1, maxDim / Math.max(w, h))
       const canvas = document.createElement('canvas')
@@ -945,10 +967,25 @@ function loadCappedTex(url: string, maxDim = TEX_MAX_DIM): Promise<THREE.Texture
       const tex = new THREE.CanvasTexture(canvas)
       tex.colorSpace = THREE.SRGBColorSpace
       resolve(tex)
-    }
-    img.onerror = () => resolve(new THREE.Texture())
-    img.src = url
+    }).catch(() => resolve(new THREE.Texture()))
   })
+}
+
+// Global image-load queue — only a few fetch/decode/GPU-upload cycles run at
+// once, so mounting 12 figures doesn't stall the intro animation
+const MAX_CONCURRENT_IMG_LOADS = IS_MOBILE ? 2 : 4
+let activeImgLoads = 0
+const pendingImgLoads: (() => void)[] = []
+function queueImageLoad(task: () => Promise<void>) {
+  const run = () => {
+    activeImgLoads++
+    task().catch(() => {}).finally(() => {
+      activeImgLoads--
+      pendingImgLoads.shift()?.()
+    })
+  }
+  if (activeImgLoads < MAX_CONCURRENT_IMG_LOADS) run()
+  else pendingImgLoads.push(run)
 }
 
 function makeSvgTex(url: string, aspect: number, flip: boolean): Promise<THREE.CanvasTexture> {
