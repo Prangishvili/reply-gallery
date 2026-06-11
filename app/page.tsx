@@ -1464,7 +1464,7 @@ function HomeInner() {
           <div
             onClick={e => e.stopPropagation()}
             className="about-scroll"
-            style={{ maxWidth: 720, width: '100%', maxHeight: '85vh', overflowY: 'auto' }}
+            style={{ maxWidth: 720, width: '100%', maxHeight: '85vh', overflowY: 'auto', paddingRight: 28 }}
           >
             <p style={{
               fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2,
