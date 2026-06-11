@@ -686,6 +686,18 @@ function HomeInner() {
     }
   }, [])
 
+  // Block iOS Safari's native page pinch-zoom (it ignores the viewport flag
+  // for accessibility) — canvas pinch still reaches OrbitControls
+  useEffect(() => {
+    const prevent = (e: Event) => e.preventDefault()
+    document.addEventListener('gesturestart', prevent)
+    document.addEventListener('gesturechange', prevent)
+    return () => {
+      document.removeEventListener('gesturestart', prevent)
+      document.removeEventListener('gesturechange', prevent)
+    }
+  }, [])
+
   const bgAudioRef = useRef<HTMLAudioElement | null>(null)
   const bgAudioBlobRef = useRef<string | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
