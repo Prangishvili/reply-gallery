@@ -128,7 +128,7 @@ const ADMIN_DEFAULTS: AdminSettings = {
   showVertexImages: true,
   figureRings: false,
   soloReact: false,
-  circleRadius: 340,
+  circleRadius: 370,
   circleFigureY: 200,
   circleCameraMode: 'orthographic',
   circleCamX: 150,
