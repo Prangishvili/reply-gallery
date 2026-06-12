@@ -1006,7 +1006,16 @@ function getCachedTex(url: string): Promise<CachedTex> {
       // Type from the URL extension — uploads always carry one. Avoids a HEAD
       // request per image: Supabase serves HEAD with no-cache, so those round
       // trips hit the network on every single reload.
-      const ext = url.split('?')[0].split('.').pop()?.toLowerCase() ?? ''
+      let ext = url.split('?')[0].split('.').pop()?.toLowerCase() ?? ''
+      // Local share-modal uploads are blob: URLs with no extension — read the
+      // type from the blob itself (local, instant). Without this, SVGs fall
+      // into the bitmap path and rasterize tiny + distorted.
+      if (url.startsWith('blob:')) {
+        try {
+          const type = (await (await fetch(url)).blob()).type
+          ext = type.includes('svg') ? 'svg' : type.includes('gif') ? 'gif' : 'bitmap'
+        } catch { ext = 'bitmap' }
+      }
       if (ext === 'svg') {
         const aspect = await loadImgAspect(url)
         const tex = await makeSvgTex(url, aspect, false)
