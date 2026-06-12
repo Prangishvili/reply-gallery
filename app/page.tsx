@@ -126,7 +126,7 @@ const ADMIN_DEFAULTS: AdminSettings = {
   texOffsetY: 0,
   texRotation: 0,
   showVertexImages: true,
-  figureRings: false,
+  figureRings: true,
   soloReact: false,
   circleRadius: 370,
   circleFigureY: 200,
