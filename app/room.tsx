@@ -927,26 +927,10 @@ function loadCappedTexMeta(url: string, maxDim = TEX_MAX_DIM): Promise<{ tex: TH
     img.decode().then(() => {
       const w = img.naturalWidth || 1, h = img.naturalHeight || 1
       const scale = Math.min(1, maxDim / Math.max(w, h))
-      const tw = Math.max(1, Math.round(w * scale))
-      const th = Math.max(1, Math.round(h * scale))
-      // Step-halve toward the target — a single drawImage from a huge source
-      // (e.g. a freshly-uploaded photo shown via blob URL) aliases badly
-      let src: HTMLCanvasElement | HTMLImageElement = img
-      let sw = w, sh = h
-      while (sw / 2 > tw) {
-        const half = document.createElement('canvas')
-        half.width = Math.max(tw, Math.round(sw / 2))
-        half.height = Math.max(th, Math.round(sh / 2))
-        const hctx = half.getContext('2d')!
-        hctx.imageSmoothingQuality = 'high'
-        hctx.drawImage(src, 0, 0, half.width, half.height)
-        src = half; sw = half.width; sh = half.height
-      }
       const canvas = document.createElement('canvas')
-      canvas.width = tw; canvas.height = th
-      const ctx = canvas.getContext('2d')!
-      ctx.imageSmoothingQuality = 'high'
-      ctx.drawImage(src, 0, 0, tw, th)
+      canvas.width  = Math.max(1, Math.round(w * scale))
+      canvas.height = Math.max(1, Math.round(h * scale))
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
       const tex = new THREE.CanvasTexture(canvas)
       tex.colorSpace = THREE.SRGBColorSpace
       resolve({ tex, aspect: w / h })
