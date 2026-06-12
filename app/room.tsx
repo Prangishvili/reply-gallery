@@ -532,114 +532,118 @@ function FigureWireframe({ scene, style, dotSize, dotColor, dotCount, transition
 
 // ── Vertical-axis rings ────────────────────────────────────────────────────────
 function FigureRings({ scene, ringCount = 40, color = '#000000', analyserRef }: { scene: THREE.Object3D; ringCount?: number; color?: string; analyserRef?: React.RefObject<AnalyserNode | null> }) {
-  const groupRef = useRef<THREE.Group>(null)
+  const ringRefs = useRef<(THREE.LineSegments | null)[]>([])
   const dataArrRef = useRef<Uint8Array | null>(null)
 
+  // Each ring follows its own frequency band — bottom rings move with the
+  // bass, top rings with the highs. Rings expand radially around their own
+  // centroid so off-axis slices don't drift sideways.
   useFrame(() => {
-    let vol = 0
+    let data: Uint8Array | null = null
     if (analyserRef?.current) {
       const a = analyserRef.current
       if (!dataArrRef.current || dataArrRef.current.length !== a.frequencyBinCount) {
         dataArrRef.current = new Uint8Array(a.frequencyBinCount)
       }
       a.getByteFrequencyData(dataArrRef.current as Uint8Array<ArrayBuffer>)
-      let sum = 0
-      for (let i = 0; i < dataArrRef.current.length; i++) sum += dataArrRef.current[i]
-      vol = Math.min((sum / dataArrRef.current.length / 255) * 2, 1)
+      data = dataArrRef.current
     }
-    if (groupRef.current) {
-      const s = 1 + vol * 0.3
-      groupRef.current.scale.set(s, 1, s)
+    const n = rings.length
+    for (let i = 0; i < n; i++) {
+      const obj = ringRefs.current[i]
+      if (!obj) continue
+      let vol = 0
+      if (data) {
+        // Use the lower 60% of the spectrum — the top bins are usually empty
+        const bi = Math.min(data.length - 1, Math.floor((i / n) * data.length * 0.6))
+        vol = data[bi] / 255
+      }
+      // Bottom 5 rings barely move, then ramp smoothly to full reactivity
+      // by ring 12 — no visible jump between damped and free rings
+      const damp = i < 5 ? 0.1 : i < 12 ? 0.1 + ((i - 4) / 8) * 0.9 : 1
+      const s = 1 + vol * 0.4 * damp
+      obj.scale.set(s, 1, s)
+      obj.position.set(rings[i].cx * (1 - s), 0, rings[i].cz * (1 - s))
     }
   })
-  const geo = useMemo(() => {
+
+  const rings = useMemo(() => {
+    // True cross-sections: intersect every mesh triangle with horizontal
+    // planes. Each crossing triangle contributes its exact intersection
+    // segment, so rings follow the real surface — smooth at mesh resolution,
+    // with no binning, centroid estimation, or smoothing heuristics.
     scene.updateMatrixWorld(true)
     const rootInv = new THREE.Matrix4().copy(scene.matrixWorld).invert()
 
-    const verts: { x: number; y: number; z: number }[] = []
+    const tris: number[] = []
+    let minY = Infinity, maxY = -Infinity
+    const _v = new THREE.Vector3()
     scene.traverse(obj => {
       const mesh = obj as THREE.Mesh
       if (!mesh.isMesh) return
       const rel = new THREE.Matrix4().copy(mesh.matrixWorld).premultiply(rootInv)
-      const pos = mesh.geometry.getAttribute('position')
-      for (let i = 0; i < pos.count; i++) {
-        const v = new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(rel)
-        verts.push({ x: v.x, y: v.y, z: v.z })
+      const geoAttr = mesh.geometry.getAttribute('position')
+      if (!geoAttr) return
+      const idx = mesh.geometry.index
+      const triCount = idx ? idx.count / 3 : geoAttr.count / 3
+      for (let t = 0; t < triCount; t++) {
+        for (let c = 0; c < 3; c++) {
+          const i = idx ? idx.getX(t * 3 + c) : t * 3 + c
+          _v.set(geoAttr.getX(i), geoAttr.getY(i), geoAttr.getZ(i)).applyMatrix4(rel)
+          tris.push(_v.x, _v.y, _v.z)
+          if (_v.y < minY) minY = _v.y
+          if (_v.y > maxY) maxY = _v.y
+        }
       }
     })
-    if (verts.length === 0) return new THREE.BufferGeometry()
+    if (tris.length === 0) return []
 
-    let minY = Infinity, maxY = -Infinity
-    for (const v of verts) { if (v.y < minY) minY = v.y; if (v.y > maxY) maxY = v.y }
-
-    const sliceH = (maxY - minY) / ringCount
-    const bins = 64 // angular sectors per ring
-    const ringPts: number[] = []
-
+    const out: { geo: THREE.BufferGeometry; cx: number; cz: number }[] = []
+    // Sample slightly inside the bounds — planes exactly at min/max miss
+    const pad = (maxY - minY) * 0.005
     for (let ri = 0; ri <= ringCount; ri++) {
-      const y = minY + ri * sliceH
-      const band = sliceH * 1.0
-
-      // Centroid of slice
-      let cx = 0, cz = 0, n = 0
-      for (const v of verts) {
-        if (Math.abs(v.y - y) < band) { cx += v.x; cz += v.z; n++ }
-      }
-      if (n < 3) continue
-      cx /= n; cz /= n
-
-      // Per-bin: keep the vertex with maximum radius in each angular sector
-      const binR = new Float32Array(bins).fill(0)
-      const binX = new Float32Array(bins).fill(cx)
-      const binZ = new Float32Array(bins).fill(cz)
-
-      for (const v of verts) {
-        if (Math.abs(v.y - y) >= band) continue
-        const angle = Math.atan2(v.z - cz, v.x - cx) // -π..π
-        const bi = Math.floor(((angle + Math.PI) / (Math.PI * 2)) * bins) % bins
-        const r = Math.sqrt((v.x - cx) ** 2 + (v.z - cz) ** 2)
-        if (r > binR[bi]) { binR[bi] = r; binX[bi] = v.x; binZ[bi] = v.z }
-      }
-
-      // Fill empty bins by interpolating from nearest filled neighbours
-      for (let bi = 0; bi < bins; bi++) {
-        if (binR[bi] > 0) continue
-        let lo = -1, hi = -1
-        for (let d = 1; d < bins; d++) {
-          if (binR[(bi - d + bins) % bins] > 0) { lo = (bi - d + bins) % bins; break }
+      const y = minY + pad + ((maxY - minY) - 2 * pad) * (ri / ringCount)
+      const ringPts: number[] = []
+      for (let t = 0; t < tris.length; t += 9) {
+        const ay = tris[t + 1], by = tris[t + 4], cy = tris[t + 7]
+        if ((ay > y && by > y && cy > y) || (ay < y && by < y && cy < y)) continue
+        // Collect the two points where triangle edges cross the plane
+        let px1 = 0, pz1 = 0, px2 = 0, pz2 = 0, found = 0
+        const edges = [[0, 3], [3, 6], [6, 0]] as const
+        for (const [e1, e2] of edges) {
+          const y1 = tris[t + e1 + 1], y2 = tris[t + e2 + 1]
+          if ((y1 > y) === (y2 > y)) continue
+          const f = (y - y1) / (y2 - y1)
+          const x = tris[t + e1] + (tris[t + e2] - tris[t + e1]) * f
+          const z = tris[t + e1 + 2] + (tris[t + e2 + 2] - tris[t + e1 + 2]) * f
+          if (found === 0) { px1 = x; pz1 = z; found = 1 }
+          else if (found === 1) { px2 = x; pz2 = z; found = 2; break }
         }
-        for (let d = 1; d < bins; d++) {
-          if (binR[(bi + d) % bins] > 0) { hi = (bi + d) % bins; break }
-        }
-        if (lo >= 0 && hi >= 0) {
-          binX[bi] = (binX[lo] + binX[hi]) / 2
-          binZ[bi] = (binZ[lo] + binZ[hi]) / 2
-        } else if (lo >= 0) {
-          binX[bi] = binX[lo]; binZ[bi] = binZ[lo]
-        } else if (hi >= 0) {
-          binX[bi] = binX[hi]; binZ[bi] = binZ[hi]
-        }
+        if (found === 2) ringPts.push(px1, y, pz1, px2, y, pz2)
       }
+      if (ringPts.length === 0) continue
 
-      // Connect bins as a closed polyline
-      for (let bi = 0; bi < bins; bi++) {
-        const ni = (bi + 1) % bins
-        ringPts.push(binX[bi], y, binZ[bi], binX[ni], y, binZ[ni])
-      }
+      let cx = 0, cz = 0
+      const ptCount = ringPts.length / 3
+      for (let i = 0; i < ringPts.length; i += 3) { cx += ringPts[i]; cz += ringPts[i + 2] }
+      cx /= ptCount; cz /= ptCount
+
+      const g = new THREE.BufferGeometry()
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(ringPts), 3))
+      out.push({ geo: g, cx, cz })
     }
-
-    const g = new THREE.BufferGeometry()
-    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(ringPts), 3))
-    return g
+    return out
   }, [scene, ringCount])
 
-  useEffect(() => () => { geo.dispose() }, [geo])
+  useEffect(() => () => { rings.forEach(r => r.geo.dispose()) }, [rings])
 
   return (
-    <group ref={groupRef}>
-      <lineSegments geometry={geo}>
-        <lineBasicMaterial color={color} />
-      </lineSegments>
+    <group>
+      {rings.map((r, i) => (
+        <lineSegments key={i} ref={(el: THREE.LineSegments | null) => { ringRefs.current[i] = el }} geometry={r.geo}>
+          <lineBasicMaterial color={color} />
+        </lineSegments>
+      ))}
     </group>
   )
 }
@@ -1644,6 +1648,7 @@ function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexIm
 
   const rotY = 4.65 + angle + Math.PI
   const vs = vertexSettings[student] ?? { imgSize: 0.025, repeat: 1 }
+  const isSergiFigure = student.trim().toLowerCase().includes('sergi')
 
   const figureCenter = useMemo(() => {
     const box = new THREE.Box3().setFromObject(cloned)
@@ -1656,9 +1661,10 @@ function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexIm
     <group position={[radius * Math.sin(angle), figureY, radius * Math.cos(angle)]} scale={figureScale} rotation={[0, rotY, 0]} frustumCulled={false}>
       <group position={[-figureCenter.x, -figureCenter.y, -figureCenter.z]}>
         <primitive object={cloned} frustumCulled={false} />
-        {showWireframe && (
+        {showWireframe && !isSergiFigure && (
           <FigureWireframe scene={cloned} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} transitionKey={0} />
         )}
+        {isSergiFigure && <FigureRings scene={cloned} analyserRef={analyserRef} />}
         {showVertexImages && posts.length > 0 && (
           <group visible={imagesVisible}>
             <Suspense fallback={null}>
