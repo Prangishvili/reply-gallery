@@ -24,7 +24,7 @@ const STUDENT_VERTEX_DEFAULTS: Record<string, VertexSettings> = {
   'Nodar Gogichaishvili':  { imgSize: 0.200, repeat: 9, audioImgSize: 0.100, audioRepeat: 13, facing: 'camera' },
   'Sesili Gurgenidze':     { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1, facing: 'camera' },
   'Dominika Davshrishovi': { imgSize: 0.275, repeat: 17, audioImgSize: 0.150, audioRepeat: 17, facing: 'camera' },
-  'Nutsa Kavtelishvili':   { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
+  'Nutsa Kavtelishvili':   { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1, facing: 'camera' },
   'Ketevan Lomiashvili':   { imgSize: 0.150, repeat: 7, audioImgSize: 0.100, audioRepeat: 7, facing: 'camera' },
   'Ana Mamniashvili':      { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
   'Sergi Sarajevi':        { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
