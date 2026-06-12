@@ -1042,10 +1042,7 @@ function getCachedTex(url: string): Promise<CachedTex> {
         canvasTex.colorSpace = THREE.SRGBColorSpace
         resolve({ tex: canvasTex, aspect, gif: { img, canvas, tex: canvasTex } })
       } else {
-        // Local (blob:) uploads from the share modal are few per visitor —
-        // give them the SELF-view resolution budget instead of the gallery cap
-        const maxDim = url.startsWith('blob:') ? SELF_TEX_MAX_DIM : TEX_MAX_DIM
-        const { tex, aspect } = await loadCappedTexMeta(url, maxDim)
+        const { tex, aspect } = await loadCappedTexMeta(url)
         resolve({ tex, aspect })
       }
     })
