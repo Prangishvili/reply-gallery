@@ -21,18 +21,18 @@ const STUDENTS = ['Mariam Wulaia','Nodar Gogichaishvili','Sesili Gurgenidze','Do
 // facing: 'camera'           → images always face the camera (old billboard behaviour)
 type VertexSettings = { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }
 const STUDENT_VERTEX_DEFAULTS: Record<string, VertexSettings> = {
-  'Nodar Gogichaishvili':  { imgSize: 0.260, repeat: 9, audioImgSize: 0.160, audioRepeat: 13, facing: 'camera' },
+  'Nodar Gogichaishvili':  { imgSize: 0.200, repeat: 9, audioImgSize: 0.100, audioRepeat: 13, facing: 'camera' },
   'Sesili Gurgenidze':     { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1, facing: 'camera' },
   'Dominika Davshrishovi': { imgSize: 0.275, repeat: 17, audioImgSize: 0.150, audioRepeat: 17, facing: 'camera' },
   'Nutsa Kavtelishvili':   { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
-  'Ketevan Lomiashvili':   { imgSize: 0.180, repeat: 7, audioImgSize: 0.125, audioRepeat: 7, facing: 'camera' },
+  'Ketevan Lomiashvili':   { imgSize: 0.150, repeat: 7, audioImgSize: 0.100, audioRepeat: 7, facing: 'camera' },
   'Ana Mamniashvili':      { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
   'Sergi Sarajevi':        { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
   'Natali Chixelidze':     { imgSize: 0.155, repeat: 15, audioImgSize: 0.100, audioRepeat: 17, facing: 'camera' },
   'Salome Shalvashvili':   { imgSize: 0.060, repeat: 17, audioImgSize: 0.060, audioRepeat: 17, facing: 'camera' },
-  'Bako Shengelia':        { imgSize: 0.090, repeat: 30, audioImgSize: 0.090, audioRepeat: 17, facing: 'normal' },
-  'Mariam Wulaia':         { imgSize: 0.070, repeat: 5, audioImgSize: 0.050, audioRepeat: 5, facing: 'camera'},
-  'Mariam Qsovreli':       { imgSize: 0.120, repeat: 19, audioImgSize: 0.090, audioRepeat: 15, facing: 'normal' },
+  'Bako Shengelia':        { imgSize: 0.090, repeat: 30, audioImgSize: 0.090, audioRepeat: 17, facing: 'camera' },
+  'Mariam Wulaia':         { imgSize: 0.065, repeat: 5, audioImgSize: 0.050, audioRepeat: 5, facing: 'camera'},
+  'Mariam Qsovreli':       { imgSize: 0.135, repeat: 15, audioImgSize: 0.090, audioRepeat: 15, facing: 'camera' },
 }
 
 type ImageItem = { file: File; preview: string; caption: string }
