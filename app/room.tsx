@@ -910,10 +910,11 @@ function loadVideoMeta(url: string): Promise<number> {
   })
 }
 
-// Decode an image and downscale to TEX_MAX_DIM before creating the GPU
+// Decode an image once and downscale to TEX_MAX_DIM before creating the GPU
 // texture — keeps old full-size uploads (1920px+) from exhausting iOS memory.
-// img.decode() keeps the decode off the main thread.
-function loadCappedTex(url: string, maxDim = TEX_MAX_DIM): Promise<THREE.Texture> {
+// img.decode() keeps the decode off the main thread; aspect comes from the
+// same decode so no extra fetch is needed.
+function loadCappedTexMeta(url: string, maxDim = TEX_MAX_DIM): Promise<{ tex: THREE.Texture; aspect: number }> {
   return new Promise(resolve => {
     const img = new window.Image()
     img.crossOrigin = 'anonymous'
@@ -928,9 +929,12 @@ function loadCappedTex(url: string, maxDim = TEX_MAX_DIM): Promise<THREE.Texture
       canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
       const tex = new THREE.CanvasTexture(canvas)
       tex.colorSpace = THREE.SRGBColorSpace
-      resolve(tex)
-    }).catch(() => resolve(new THREE.Texture()))
+      resolve({ tex, aspect: w / h })
+    }).catch(() => resolve({ tex: new THREE.Texture(), aspect: 1 }))
   })
+}
+function loadCappedTex(url: string, maxDim = TEX_MAX_DIM): Promise<THREE.Texture> {
+  return loadCappedTexMeta(url, maxDim).then(r => r.tex)
 }
 
 // Global image-load queue — bounds concurrent fetch/decode/GPU-upload cycles
@@ -978,30 +982,48 @@ type CachedTex = {
   gif?: { img: HTMLImageElement; canvas: HTMLCanvasElement; tex: THREE.CanvasTexture }
 }
 const texCache = new Map<string, Promise<CachedTex>>()
+
+// Aspect via a plain image decode — the file is then in the browser cache, so
+// the texture pass that follows reuses it without another network round trip
+function loadImgAspect(url: string): Promise<number> {
+  return new Promise(resolve => {
+    const img = new window.Image()
+    img.onload  = () => resolve((img.naturalWidth || 1) / (img.naturalHeight || 1))
+    img.onerror = () => resolve(1)
+    img.src = url
+  })
+}
+
 function getCachedTex(url: string): Promise<CachedTex> {
   let p = texCache.get(url)
   if (p) return p
   p = new Promise<CachedTex>(resolve => {
     queueImageLoad(async () => {
-      const meta = await loadImgMeta(url)
-      if (meta.isSvg) {
-        const tex = await makeSvgTex(url, meta.aspect, false)
-        resolve({ tex, aspect: meta.aspect })
-      } else if (meta.isGif) {
-        const tW = 512, tH = Math.max(1, Math.round(tW / meta.aspect))
-        const canvas = document.createElement('canvas')
-        canvas.width = tW; canvas.height = tH
+      // Type from the URL extension — uploads always carry one. Avoids a HEAD
+      // request per image: Supabase serves HEAD with no-cache, so those round
+      // trips hit the network on every single reload.
+      const ext = url.split('?')[0].split('.').pop()?.toLowerCase() ?? ''
+      if (ext === 'svg') {
+        const aspect = await loadImgAspect(url)
+        const tex = await makeSvgTex(url, aspect, false)
+        resolve({ tex, aspect })
+      } else if (ext === 'gif') {
         const img = new window.Image()
         // Must be in DOM for the browser to advance GIF animation frames
         img.style.cssText = 'position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:-9999px;left:-9999px'
         document.body.appendChild(img)
         img.src = url
+        await new Promise<void>(r => { img.onload = () => r(); img.onerror = () => r() })
+        const aspect = (img.naturalWidth || 1) / (img.naturalHeight || 1)
+        const tW = 512, tH = Math.max(1, Math.round(tW / aspect))
+        const canvas = document.createElement('canvas')
+        canvas.width = tW; canvas.height = tH
         const canvasTex = new THREE.CanvasTexture(canvas)
         canvasTex.colorSpace = THREE.SRGBColorSpace
-        resolve({ tex: canvasTex, aspect: meta.aspect, gif: { img, canvas, tex: canvasTex } })
+        resolve({ tex: canvasTex, aspect, gif: { img, canvas, tex: canvasTex } })
       } else {
-        const tex = await loadCappedTex(url)
-        resolve({ tex, aspect: meta.aspect })
+        const { tex, aspect } = await loadCappedTexMeta(url)
+        resolve({ tex, aspect })
       }
     })
   })
