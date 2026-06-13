@@ -22,12 +22,12 @@ const STUDENTS = ['Mariam Wulaia','Nodar Gogichaishvili','Sesili Gurgenidze','Do
 type VertexSettings = { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }
 const STUDENT_VERTEX_DEFAULTS: Record<string, VertexSettings> = {
   'Nodar Gogichaishvili':  { imgSize: 0.200, repeat: 9, audioImgSize: 0.100, audioRepeat: 13, facing: 'camera' },
-  'Sesili Gurgenidze':     { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1, facing: 'camera' },
+  'Sesili Gurgenidze':     { imgSize: 0.395, repeat: 11, audioImgSize: 0.255, audioRepeat: 11, facing: 'camera' },
   'Dominika Davshrishovi': { imgSize: 0.275, repeat: 17, audioImgSize: 0.150, audioRepeat: 17, facing: 'camera' },
   'Nutsa Kavtelishvili':   { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1, facing: 'camera' },
   'Ketevan Lomiashvili':   { imgSize: 0.150, repeat: 7, audioImgSize: 0.100, audioRepeat: 7, facing: 'camera' },
-  'Ana Mamniashvili':      { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
-  'Sergi Sarajevi':        { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1 },
+  'Ana Mamniashvili':      { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1, facing: 'camera'},
+  'Sergi Sarajevi':        { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1, facing: 'camera' },
   'Natali Chixelidze':     { imgSize: 0.155, repeat: 15, audioImgSize: 0.100, audioRepeat: 17, facing: 'camera' },
   'Salome Shalvashvili':   { imgSize: 0.060, repeat: 17, audioImgSize: 0.060, audioRepeat: 17, facing: 'camera' },
   'Bako Shengelia':        { imgSize: 0.090, repeat: 30, audioImgSize: 0.090, audioRepeat: 17, facing: 'camera' },
@@ -128,7 +128,7 @@ const ADMIN_DEFAULTS: AdminSettings = {
   showVertexImages: true,
   figureRings: true,
   soloReact: false,
-  circleRadius: 370,
+  circleRadius: 500,
   circleFigureY: 200,
   circleCameraMode: 'orthographic',
   circleCamX: 150,
@@ -804,7 +804,7 @@ function HomeInner() {
     const fromCamY = circleCamYRef.current
     const fromZoom = circleCamZoomRef.current
     const fromFigY = circleFigureYRef.current
-    const targetZoom = window.innerWidth < 1000 ? 0.6 : 1.8
+    const targetZoom = window.innerWidth < 1000 ? 0.6 : 1.4
     const duration = 5000
     const start = performance.now()
     const tick = (now: number) => {
@@ -1537,7 +1537,7 @@ Visitors are also invited to construct their own version, to reply, and in that 
               color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em',
               whiteSpace: 'pre-line',
             }}>{`Students
-Mariam Wulaia, Nodar Gogichaishvili, Sesili Gurgenidze, Dominika Davshrishovi, Salome Shalvashvili, Nutsa Kavtelishvili, Ketevan Lomiashvili, Mariam Qsovreli, Ana Mamniashvili, Bako Shengelia, Sergi Sarajevi, Natali Chixelidze
+Mariam Wulaia, Nodar Gogichaishvili,  Dominika Davshrishovi, Salome Shalvashvili, Nutsa Kavtelishvili, Ketevan Lomiashvili, Mariam Qsovreli, Ana Mamniashvili, Bako Shengelia, Sergi Sarajevi, Natali Chixelidze
 
 Lecturer
 Oto Prangishvili`}</p>

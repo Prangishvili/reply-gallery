@@ -31,6 +31,9 @@ export default function RootLayout({
       lang="en"
       className={`${dmMono.variable} h-full overflow-hidden antialiased`}
     >
+      <head>
+        <link rel="preload" href="/figure.glb" as="fetch" crossOrigin="anonymous" />
+      </head>
       <body className="h-full overflow-hidden">{children}</body>
     </html>
   );
