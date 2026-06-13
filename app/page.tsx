@@ -19,20 +19,20 @@ const STUDENTS = ['Mariam Wulaia','Nodar Gogichaishvili','Sesili Gurgenidze','Do
 // audioImgSize / audioRepeat → used when audio is playing (omit to keep same as static)
 // facing: 'normal'           → images lie flat on the mesh surface
 // facing: 'camera'           → images always face the camera (old billboard behaviour)
-type VertexSettings = { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }
+type VertexSettings = { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal'; driftSpeed?: number; driftAmp?: number; driftEnabled?: boolean }
 const STUDENT_VERTEX_DEFAULTS: Record<string, VertexSettings> = {
-  'Nodar Gogichaishvili':  { imgSize: 0.200, repeat: 9, audioImgSize: 0.100, audioRepeat: 13, facing: 'camera' },
-  'Sesili Gurgenidze':     { imgSize: 0.395, repeat: 11, audioImgSize: 0.255, audioRepeat: 11, facing: 'camera' },
-  'Dominika Davshrishovi': { imgSize: 0.275, repeat: 17, audioImgSize: 0.150, audioRepeat: 17, facing: 'camera' },
-  'Nutsa Kavtelishvili':   { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1, facing: 'camera' },
-  'Ketevan Lomiashvili':   { imgSize: 0.150, repeat: 7, audioImgSize: 0.100, audioRepeat: 7, facing: 'camera' },
-  'Ana Mamniashvili':      { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1, facing: 'camera'},
-  'Sergi Sarajevi':        { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1, facing: 'camera' },
-  'Natali Chixelidze':     { imgSize: 0.155, repeat: 15, audioImgSize: 0.100, audioRepeat: 17, facing: 'camera' },
-  'Salome Shalvashvili':   { imgSize: 0.060, repeat: 17, audioImgSize: 0.060, audioRepeat: 17, facing: 'camera' },
-  'Bako Shengelia':        { imgSize: 0.090, repeat: 30, audioImgSize: 0.090, audioRepeat: 17, facing: 'camera' },
-  'Mariam Wulaia':         { imgSize: 0.065, repeat: 5, audioImgSize: 0.050, audioRepeat: 5, facing: 'camera'},
-  'Mariam Qsovreli':       { imgSize: 0.135, repeat: 15, audioImgSize: 0.090, audioRepeat: 15, facing: 'camera' },
+  'Nodar Gogichaishvili':  { imgSize: 0.200, repeat: 9, driftSpeed: 6.5, driftAmp: 1.2, audioImgSize: 0.100, audioRepeat: 13, facing: 'camera', driftEnabled: true },
+  'Sesili Gurgenidze':     { imgSize: 0.170, repeat: 11, audioImgSize: 0.110, audioRepeat: 11, facing: 'camera', driftEnabled: true },
+  'Dominika Davshrishovi': { imgSize: 0.275, repeat: 17, audioImgSize: 0.150, audioRepeat: 17, facing: 'camera', driftEnabled: true },
+  'Nutsa Kavtelishvili':   { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1, facing: 'camera', driftEnabled: false },
+  'Ketevan Lomiashvili':   { imgSize: 0.150, repeat: 7, audioImgSize: 0.100, audioRepeat: 7, facing: 'camera', driftEnabled: false },
+  'Ana Mamniashvili':      { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1, facing: 'camera', driftEnabled: false },
+  'Sergi Sarajevi':        { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1, facing: 'camera', driftEnabled: false },
+  'Natali Chixelidze':     { imgSize: 0.155, repeat: 15, audioImgSize: 0.100, audioRepeat: 17, facing: 'camera', driftEnabled: false },
+  'Salome Shalvashvili':   { imgSize: 0.095, repeat: 11, audioImgSize: 0.065, audioRepeat: 11, facing: 'camera', driftEnabled: false },
+  'Bako Shengelia':        { imgSize: 0.090, repeat: 30, audioImgSize: 0.090, audioRepeat: 17, facing: 'camera', driftEnabled: false },
+  'Mariam Wulaia':         { imgSize: 0.065, repeat: 5, audioImgSize: 0.050, audioRepeat: 5, facing: 'camera', driftEnabled: false},
+  'Mariam Qsovreli':       { imgSize: 0.135, repeat: 15, audioImgSize: 0.090, audioRepeat: 15, facing: 'camera', driftEnabled: false },
 }
 
 type ImageItem = { file: File; preview: string; caption: string }
@@ -72,8 +72,10 @@ type AdminSettings = {
   texRotation: number
   showVertexImages: boolean
   figureRings: boolean
+  figureDrift: boolean
   soloReact: boolean
   circleRadius: number
+  circleFigureFacing: number
   circleFigureY: number
   circleCameraMode: CircleCameraMode
   circleCamX: number
@@ -127,8 +129,10 @@ const ADMIN_DEFAULTS: AdminSettings = {
   texRotation: 0,
   showVertexImages: true,
   figureRings: true,
+  figureDrift: false,
   soloReact: false,
   circleRadius: 500,
+  circleFigureFacing: 4.65,
   circleFigureY: 200,
   circleCameraMode: 'orthographic',
   circleCamX: 150,
@@ -248,6 +252,8 @@ function AdminPanel({
   nutsaGlbs, setNutsaGlbs,
   phase,
   hidden,
+  circleFacing, setCircleFacing,
+  studentVertexSettings, updateStudentVS,
 }: {
   admin: AdminSettings
   setAdmin: React.Dispatch<React.SetStateAction<AdminSettings>>
@@ -263,6 +269,8 @@ function AdminPanel({
   nutsaGlbs: string[]; setNutsaGlbs: React.Dispatch<React.SetStateAction<string[]>>
   phase: Phase
   hidden: boolean
+  circleFacing: 'camera' | 'normal'; setCircleFacing: (v: 'camera' | 'normal') => void
+  studentVertexSettings: Record<string, VertexSettings>; updateStudentVS: (name: string, updates: Partial<VertexSettings>) => void
 }) {
   const set = <K extends keyof AdminSettings>(key: K, value: AdminSettings[K]) =>
     setAdmin(prev => ({ ...prev, [key]: value }))
@@ -271,8 +279,8 @@ function AdminPanel({
     showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing,
     figureWireframe, wireframeStyle, dotSize, circleDotSize, circleDotSizeMobile, circleShowImages, dotColor, dotCount, circleDotCountMobile,
     meshTexture, texScale, texOffsetX, texOffsetY, texRotation, showVertexImages,
-    figureRings,
-    soloReact, circleRadius, circleFigureY, circleCameraMode, circleCamX, circleCamY, circleCamZ, circleCamXM, circleCamYM, circleCamZM, circleCamZoomM, circleFigureYM,
+    figureRings, figureDrift,
+    soloReact, circleRadius, circleFigureFacing, circleFigureY, circleCameraMode, circleCamX, circleCamY, circleCamZ, circleCamXM, circleCamYM, circleCamZM, circleCamZoomM, circleFigureYM,
     circleCamFov, circleCamZoom, circleCamXLoop, circleCamXLoopSpeed, camX, camY, camZ,
     roomCameraMode, roomCamFov, roomCamZoom, roomCamXLoop, roomCamXLoopSpeed, nutsaGlbScale, nutsaGlbRepeat,
   } = admin
@@ -395,6 +403,12 @@ function AdminPanel({
             )}
           </>
         )}
+        <div style={{ fontSize: 11, color: P.dim, marginBottom: 8 }}>Image drift</div>
+        <PanelToggle
+          options={[{ label: 'On', value: 'on' }, { label: 'Off', value: 'off' }]}
+          value={figureDrift ? 'on' : 'off'}
+          onChange={v => set('figureDrift', v === 'on')}
+        />
         <div style={{ fontSize: 11, color: P.dim, marginBottom: 8 }}>Sergi rings</div>
         <PanelToggle
           options={[{ label: 'On', value: 'on' }, { label: 'Off', value: 'off' }]}
@@ -457,8 +471,9 @@ function AdminPanel({
           {circleCamXLoop && (
             <PanelSlider label="Speed"   value={circleCamXLoopSpeed} min={0.1} max={10} step={0.1} decimals={1} onChange={v => set('circleCamXLoopSpeed', v)} />
           )}
-          <PanelSlider label="Circle R"  value={circleRadius}    min={100}  max={1500} step={10}  decimals={0} onChange={v => set('circleRadius', v)} />
-          <PanelSlider label="Figure Y"  value={circleFigureY}   min={-500} max={500}  step={1}   decimals={0} onChange={v => set('circleFigureY', v)} />
+          <PanelSlider label="Circle R"  value={circleRadius}      min={100}  max={1500} step={10}   decimals={0}  onChange={v => set('circleRadius', v)} />
+          <PanelSlider label="Facing"    value={circleFigureFacing} min={0}    max={6.28} step={0.05} decimals={2}  onChange={v => set('circleFigureFacing', v)} />
+          <PanelSlider label="Figure Y"  value={circleFigureY}     min={-500} max={500}  step={1}    decimals={0}  onChange={v => set('circleFigureY', v)} />
           <PanelSlider label="Dot size"  value={circleDotSize}   min={0.001} max={1}   step={0.001} decimals={3} onChange={v => set('circleDotSize', v)} />
           <PanelSlider label="Dot size M" value={circleDotSizeMobile} min={0.001} max={2} step={0.001} decimals={3} onChange={v => set('circleDotSizeMobile', v)} />
           <PanelSlider label="Dot count M" value={circleDotCountMobile} min={100} max={50000} step={100} decimals={0} onChange={v => set('circleDotCountMobile', v)} />
@@ -467,6 +482,12 @@ function AdminPanel({
             options={[{ label: 'Show', value: 'show' }, { label: 'Hide', value: 'hide' }]}
             value={circleShowImages ? 'show' : 'hide'}
             onChange={v => set('circleShowImages', v === 'show')}
+          />
+          <div style={{ fontSize: 11, color: P.dim, marginBottom: 6, marginTop: 10 }}>Facing</div>
+          <PanelToggle
+            options={[{ label: 'Camera', value: 'camera' }, { label: 'Surface', value: 'normal' }]}
+            value={circleFacing}
+            onChange={v => setCircleFacing(v as 'camera' | 'normal')}
           />
           {circleCameraInfoRef && (
             <div style={{ marginTop: 8 }}>
@@ -546,6 +567,48 @@ function AdminPanel({
                   }} />
                 </label>
               )}
+            </div>
+          )
+        })}
+      </PanelSection>
+
+      <PanelSection title="Student drift">
+        {STUDENTS.filter(s => s !== 'SELF').map(name => {
+          const vs = studentVertexSettings[name] ?? {}
+          const enabled = vs.driftEnabled !== false
+          const speed = vs.driftSpeed ?? 1
+          const amp   = vs.driftAmp   ?? 0.5
+          return (
+            <div key={name} style={{ marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <span style={{ fontSize: 10, color: enabled ? P.dim : P.low, flex: 1 }}>{name.split(' ')[0]}</span>
+                <button
+                  onClick={() => updateStudentVS(name, { driftEnabled: !enabled })}
+                  style={{
+                    fontFamily: P.font, fontSize: 9, letterSpacing: 0.5, padding: '2px 7px',
+                    background: enabled ? P.accent : 'transparent',
+                    color: enabled ? '#000' : P.low,
+                    border: `1px solid ${enabled ? P.accent : P.border}`,
+                    cursor: 'pointer', flexShrink: 0,
+                  }}
+                >{enabled ? 'on' : 'off'}</button>
+              </div>
+              {enabled && (<>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                  <span style={{ fontSize: 9, color: P.low, width: 36, flexShrink: 0 }}>speed</span>
+                  <input type="range" min={0} max={3} step={0.05} value={speed}
+                    onChange={e => updateStudentVS(name, { driftSpeed: Number(e.target.value) })}
+                    style={{ flex: 1, accentColor: P.accent, cursor: 'pointer' }} />
+                  <span style={{ fontSize: 9, color: P.text, width: 28, textAlign: 'right' as const, fontVariantNumeric: 'tabular-nums' }}>{speed.toFixed(2)}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 9, color: P.low, width: 36, flexShrink: 0 }}>dist</span>
+                  <input type="range" min={0} max={3} step={0.05} value={amp}
+                    onChange={e => updateStudentVS(name, { driftAmp: Number(e.target.value) })}
+                    style={{ flex: 1, accentColor: P.accent, cursor: 'pointer' }} />
+                  <span style={{ fontSize: 9, color: P.text, width: 28, textAlign: 'right' as const, fontVariantNumeric: 'tabular-nums' }}>{amp.toFixed(2)}</span>
+                </div>
+              </>)}
             </div>
           )
         })}
@@ -723,8 +786,8 @@ function HomeInner() {
     showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing,
     figureWireframe, wireframeStyle, dotSize, circleDotSize, circleDotSizeMobile, circleShowImages, dotColor, dotCount, circleDotCountMobile,
     meshTexture, texScale, texOffsetX, texOffsetY, texRotation, showVertexImages,
-    figureRings,
-    soloReact, circleRadius, circleFigureY, circleCameraMode, circleCamX, circleCamY, circleCamZ, circleCamXM, circleCamYM, circleCamZM, circleCamZoomM, circleFigureYM,
+    figureRings, figureDrift,
+    soloReact, circleRadius, circleFigureFacing, circleFigureY, circleCameraMode, circleCamX, circleCamY, circleCamZ, circleCamXM, circleCamYM, circleCamZM, circleCamZoomM, circleFigureYM,
     circleCamFov, circleCamZoom, circleCamXLoop, circleCamXLoopSpeed, camX, camY, camZ,
     roomCameraMode, roomCamFov, roomCamZoom, roomCamXLoop, roomCamXLoopSpeed, nutsaGlbScale, nutsaGlbRepeat,
   } = admin
@@ -1206,6 +1269,8 @@ function HomeInner() {
             { label: 'Repeat',           value: getVS(figureStudent).repeat,         min: 1,     max: 20, step: 1,     dec: 0, set: (v: number) => setVSKey(figureStudent, 'repeat', v)  },
             { label: 'Audio image size', value: getVS(figureStudent).audioImgSize ?? getVS(figureStudent).imgSize, min: 0.005, max: 3,  step: 0.005, dec: 3, set: (v: number) => setVSKey(figureStudent, 'audioImgSize', v) },
             { label: 'Audio repeat',     value: getVS(figureStudent).audioRepeat  ?? getVS(figureStudent).repeat,  min: 1,     max: 20, step: 1,     dec: 0, set: (v: number) => setVSKey(figureStudent, 'audioRepeat', v)  },
+            { label: 'Drift speed',      value: getVS(figureStudent).driftSpeed   ?? 1,    min: 0, max: 3,  step: 0.05,  dec: 2, set: (v: number) => setVSKey(figureStudent, 'driftSpeed', v)  },
+            { label: 'Drift distance',   value: getVS(figureStudent).driftAmp     ?? 0.5,  min: 0, max: 3,  step: 0.05,  dec: 2, set: (v: number) => setVSKey(figureStudent, 'driftAmp', v)    },
           ] as { label: string; value: number; min: number; max: number; step: number; dec: number; set: (v: number) => void }[]).map(({ label, value, min, max, step, dec, set }) => (
             <div key={label} style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -1621,10 +1686,10 @@ Oto Prangishvili`}</p>
           </div>
         )}
         {!loading && mountedView === 'room' && !selectedStudent && (
-          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} />
+          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} drift={figureDrift} />
         )}
         {!loading && mountedView === 'circle' && !selectedStudent && (
-          <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={circleFigureY + (isMobileVp ? circleFigureYM : 0)} showVertexImages={circleShowImages && introImagesReady} vertexSettings={studentVertexSettings} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotSizeMobile : circleDotSize} dotColor={dotColor} dotCount={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotCountMobile : dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX + (isMobileVp ? circleCamXM : 0)} camY={circleCamY + (isMobileVp ? circleCamYM : 0)} camZ={circleCamZ + (isMobileVp ? circleCamZM : 0)} camFov={circleCamFov} camZoom={circleCamZoom + (isMobileVp ? circleCamZoomM : 0)} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} cameraInfoRef={isAdmin ? circleCameraInfoRef : undefined} soloReact={false} isAdmin={isAdmin} frameloop={phase === 'entry' ? 'demand' : 'always'} />
+          <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={circleFigureY + (isMobileVp ? circleFigureYM : 0)} figureFacing={circleFigureFacing} drift={figureDrift} showVertexImages={circleShowImages && introImagesReady} vertexSettings={studentVertexSettings} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotSizeMobile : circleDotSize} dotColor={dotColor} dotCount={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotCountMobile : dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX + (isMobileVp ? circleCamXM : 0)} camY={circleCamY + (isMobileVp ? circleCamYM : 0)} camZ={circleCamZ + (isMobileVp ? circleCamZM : 0)} camFov={circleCamFov} camZoom={circleCamZoom + (isMobileVp ? circleCamZoomM : 0)} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} cameraInfoRef={isAdmin ? circleCameraInfoRef : undefined} soloReact={false} isAdmin={isAdmin} frameloop={phase === 'entry' ? 'demand' : 'always'} />
         )}
         {!loading && posts.length > 0 && mountedView === 'globe' && !selectedStudent && (
           <GlobeCanvas
@@ -1657,7 +1722,7 @@ Oto Prangishvili`}</p>
 
         {/* Personal student room */}
         {mountedStudent && (
-          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} />
+          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} drift={figureDrift} />
         )}
       </div>
 
@@ -1788,6 +1853,12 @@ Oto Prangishvili`}</p>
           nutsaGlbs={nutsaGlbs} setNutsaGlbs={setNutsaGlbs}
           hidden={panelHidden}
           phase={phase}
+          circleFacing={studentVertexSettings[STUDENTS[0]]?.facing ?? 'camera'}
+          setCircleFacing={v => setStudentVertexSettings(p => Object.fromEntries(
+            STUDENTS.map(s => [s, { ...(p[s] ?? DEF_VS), facing: v }])
+          ))}
+          studentVertexSettings={studentVertexSettings}
+          updateStudentVS={(name, updates) => setStudentVertexSettings(p => ({ ...p, [name]: { ...(p[name] ?? DEF_VS), ...updates } }))}
         />
       )}
 

@@ -9,6 +9,22 @@ import { Post } from '@/lib/supabase'
 import { NoiseGlobe } from './globe'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
+// Outer circle r / (viewBox_width / 2) for each of Sesili's SVGs
+function parseSvgRadiusFraction(svgText: string): number {
+  try {
+    const doc = new DOMParser().parseFromString(svgText, 'image/svg+xml')
+    const vb = doc.querySelector('svg')?.getAttribute('viewBox')?.trim().split(/\s+/).map(Number)
+    if (!vb || vb.length < 4 || vb[2] <= 0) return 1
+    const halfW = vb[2] / 2
+    let maxR = 0
+    doc.querySelectorAll('circle').forEach(c => {
+      const r = parseFloat(c.getAttribute('r') ?? '0')
+      if (r > maxR) maxR = r
+    })
+    return maxR > 0 ? maxR / halfW : 1
+  } catch { return 1 }
+}
+
 const W   = 480   // room width = depth (square)
 const H   = 400   // room height
 const D   = W     // square floor plan
@@ -210,7 +226,7 @@ function sampleVerticesWithNormals(root: THREE.Object3D, count: number): { pos: 
   return result
 }
 
-function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRepeat, facing = 'normal', analyserRef }: { scene: THREE.Object3D; posts: Post[]; size: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal'; analyserRef?: React.RefObject<AnalyserNode | null> }) {
+function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRepeat, facing = 'normal', analyserRef, showConnections = false, drift = false, driftSpeed = 1, driftAmp = 0.5 }: { scene: THREE.Object3D; posts: Post[]; size: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal'; analyserRef?: React.RefObject<AnalyserNode | null>; showConnections?: boolean; drift?: boolean; driftSpeed?: number; driftAmp?: number }) {
   const [isAudioActive, setIsAudioActive] = useState(false)
   const isAudioActiveRef = useRef(false)
   const effectiveRepeat = isAudioActive && audioRepeat != null ? audioRepeat : repeat
@@ -225,16 +241,29 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
     [scene, repeatedPosts.length]
   )
 
-  const meshMap     = useRef<Map<number, THREE.Mesh>>(new Map())
-  const dataArrRef  = useRef<Uint8Array | null>(null)
-  const gifAnimRef  = useRef<Map<string, { img: HTMLImageElement; canvas: HTMLCanvasElement; tex: THREE.CanvasTexture }>>(new Map())
+  const meshMap        = useRef<Map<number, THREE.Mesh>>(new Map())
+  const dataArrRef     = useRef<Uint8Array | null>(null)
+  const gifAnimRef     = useRef<Map<string, { img: HTMLImageElement; canvas: HTMLCanvasElement; tex: THREE.CanvasTexture }>>(new Map())
+  const driftRef       = useRef<{ dx: number; dy: number; dz: number; phase: number; speed: number }[]>([])
+  const clockRef       = useRef(0)
+  const connectionsRef = useRef<[number, number][]>([])
+  const lineGeoRef     = useRef(new THREE.BufferGeometry())
+  const lineGroupRef   = useRef<THREE.Group | null>(null)
+  const _cvd  = useRef(new THREE.Vector3())
+  const _cdl  = useRef(new THREE.Vector3())
+  const _imat = useRef(new THREE.Matrix4())
+  const _cdir = useRef(new THREE.Vector3())
+  const _cper = useRef(new THREE.Vector3())
+  const _tA   = useRef(new THREE.Vector3())
+  const _tB   = useRef(new THREE.Vector3())
+  const { camera } = useThree()
 
   // Textures keyed by URL — only reloaded when the set of post URLs actually changes
-  const [loadedTex, setLoadedTex] = useState<Map<string, { tex: THREE.Texture; aspect: number }>>(new Map())
+  const [loadedTex, setLoadedTex] = useState<Map<string, { tex: THREE.Texture; aspect: number; svgRadiusFraction?: number }>>(new Map())
   // Per-sprite data built synchronously from loadedTex + vertices — no network needed on repeat change
   const [spriteData, setSpriteData] = useState<{ tex: THREE.Texture; aspect: number }[]>([])
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     gifAnimRef.current.forEach(({ img, canvas, tex }) => {
       if (img.complete && img.naturalWidth > 0) {
         canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
@@ -263,6 +292,64 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
       const s = activeSize * (1 + vol * 3)
       mesh.scale.set(s * aspect, s, 1)
     })
+    if ((showConnections || drift) && driftRef.current.length > 0) {
+      clockRef.current += delta
+      const amp = size * driftAmp
+      meshMap.current.forEach((mesh, i) => {
+        const d = driftRef.current[i]
+        const v = vertices[i]
+        if (!d || !v) return
+        const t = Math.sin(clockRef.current * d.speed * Math.PI * 2 + d.phase) * amp
+        mesh.position.set(
+          v.pos.x + v.normal.x * 0.02 + d.dx * t,
+          v.pos.y + v.normal.y * 0.02 + d.dy * t,
+          v.pos.z + v.normal.z * 0.02 + d.dz * t,
+        )
+      })
+    }
+    if (showConnections && connectionsRef.current.length > 0 && lineGroupRef.current) {
+      const attr = lineGeoRef.current.getAttribute('position') as THREE.BufferAttribute | null
+      if (attr) {
+        // Camera direction in local space of the figure group
+        camera.getWorldDirection(_cvd.current)
+        _imat.current.copy(lineGroupRef.current.matrixWorld).invert()
+        _cdl.current.copy(_cvd.current).transformDirection(_imat.current).normalize()
+        let vi = 0
+        for (const [a, b] of connectionsRef.current) {
+          const ma = meshMap.current.get(a)
+          const mb = meshMap.current.get(b)
+          if (!ma || !mb) { vi += 4; continue }
+          // Project direction A→B onto camera plane
+          _cdir.current.subVectors(mb.position, ma.position)
+          _cdir.current.addScaledVector(_cdl.current, -_cdir.current.dot(_cdl.current))
+          const dist = _cdir.current.length()
+          if (dist < 0.0001) { vi += 4; continue }
+          _cdir.current.divideScalar(dist)
+          // Perpendicular in camera plane
+          _cper.current.crossVectors(_cdl.current, _cdir.current).normalize()
+          // Outer circle radii from SVG geometry
+          const urlA = posts[a % posts.length]?.image_url ?? ''
+          const urlB = posts[b % posts.length]?.image_url ?? ''
+          const rA = ma.scale.x * 0.5 * (loadedTex.get(urlA)?.svgRadiusFraction ?? 1)
+          const rB = mb.scale.x * 0.5 * (loadedTex.get(urlB)?.svgRadiusFraction ?? 1)
+          // External tangent: normal n̂ makes angle φ with dir where cos(φ) = (rA-rB)/dist
+          const cosφ = Math.max(-0.9999, Math.min(0.9999, (rA - rB) / dist))
+          const sinφ = Math.sqrt(1 - cosφ * cosφ)
+          // Line 1 (+perp side): tangent points where n̂ = cosφ·dir + sinφ·perp
+          _tA.current.copy(ma.position).addScaledVector(_cdir.current, rA * cosφ).addScaledVector(_cper.current,  rA * sinφ)
+          _tB.current.copy(mb.position).addScaledVector(_cdir.current, rB * cosφ).addScaledVector(_cper.current,  rB * sinφ)
+          attr.setXYZ(vi,   _tA.current.x, _tA.current.y, _tA.current.z)
+          attr.setXYZ(vi+1, _tB.current.x, _tB.current.y, _tB.current.z)
+          // Line 2 (-perp side): n̂ = cosφ·dir - sinφ·perp
+          _tA.current.copy(ma.position).addScaledVector(_cdir.current, rA * cosφ).addScaledVector(_cper.current, -rA * sinφ)
+          _tB.current.copy(mb.position).addScaledVector(_cdir.current, rB * cosφ).addScaledVector(_cper.current, -rB * sinφ)
+          attr.setXYZ(vi+2, _tA.current.x, _tA.current.y, _tA.current.z)
+          attr.setXYZ(vi+3, _tB.current.x, _tB.current.y, _tB.current.z)
+          vi += 4
+        }
+        attr.needsUpdate = true
+      }
+    }
   })
 
   // Effect 1: load textures only when the post URL set changes (NOT when repeat changes)
@@ -297,7 +384,7 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
         setLoadedTex(prev => {
           if (prev.get(url)?.tex === r.tex) return prev
           const next = new Map(prev)
-          next.set(url, { tex: r.tex, aspect: r.aspect })
+          next.set(url, { tex: r.tex, aspect: r.aspect, svgRadiusFraction: r.svgRadiusFraction })
           return next
         })
       })
@@ -321,11 +408,63 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
     }).filter((d): d is { tex: THREE.Texture; aspect: number } => d !== null))
   }, [loadedTex, vertices, repeatedPosts, posts])
 
+  useEffect(() => {
+    if (!showConnections || vertices.length < 2) {
+      connectionsRef.current = []
+      lineGeoRef.current.deleteAttribute('position')
+      return
+    }
+    const k = 3
+    const seen = new Set<string>()
+    const pairs: [number, number][] = []
+    for (let i = 0; i < vertices.length; i++) {
+      const pi = vertices[i].pos
+      const sorted = vertices
+        .map((v, j) => ({ j, d: j === i ? Infinity : pi.distanceTo(v.pos) }))
+        .sort((a, b) => a.d - b.d)
+        .slice(0, k)
+      for (const { j } of sorted) {
+        const key = `${Math.min(i, j)}_${Math.max(i, j)}`
+        if (!seen.has(key)) { seen.add(key); pairs.push([Math.min(i, j), Math.max(i, j)]) }
+      }
+    }
+    connectionsRef.current = pairs
+    const buf = new Float32Array(pairs.length * 12)
+    lineGeoRef.current.setAttribute('position', new THREE.BufferAttribute(buf, 3).setUsage(THREE.DynamicDrawUsage))
+  }, [showConnections, vertices])
+
+  useEffect(() => {
+    if ((!showConnections && !drift) || vertices.length === 0) { driftRef.current = []; return }
+    driftRef.current = vertices.map(() => {
+      const angle = Math.random() * Math.PI * 2
+      const elevation = (Math.random() - 0.5) * Math.PI
+      return {
+        dx: Math.cos(elevation) * Math.cos(angle),
+        dy: Math.sin(elevation),
+        dz: Math.cos(elevation) * Math.sin(angle),
+        phase: Math.random() * Math.PI * 2,
+        speed: (0.15 + Math.random() * 0.2) * driftSpeed,
+      }
+    })
+  }, [showConnections, drift, driftSpeed, vertices])
+
+  useEffect(() => {
+    const geo = lineGeoRef.current
+    return () => { geo.dispose() }
+  }, [])
+
   if (vertices.length === 0 || spriteData.length === 0) return null
 
   const _up = new THREE.Vector3(0, 0, 1)
   return (
     <>
+      {showConnections && (
+        <group ref={lineGroupRef}>
+          <lineSegments geometry={lineGeoRef.current}>
+            <lineBasicMaterial color="#444444" transparent opacity={0.85} />
+          </lineSegments>
+        </group>
+      )}
       {vertices.map((v, i) => {
         const { tex, aspect } = spriteData[i % spriteData.length]
         const px = v.pos.x + v.normal.x * 0.02
@@ -339,7 +478,7 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
               position={[px, py, pz]}
               scale={[size * aspect, size, 1]}
             >
-              <spriteMaterial map={tex} sizeAttenuation />
+              <spriteMaterial map={tex} sizeAttenuation transparent depthWrite={false} />
             </sprite>
           )
         }
@@ -983,6 +1122,7 @@ function makeSvgTex(url: string, aspect: number, flip: boolean): Promise<THREE.C
 type CachedTex = {
   tex: THREE.Texture
   aspect: number
+  svgRadiusFraction?: number
   gif?: { img: HTMLImageElement; canvas: HTMLCanvasElement; tex: THREE.CanvasTexture }
 }
 const texCache = new Map<string, Promise<CachedTex>>()
@@ -1017,9 +1157,13 @@ function getCachedTex(url: string): Promise<CachedTex> {
         } catch { ext = 'bitmap' }
       }
       if (ext === 'svg') {
-        const aspect = await loadImgAspect(url)
+        const [aspect, svgText] = await Promise.all([
+          loadImgAspect(url),
+          fetch(url).then(r => r.text()).catch(() => ''),
+        ])
+        const svgRadiusFraction = parseSvgRadiusFraction(svgText)
         const tex = await makeSvgTex(url, aspect, false)
-        resolve({ tex, aspect })
+        resolve({ tex, aspect, svgRadiusFraction })
       } else if (ext === 'gif') {
         const img = new window.Image()
         // Must be in DOM for the browser to advance GIF animation frames
@@ -1267,8 +1411,8 @@ type FigurePairProps = {
   x: number; y: number; z: number
   figureScale: number; figureFacing: number; figureWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
   posts: Post[]; mirrorPosts: Post[]; showVertexImages: boolean
-  origImgSize: number; origRepeat: number; origAudioImgSize?: number; origAudioRepeat?: number; origFacing?: 'camera' | 'normal'
-  mirrorImgSize: number; mirrorRepeat: number; mirrorAudioImgSize?: number; mirrorAudioRepeat?: number; mirrorFacing?: 'camera' | 'normal'
+  origImgSize: number; origRepeat: number; origAudioImgSize?: number; origAudioRepeat?: number; origFacing?: 'camera' | 'normal'; origDriftSpeed?: number; origDriftAmp?: number; origDriftEnabled?: boolean
+  mirrorImgSize: number; mirrorRepeat: number; mirrorAudioImgSize?: number; mirrorAudioRepeat?: number; mirrorFacing?: 'camera' | 'normal'; mirrorDriftSpeed?: number; mirrorDriftAmp?: number; mirrorDriftEnabled?: boolean
   orbiting: boolean
   meshTexture: string | null
   texScale: number; texOffsetX: number; texOffsetY: number; texRotation: number
@@ -1281,8 +1425,9 @@ type FigurePairProps = {
   origStudent?: string | null; mirrorStudent?: string | null
   nutsaGlbs?: string[]
   nutsaGlbScale?: number; nutsaGlbRepeat?: number
+  drift?: boolean
 }
-function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, posts, mirrorPosts, showVertexImages, origImgSize, origRepeat, origAudioImgSize, origAudioRepeat, origFacing, mirrorImgSize, mirrorRepeat, mirrorAudioImgSize, mirrorAudioRepeat, mirrorFacing, orbiting, meshTexture, texScale, texOffsetX, texOffsetY, texRotation, transitionKey, figureRingsOrig, figureRingsMirror, soloReact, graffitiOrig, graffitiMirror, graffitiMode, graffitiColor, graffitiBrushSize, graffitiClearKey, analyserRef, origStudent, mirrorStudent, nutsaGlbs, nutsaGlbScale = 0.025, nutsaGlbRepeat = 1 }: FigurePairProps) {
+function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, posts, mirrorPosts, showVertexImages, origImgSize, origRepeat, origAudioImgSize, origAudioRepeat, origFacing, origDriftSpeed, origDriftAmp, origDriftEnabled, mirrorImgSize, mirrorRepeat, mirrorAudioImgSize, mirrorAudioRepeat, mirrorFacing, mirrorDriftSpeed, mirrorDriftAmp, mirrorDriftEnabled, orbiting, meshTexture, texScale, texOffsetX, texOffsetY, texRotation, transitionKey, figureRingsOrig, figureRingsMirror, soloReact, graffitiOrig, graffitiMirror, graffitiMode, graffitiColor, graffitiBrushSize, graffitiClearKey, analyserRef, origStudent, mirrorStudent, nutsaGlbs, nutsaGlbScale = 0.025, nutsaGlbRepeat = 1, drift = false }: FigurePairProps) {
   const { scene: origScene }   = useGLTF(studentGlb(origStudent))
   const { scene: mirrorScene } = useGLTF(studentGlb(mirrorStudent))
 
@@ -1411,14 +1556,14 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
         ) : (
           <>
             <primitive object={orig} />
-            {figureWireframe && !figureRingsOrig && <FigureWireframe scene={orig} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} transitionKey={transitionKey} flicker />}
+            {figureWireframe && !figureRingsOrig && origStudent !== 'Sesili Gurgenidze' && <FigureWireframe scene={orig} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} transitionKey={transitionKey} flicker />}
             {figureRingsOrig && <FigureRings scene={orig} analyserRef={origAnalyser} />}
             {showVertexImages && origStudent === 'Nutsa Kavtelishvili' && !!nutsaGlbs?.length && (
               <FigureVertexGLBModels scene={orig} glbUrls={nutsaGlbs} size={nutsaGlbScale} repeat={nutsaGlbRepeat} analyserRef={origAnalyser} />
             )}
             {showVertexImages && !(origStudent === 'Nutsa Kavtelishvili' && nutsaGlbs?.length) && posts.length > 0 && (
               <Suspense fallback={null}>
-                <FigureVertexImages scene={orig} posts={posts} size={origImgSize} repeat={origRepeat} audioImgSize={origAudioImgSize} audioRepeat={origAudioRepeat} facing={origFacing} analyserRef={origAnalyser} />
+                <FigureVertexImages scene={orig} posts={posts} size={origImgSize} repeat={origRepeat} audioImgSize={origAudioImgSize} audioRepeat={origAudioRepeat} facing={origFacing} analyserRef={origAnalyser} showConnections={origStudent === 'Sesili Gurgenidze'} drift={drift && origDriftEnabled !== false} driftSpeed={origDriftSpeed} driftAmp={origDriftAmp} />
               </Suspense>
             )}
           </>
@@ -1431,14 +1576,14 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
           ) : (
             <>
               <primitive object={mirror} />
-              {figureWireframe && !figureRingsMirror && <FigureWireframe scene={mirror} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} transitionKey={transitionKey} />}
+              {figureWireframe && !figureRingsMirror && mirrorStudent !== 'Sesili Gurgenidze' && <FigureWireframe scene={mirror} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} transitionKey={transitionKey} />}
               {figureRingsMirror && <FigureRings scene={mirror} analyserRef={mirrorAnalyser} />}
               {showVertexImages && mirrorStudent === 'Nutsa Kavtelishvili' && !!nutsaGlbs?.length && (
                 <FigureVertexGLBModels scene={mirror} glbUrls={nutsaGlbs} size={nutsaGlbScale} repeat={nutsaGlbRepeat} analyserRef={mirrorAnalyser} />
               )}
               {showVertexImages && !(mirrorStudent === 'Nutsa Kavtelishvili' && nutsaGlbs?.length) && mirrorPosts.length > 0 && (
                 <Suspense fallback={null}>
-                  <FigureVertexImages scene={mirror} posts={mirrorPosts} size={mirrorImgSize} repeat={mirrorRepeat} audioImgSize={mirrorAudioImgSize} audioRepeat={mirrorAudioRepeat} facing={mirrorFacing} analyserRef={mirrorAnalyser} />
+                  <FigureVertexImages scene={mirror} posts={mirrorPosts} size={mirrorImgSize} repeat={mirrorRepeat} audioImgSize={mirrorAudioImgSize} audioRepeat={mirrorAudioRepeat} facing={mirrorFacing} analyserRef={mirrorAnalyser} showConnections={mirrorStudent === 'Sesili Gurgenidze'} drift={drift && mirrorDriftEnabled !== false} driftSpeed={mirrorDriftSpeed} driftAmp={mirrorDriftAmp} />
                 </Suspense>
               )}
             </>
@@ -1462,7 +1607,7 @@ type RoomSceneProps = {
   showDoggo: boolean; doggoScale: number; doggoX: number; doggoY: number; doggoZ: number
   showFigure: boolean; figureRadius: number; figureSpeed: number; figureX: number; figureY: number; figureZ: number
   figureScale: number; figureFacing: number; figureWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
-  showVertexImages: boolean; vertexSettings: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>
+  showVertexImages: boolean; vertexSettings: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal'; driftSpeed?: number; driftAmp?: number; driftEnabled?: boolean }>
   figureStudent: string | null; figureStudent2: string | null
   figureOrbiting: boolean
   camX: number; camY: number; camZ: number
@@ -1476,8 +1621,9 @@ type RoomSceneProps = {
   analyserRef?: React.RefObject<AnalyserNode | null>
   nutsaGlbs?: string[]
   nutsaGlbScale?: number; nutsaGlbRepeat?: number
+  drift?: boolean
 }
-function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, showVertexImages, vertexSettings, figureStudent, figureStudent2, figureOrbiting, camX, camY, camZ, roomCameraMode, roomCamFov, roomCamZoom, roomCamXLoop, roomCamXLoopSpeed, meshTexture, texScale, texOffsetX, texOffsetY, texRotation, transitionKey, figureRings, soloReact, graffitiMode, graffitiColor, graffitiBrushSize, graffitiClearKey, bgColor, bgImage, analyserRef, nutsaGlbs, nutsaGlbScale, nutsaGlbRepeat }: RoomSceneProps) {
+function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing, figureWireframe, wireframeStyle, dotSize, dotColor, dotCount, showVertexImages, vertexSettings, figureStudent, figureStudent2, figureOrbiting, camX, camY, camZ, roomCameraMode, roomCamFov, roomCamZoom, roomCamXLoop, roomCamXLoopSpeed, meshTexture, texScale, texOffsetX, texOffsetY, texRotation, transitionKey, figureRings, soloReact, graffitiMode, graffitiColor, graffitiBrushSize, graffitiClearKey, bgColor, bgImage, analyserRef, nutsaGlbs, nutsaGlbScale, nutsaGlbRepeat, drift = false }: RoomSceneProps) {
   const match = (a: string | null | undefined, b: string | null) =>
     a != null && b != null && a.trim().toLowerCase() === b.trim().toLowerCase()
   const figurePosts  = figureStudent  ? posts.filter(p => match(p.student_name, figureStudent))  : posts
@@ -1487,7 +1633,7 @@ function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showF
   const figureRingsMirror = figureRings && isSergi(figureStudent2)
   const graffitiOrig   = false
   const graffitiMirror = false
-  const DEF = { imgSize: 0.025, repeat: 1, audioImgSize: undefined as number | undefined, audioRepeat: undefined as number | undefined, facing: 'normal' as 'camera' | 'normal' }
+  const DEF = { imgSize: 0.025, repeat: 1, audioImgSize: undefined as number | undefined, audioRepeat: undefined as number | undefined, facing: 'normal' as 'camera' | 'normal', driftSpeed: undefined as number | undefined, driftAmp: undefined as number | undefined, driftEnabled: undefined as boolean | undefined }
   const origVS   = (figureStudent  ? vertexSettings[figureStudent]  : null) ?? DEF
   const mirrorVS = (figureStudent2 ? vertexSettings[figureStudent2] : null) ?? DEF
 
@@ -1512,7 +1658,7 @@ function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showF
 
       {showFigure && (
         <Suspense fallback={null}>
-          <FigurePair roomDepth={D} radius={figureRadius} speed={figureSpeed} x={figureX} y={figureY} z={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} posts={figurePosts} mirrorPosts={mirrorPosts} showVertexImages={showVertexImages} origImgSize={origVS.imgSize} origRepeat={origVS.repeat} origAudioImgSize={origVS.audioImgSize} origAudioRepeat={origVS.audioRepeat} origFacing={origVS.facing} mirrorImgSize={mirrorVS.imgSize} mirrorRepeat={mirrorVS.repeat} mirrorAudioImgSize={mirrorVS.audioImgSize} mirrorAudioRepeat={mirrorVS.audioRepeat} mirrorFacing={mirrorVS.facing} orbiting={figureOrbiting} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} figureRingsOrig={figureRingsOrig} figureRingsMirror={figureRingsMirror} soloReact={soloReact} graffitiOrig={graffitiOrig} graffitiMirror={graffitiMirror} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} analyserRef={analyserRef} origStudent={figureStudent} mirrorStudent={figureStudent2} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} />
+          <FigurePair roomDepth={D} radius={figureRadius} speed={figureSpeed} x={figureX} y={figureY} z={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} posts={figurePosts} mirrorPosts={mirrorPosts} showVertexImages={showVertexImages} origImgSize={origVS.imgSize} origRepeat={origVS.repeat} origAudioImgSize={origVS.audioImgSize} origAudioRepeat={origVS.audioRepeat} origFacing={origVS.facing} origDriftSpeed={origVS.driftSpeed} origDriftAmp={origVS.driftAmp} origDriftEnabled={origVS.driftEnabled} mirrorImgSize={mirrorVS.imgSize} mirrorRepeat={mirrorVS.repeat} mirrorAudioImgSize={mirrorVS.audioImgSize} mirrorAudioRepeat={mirrorVS.audioRepeat} mirrorFacing={mirrorVS.facing} mirrorDriftSpeed={mirrorVS.driftSpeed} mirrorDriftAmp={mirrorVS.driftAmp} mirrorDriftEnabled={mirrorVS.driftEnabled} orbiting={figureOrbiting} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} figureRingsOrig={figureRingsOrig} figureRingsMirror={figureRingsMirror} soloReact={soloReact} graffitiOrig={graffitiOrig} graffitiMirror={graffitiMirror} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} analyserRef={analyserRef} origStudent={figureStudent} mirrorStudent={figureStudent2} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} drift={drift} />
         </Suspense>
       )}
 
@@ -1521,14 +1667,14 @@ function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showF
 }
 
 // ── Entry point — pre-loads image dimensions before mounting scene ─────────────
-export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, doggoX = 0, doggoY = 0, doggoZ = 0, showFigure = true, figureRadius = 5, figureSpeed = 0.5, figureX = 0, figureY = 0, figureZ = 0, figureScale = 1, figureFacing = 0, figureWireframe = true, wireframeStyle = 'edges', dotSize = 0.200, dotColor = '#000000', dotCount = 30000, showVertexImages = false, vertexSettings = {} as Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>, figureStudent = null, figureStudent2 = null, figureOrbiting = true, camX = 0, camY = EYE, camZ = 55, roomCameraMode = 'freeroam' as RoomCameraMode, roomCamFov = 72, roomCamZoom = 1, roomCamXLoop = false, roomCamXLoopSpeed = 1, meshTexture = null, texScale = 1, texOffsetX = 0, texOffsetY = 0, texRotation = 0, transitionKey = 0, figureRings = false, soloReact = false, graffitiMode = false, graffitiColor = '#ff2222', graffitiBrushSize = 8, graffitiClearKey = 0, bgColor = '#ffffff', bgImage = null, analyserRef, nutsaGlbs, nutsaGlbScale, nutsaGlbRepeat }: { posts: Post[]; showDoggo?: boolean; doggoScale?: number; doggoX?: number; doggoY?: number; doggoZ?: number; showFigure?: boolean; figureRadius?: number; figureSpeed?: number; figureX?: number; figureY?: number; figureZ?: number; figureScale?: number; figureFacing?: number; figureWireframe?: boolean; wireframeStyle?: WireframeStyle; dotSize?: number; dotColor?: string; dotCount?: number; showVertexImages?: boolean; vertexSettings?: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>; figureStudent?: string | null; figureStudent2?: string | null; figureOrbiting?: boolean; camX?: number; camY?: number; camZ?: number; roomCameraMode?: RoomCameraMode; roomCamFov?: number; roomCamZoom?: number; roomCamXLoop?: boolean; roomCamXLoopSpeed?: number; meshTexture?: string | null; texScale?: number; texOffsetX?: number; texOffsetY?: number; texRotation?: number; transitionKey?: number; figureRings?: boolean; soloReact?: boolean; graffitiMode?: boolean; graffitiColor?: string; graffitiBrushSize?: number; graffitiClearKey?: number; bgColor?: string; bgImage?: string | null; analyserRef?: React.RefObject<AnalyserNode | null>; nutsaGlbs?: string[]; nutsaGlbScale?: number; nutsaGlbRepeat?: number }) {
+export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, doggoX = 0, doggoY = 0, doggoZ = 0, showFigure = true, figureRadius = 5, figureSpeed = 0.5, figureX = 0, figureY = 0, figureZ = 0, figureScale = 1, figureFacing = 0, figureWireframe = true, wireframeStyle = 'edges', dotSize = 0.200, dotColor = '#000000', dotCount = 30000, showVertexImages = false, vertexSettings = {} as Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>, figureStudent = null, figureStudent2 = null, figureOrbiting = true, camX = 0, camY = EYE, camZ = 55, roomCameraMode = 'freeroam' as RoomCameraMode, roomCamFov = 72, roomCamZoom = 1, roomCamXLoop = false, roomCamXLoopSpeed = 1, meshTexture = null, texScale = 1, texOffsetX = 0, texOffsetY = 0, texRotation = 0, transitionKey = 0, figureRings = false, soloReact = false, graffitiMode = false, graffitiColor = '#ff2222', graffitiBrushSize = 8, graffitiClearKey = 0, bgColor = '#ffffff', bgImage = null, analyserRef, nutsaGlbs, nutsaGlbScale, nutsaGlbRepeat, drift = false }: { posts: Post[]; showDoggo?: boolean; doggoScale?: number; doggoX?: number; doggoY?: number; doggoZ?: number; showFigure?: boolean; figureRadius?: number; figureSpeed?: number; figureX?: number; figureY?: number; figureZ?: number; figureScale?: number; figureFacing?: number; figureWireframe?: boolean; wireframeStyle?: WireframeStyle; dotSize?: number; dotColor?: string; dotCount?: number; showVertexImages?: boolean; vertexSettings?: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>; figureStudent?: string | null; figureStudent2?: string | null; figureOrbiting?: boolean; camX?: number; camY?: number; camZ?: number; roomCameraMode?: RoomCameraMode; roomCamFov?: number; roomCamZoom?: number; roomCamXLoop?: boolean; roomCamXLoopSpeed?: number; meshTexture?: string | null; texScale?: number; texOffsetX?: number; texOffsetY?: number; texRotation?: number; transitionKey?: number; figureRings?: boolean; soloReact?: boolean; graffitiMode?: boolean; graffitiColor?: string; graffitiBrushSize?: number; graffitiClearKey?: number; bgColor?: string; bgImage?: string | null; analyserRef?: React.RefObject<AnalyserNode | null>; nutsaGlbs?: string[]; nutsaGlbScale?: number; nutsaGlbRepeat?: number; drift?: boolean }) {
   return (
     <Canvas
       camera={{ position: [camX, camY, camZ], fov: 72 }}
       dpr={[1, MAX_DPR]}
       style={{ width: '100%', height: '100%', touchAction: 'none', background: bgColor }}
     >
-      <RoomScene posts={posts} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={vertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} />
+      <RoomScene posts={posts} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={vertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} drift={drift} />
     </Canvas>
   )
 }
@@ -1563,9 +1709,9 @@ function CircleNameTag({ student, nameSize, blurNames, onNameClick, namesClickab
   )
 }
 
-function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexImages, imagesVisible = true, vertexSettings, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, meshTexture, texScale, texRepeat, texOffsetX, texOffsetY, texRotation, student, onTextureUpload, analyserRef, isAdmin = false }: {
-  angle: number; radius: number; figureScale: number; figureY: number
-  posts: Post[]; showVertexImages: boolean; imagesVisible?: boolean; vertexSettings: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>
+function CircleFigure({ angle, radius, figureScale, figureY, figureFacing = 4.65, posts, showVertexImages, imagesVisible = true, vertexSettings, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, meshTexture, texScale, texRepeat, texOffsetX, texOffsetY, texRotation, student, onTextureUpload, analyserRef, isAdmin = false, drift = false }: {
+  angle: number; radius: number; figureScale: number; figureY: number; figureFacing?: number; drift?: boolean
+  posts: Post[]; showVertexImages: boolean; imagesVisible?: boolean; vertexSettings: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal'; driftSpeed?: number; driftAmp?: number; driftEnabled?: boolean }>
   showWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
   meshTexture: string | null
   texScale: number; texRepeat: number; texOffsetX: number; texOffsetY: number; texRotation: number
@@ -1655,7 +1801,7 @@ function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexIm
     tex.needsUpdate = true
   }, [texScale, texRepeat, texOffsetX, texOffsetY, texRotation])
 
-  const rotY = 4.65 + angle + Math.PI
+  const rotY = figureFacing + angle + Math.PI
   const vs = vertexSettings[student] ?? { imgSize: 0.025, repeat: 1 }
   const isSergiFigure = student.trim().toLowerCase().includes('sergi')
 
@@ -1670,14 +1816,14 @@ function CircleFigure({ angle, radius, figureScale, figureY, posts, showVertexIm
     <group position={[radius * Math.sin(angle), figureY, radius * Math.cos(angle)]} scale={figureScale} rotation={[0, rotY, 0]} frustumCulled={false}>
       <group position={[-figureCenter.x, -figureCenter.y, -figureCenter.z]}>
         <primitive object={cloned} frustumCulled={false} />
-        {showWireframe && !isSergiFigure && (
+        {showWireframe && !isSergiFigure && student !== 'Sesili Gurgenidze' && (
           <FigureWireframe scene={cloned} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} transitionKey={0} />
         )}
         {isSergiFigure && <FigureRings scene={cloned} analyserRef={analyserRef} />}
         {showVertexImages && posts.length > 0 && (
           <group visible={imagesVisible}>
             <Suspense fallback={null}>
-              <FigureVertexImages scene={cloned} posts={posts} size={vs.imgSize} repeat={vs.repeat} audioImgSize={vs.audioImgSize} audioRepeat={vs.audioRepeat} facing={vs.facing} analyserRef={analyserRef} />
+              <FigureVertexImages scene={cloned} posts={posts} size={vs.imgSize} repeat={vs.repeat} audioImgSize={vs.audioImgSize} audioRepeat={vs.audioRepeat} facing={vs.facing} analyserRef={analyserRef} showConnections={student === 'Sesili Gurgenidze'} drift={drift && vs.driftEnabled !== false} driftSpeed={vs.driftSpeed} driftAmp={vs.driftAmp} />
             </Suspense>
           </group>
         )}
@@ -1767,8 +1913,8 @@ function CircleCamDriver({ x, y, z, zoom, mode }: { x: number; y: number; z: num
   return null
 }
 
-function CircleScene({ posts, students, circleRadius, figureScale, figureY, showVertexImages, vertexSettings, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, studentTextures, studentTextureMappings, onTextureUpload, showNoiseGlobe, noiseColor1, noiseColor2, noiseSpeed, noiseScale, audioVolume, cameraMode, camX, camY, camZ, camFov, camZoom, camXLoop, camXLoopSpeed, bgColor, bgImage, analyserRef, cameraInfoRef, soloReact = false, isAdmin = false }: {
-  posts: Post[]; students: string[]; circleRadius: number; figureScale: number; figureY: number
+function CircleScene({ posts, students, circleRadius, figureScale, figureY, figureFacing = 4.65, showVertexImages, vertexSettings, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, studentTextures, studentTextureMappings, onTextureUpload, showNoiseGlobe, noiseColor1, noiseColor2, noiseSpeed, noiseScale, audioVolume, cameraMode, camX, camY, camZ, camFov, camZoom, camXLoop, camXLoopSpeed, bgColor, bgImage, analyserRef, cameraInfoRef, soloReact = false, isAdmin = false, drift = false }: {
+  posts: Post[]; students: string[]; circleRadius: number; figureScale: number; figureY: number; figureFacing?: number; drift?: boolean
   showVertexImages: boolean; vertexSettings: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>
   showWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
   studentTextures: Record<string, string | null>
@@ -1828,6 +1974,7 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, show
             radius={circleRadius}
             figureScale={figureScale}
             figureY={figureY}
+            figureFacing={figureFacing}
             posts={studentPosts}
             showVertexImages={showVertexImages}
             imagesVisible={!soloReact || activeStudents.has(i)}
@@ -1847,6 +1994,7 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, show
             onTextureUpload={onTextureUpload}
             analyserRef={!soloReact || activeStudents.has(i) ? analyserRef : undefined}
             isAdmin={isAdmin}
+            drift={drift}
           />
         )
       })}
@@ -1857,9 +2005,9 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, show
 
 export type { CircleCameraMode, TextureMapping }
 
-export function CircleCanvas({ posts, students, circleRadius = 300, figureScale = 200, figureY = -10, showVertexImages = true, vertexSettings = {} as Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>, showWireframe = true, wireframeStyle = 'points' as WireframeStyle, dotSize = 0.800, dotColor = '#000000', dotCount = 30000, studentTextures = {}, studentTextureMappings = {}, onTextureUpload = () => {}, showNoiseGlobe = false, noiseColor1 = '#08003a', noiseColor2 = '#8c1aff', noiseSpeed = 0.5, noiseScale = 1.0, audioVolume = 0, cameraMode = 'orthographic' as CircleCameraMode, camX = 150, camY = 930, camZ = -1350, camFov = 60, camZoom = 1.8, camXLoop = false, camXLoopSpeed = 1.0, bgColor = '#ffffff', bgImage = null, analyserRef, cameraInfoRef, soloReact = false, isAdmin = false, frameloop = 'always' }: {
+export function CircleCanvas({ posts, students, circleRadius = 300, figureScale = 200, figureY = -10, figureFacing = 4.65, showVertexImages = true, vertexSettings = {} as Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>, showWireframe = true, wireframeStyle = 'points' as WireframeStyle, dotSize = 0.800, dotColor = '#000000', dotCount = 30000, studentTextures = {}, studentTextureMappings = {}, onTextureUpload = () => {}, showNoiseGlobe = false, noiseColor1 = '#08003a', noiseColor2 = '#8c1aff', noiseSpeed = 0.5, noiseScale = 1.0, audioVolume = 0, cameraMode = 'orthographic' as CircleCameraMode, camX = 150, camY = 930, camZ = -1350, camFov = 60, camZoom = 1.8, camXLoop = false, camXLoopSpeed = 1.0, bgColor = '#ffffff', bgImage = null, analyserRef, cameraInfoRef, soloReact = false, isAdmin = false, frameloop = 'always', drift = false }: {
   posts: Post[]; students: string[]
-  circleRadius?: number; figureScale?: number; figureY?: number
+  circleRadius?: number; figureScale?: number; figureY?: number; figureFacing?: number; drift?: boolean
   showVertexImages?: boolean; vertexSettings?: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>
   showWireframe?: boolean; wireframeStyle?: WireframeStyle; dotSize?: number; dotColor?: string; dotCount?: number
   studentTextures?: Record<string, string | null>
@@ -1882,7 +2030,7 @@ export function CircleCanvas({ posts, students, circleRadius = 300, figureScale 
       style={{ width: '100%', height: '100%', touchAction: 'none', background: bgColor }}
     >
       <CircleScene
-        posts={posts} students={students} circleRadius={circleRadius} figureScale={figureScale} figureY={figureY}
+        posts={posts} students={students} circleRadius={circleRadius} figureScale={figureScale} figureY={figureY} figureFacing={figureFacing} drift={drift}
         showVertexImages={showVertexImages} vertexSettings={vertexSettings}
         showWireframe={showWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount}
         studentTextures={studentTextures}
