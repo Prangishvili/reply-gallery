@@ -226,7 +226,7 @@ function sampleVerticesWithNormals(root: THREE.Object3D, count: number): { pos: 
   return result
 }
 
-function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRepeat, facing = 'normal', analyserRef, showConnections = false, drift = false, driftSpeed = 1, driftAmp = 0.5 }: { scene: THREE.Object3D; posts: Post[]; size: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal'; analyserRef?: React.RefObject<AnalyserNode | null>; showConnections?: boolean; drift?: boolean; driftSpeed?: number; driftAmp?: number }) {
+function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRepeat, facing = 'normal', analyserRef, showConnections = false, drift = false, driftSpeed = 1, driftAmp = 0.5, onLoaded }: { scene: THREE.Object3D; posts: Post[]; size: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal'; analyserRef?: React.RefObject<AnalyserNode | null>; showConnections?: boolean; drift?: boolean; driftSpeed?: number; driftAmp?: number; onLoaded?: () => void }) {
   const [isAudioActive, setIsAudioActive] = useState(false)
   const isAudioActiveRef = useRef(false)
   const effectiveRepeat = isAudioActive && audioRepeat != null ? audioRepeat : repeat
@@ -407,6 +407,11 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
       return loadedTex.get(url) ?? null
     }).filter((d): d is { tex: THREE.Texture; aspect: number } => d !== null))
   }, [loadedTex, vertices, repeatedPosts, posts])
+
+  const firedRef = useRef(false)
+  useEffect(() => {
+    if (spriteData.length > 0 && !firedRef.current) { firedRef.current = true; onLoaded?.() }
+  }, [spriteData.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!showConnections || vertices.length < 2) {
@@ -1401,8 +1406,7 @@ export function SelfCanvas({ stream, figureScale = 200, figureFacing = 4.65, img
 }
 
 // ── Orbiting figure pair (original + mirror) ──────────────────────────────────
-function studentGlb(name: string | null | undefined): string {
-  if (name === 'Nutsa Kavtelishvili') return '/DNA.glb'
+function studentGlb(_name: string | null | undefined): string {
   return '/figure.glb'
 }
 
@@ -1804,6 +1808,8 @@ function CircleFigure({ angle, radius, figureScale, figureY, figureFacing = 4.65
   const rotY = figureFacing + angle + Math.PI
   const vs = vertexSettings[student] ?? { imgSize: 0.025, repeat: 1 }
   const isSergiFigure = student.trim().toLowerCase().includes('sergi')
+  const isSesili = student === 'Sesili Gurgenidze'
+  const [sesiliImagesLoaded, setSesiliImagesLoaded] = useState(false)
 
   const figureCenter = useMemo(() => {
     const box = new THREE.Box3().setFromObject(cloned)
@@ -1816,14 +1822,14 @@ function CircleFigure({ angle, radius, figureScale, figureY, figureFacing = 4.65
     <group position={[radius * Math.sin(angle), figureY, radius * Math.cos(angle)]} scale={figureScale} rotation={[0, rotY, 0]} frustumCulled={false}>
       <group position={[-figureCenter.x, -figureCenter.y, -figureCenter.z]}>
         <primitive object={cloned} frustumCulled={false} />
-        {showWireframe && !isSergiFigure && student !== 'Sesili Gurgenidze' && (
+        {showWireframe && !isSergiFigure && (!isSesili || !showVertexImages || !sesiliImagesLoaded) && (
           <FigureWireframe scene={cloned} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} transitionKey={0} />
         )}
         {isSergiFigure && <FigureRings scene={cloned} analyserRef={analyserRef} />}
         {showVertexImages && posts.length > 0 && (
           <group visible={imagesVisible}>
             <Suspense fallback={null}>
-              <FigureVertexImages scene={cloned} posts={posts} size={vs.imgSize} repeat={vs.repeat} audioImgSize={vs.audioImgSize} audioRepeat={vs.audioRepeat} facing={vs.facing} analyserRef={analyserRef} showConnections={student === 'Sesili Gurgenidze'} drift={drift && vs.driftEnabled !== false} driftSpeed={vs.driftSpeed} driftAmp={vs.driftAmp} />
+              <FigureVertexImages scene={cloned} posts={posts} size={vs.imgSize} repeat={vs.repeat} audioImgSize={vs.audioImgSize} audioRepeat={vs.audioRepeat} facing={vs.facing} analyserRef={analyserRef} showConnections={isSesili} drift={drift && vs.driftEnabled !== false} driftSpeed={vs.driftSpeed} driftAmp={vs.driftAmp} onLoaded={isSesili ? () => setSesiliImagesLoaded(true) : undefined} />
             </Suspense>
           </group>
         )}
@@ -2050,4 +2056,3 @@ export function CircleCanvas({ posts, students, circleRadius = 300, figureScale 
 }
 
 useGLTF.preload('/figure.glb')
-useGLTF.preload('/DNA.glb')
