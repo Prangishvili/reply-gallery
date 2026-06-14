@@ -21,9 +21,9 @@ const STUDENTS = ['Mariam Wulaia','Nodar Gogichaishvili','Sesili Gurgenidze','Do
 // facing: 'camera'           → images always face the camera (old billboard behaviour)
 type VertexSettings = { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal'; driftSpeed?: number; driftAmp?: number; driftEnabled?: boolean }
 const STUDENT_VERTEX_DEFAULTS: Record<string, VertexSettings> = {
-  'Nodar Gogichaishvili':  { imgSize: 0.200, repeat: 9, driftSpeed: 6.5, driftAmp: 1.2, audioImgSize: 0.100, audioRepeat: 13, facing: 'camera', driftEnabled: true },
+  'Nodar Gogichaishvili':  { imgSize: 0.200, repeat: 9, driftSpeed: 0.2, driftAmp: 0.2, audioImgSize: 0.100, audioRepeat: 13, facing: 'camera', driftEnabled: true },
   'Sesili Gurgenidze':     { imgSize: 0.170, repeat: 11, audioImgSize: 0.110, audioRepeat: 11, facing: 'camera', driftEnabled: true },
-  'Dominika Davshrishovi': { imgSize: 0.275, repeat: 17, audioImgSize: 0.150, audioRepeat: 17, facing: 'camera', driftEnabled: true },
+  'Dominika Davshrishovi': { imgSize: 0.275, repeat: 17, driftSpeed: 0.4, driftAmp: 0.25, audioImgSize: 0.150, audioRepeat: 17, facing: 'camera', driftEnabled: true },
   'Nutsa Kavtelishvili':   { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1, facing: 'camera', driftEnabled: false },
   'Ketevan Lomiashvili':   { imgSize: 0.150, repeat: 7, audioImgSize: 0.100, audioRepeat: 7, facing: 'camera', driftEnabled: false },
   'Ana Mamniashvili':      { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1, facing: 'camera', driftEnabled: false },
