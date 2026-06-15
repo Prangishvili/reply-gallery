@@ -1466,6 +1466,11 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
   const groupRef = useRef<THREE.Group>(null)
   const loadedTexRef = useRef<THREE.Texture | null>(null)
 
+  const [origLoaded, setOrigLoaded]     = useState(false)
+  const [mirrorLoaded, setMirrorLoaded] = useState(false)
+  useEffect(() => { setOrigLoaded(false) },   [origStudent, showVertexImages])
+  useEffect(() => { setMirrorLoaded(false) }, [mirrorStudent, showVertexImages])
+
   const origAnalyser   = !soloReact || activeReact === 0 ? analyserRef : undefined
   const mirrorAnalyser = !soloReact || activeReact === 1 ? analyserRef : undefined
 
@@ -1560,14 +1565,14 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
         ) : (
           <>
             <primitive object={orig} />
-            {figureWireframe && !figureRingsOrig && origStudent !== 'Sesili Gurgenidze' && <FigureWireframe scene={orig} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} transitionKey={transitionKey} flicker />}
+            {figureWireframe && !figureRingsOrig && !(showVertexImages && origLoaded) && origStudent !== 'Sesili Gurgenidze' && <FigureWireframe scene={orig} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} transitionKey={transitionKey} flicker />}
             {figureRingsOrig && <FigureRings scene={orig} analyserRef={origAnalyser} />}
             {showVertexImages && origStudent === 'Nutsa Kavtelishvili' && !!nutsaGlbs?.length && (
               <FigureVertexGLBModels scene={orig} glbUrls={nutsaGlbs} size={nutsaGlbScale} repeat={nutsaGlbRepeat} analyserRef={origAnalyser} />
             )}
             {showVertexImages && !(origStudent === 'Nutsa Kavtelishvili' && nutsaGlbs?.length) && posts.length > 0 && (
               <Suspense fallback={null}>
-                <FigureVertexImages scene={orig} posts={posts} size={origImgSize} repeat={origRepeat} audioImgSize={origAudioImgSize} audioRepeat={origAudioRepeat} facing={origFacing} analyserRef={origAnalyser} showConnections={origStudent === 'Sesili Gurgenidze'} drift={drift && origDriftEnabled !== false} driftSpeed={origDriftSpeed} driftAmp={origDriftAmp} />
+                <FigureVertexImages key={origStudent ?? 'none'} scene={orig} posts={posts} size={origImgSize} repeat={origRepeat} audioImgSize={origAudioImgSize} audioRepeat={origAudioRepeat} facing={origFacing} analyserRef={origAnalyser} showConnections={origStudent === 'Sesili Gurgenidze'} drift={drift && origDriftEnabled !== false} driftSpeed={origDriftSpeed} driftAmp={origDriftAmp} onLoaded={() => setOrigLoaded(true)} />
               </Suspense>
             )}
           </>
@@ -1580,14 +1585,14 @@ function FigurePair({ roomDepth, radius, speed, x, y, z, figureScale, figureFaci
           ) : (
             <>
               <primitive object={mirror} />
-              {figureWireframe && !figureRingsMirror && mirrorStudent !== 'Sesili Gurgenidze' && <FigureWireframe scene={mirror} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} transitionKey={transitionKey} />}
+              {figureWireframe && !figureRingsMirror && !(showVertexImages && mirrorLoaded) && mirrorStudent !== 'Sesili Gurgenidze' && <FigureWireframe scene={mirror} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} transitionKey={transitionKey} />}
               {figureRingsMirror && <FigureRings scene={mirror} analyserRef={mirrorAnalyser} />}
               {showVertexImages && mirrorStudent === 'Nutsa Kavtelishvili' && !!nutsaGlbs?.length && (
                 <FigureVertexGLBModels scene={mirror} glbUrls={nutsaGlbs} size={nutsaGlbScale} repeat={nutsaGlbRepeat} analyserRef={mirrorAnalyser} />
               )}
               {showVertexImages && !(mirrorStudent === 'Nutsa Kavtelishvili' && nutsaGlbs?.length) && mirrorPosts.length > 0 && (
                 <Suspense fallback={null}>
-                  <FigureVertexImages scene={mirror} posts={mirrorPosts} size={mirrorImgSize} repeat={mirrorRepeat} audioImgSize={mirrorAudioImgSize} audioRepeat={mirrorAudioRepeat} facing={mirrorFacing} analyserRef={mirrorAnalyser} showConnections={mirrorStudent === 'Sesili Gurgenidze'} drift={drift && mirrorDriftEnabled !== false} driftSpeed={mirrorDriftSpeed} driftAmp={mirrorDriftAmp} />
+                  <FigureVertexImages key={mirrorStudent ?? 'none'} scene={mirror} posts={mirrorPosts} size={mirrorImgSize} repeat={mirrorRepeat} audioImgSize={mirrorAudioImgSize} audioRepeat={mirrorAudioRepeat} facing={mirrorFacing} analyserRef={mirrorAnalyser} showConnections={mirrorStudent === 'Sesili Gurgenidze'} drift={drift && mirrorDriftEnabled !== false} driftSpeed={mirrorDriftSpeed} driftAmp={mirrorDriftAmp} onLoaded={() => setMirrorLoaded(true)} />
                 </Suspense>
               )}
             </>
@@ -1671,16 +1676,52 @@ function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showF
 }
 
 // ── Entry point — pre-loads image dimensions before mounting scene ─────────────
-export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, doggoX = 0, doggoY = 0, doggoZ = 0, showFigure = true, figureRadius = 5, figureSpeed = 0.5, figureX = 0, figureY = 0, figureZ = 0, figureScale = 1, figureFacing = 0, figureWireframe = true, wireframeStyle = 'edges', dotSize = 0.200, dotColor = '#000000', dotCount = 30000, showVertexImages = false, vertexSettings = {} as Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>, figureStudent = null, figureStudent2 = null, figureOrbiting = true, camX = 0, camY = EYE, camZ = 55, roomCameraMode = 'freeroam' as RoomCameraMode, roomCamFov = 72, roomCamZoom = 1, roomCamXLoop = false, roomCamXLoopSpeed = 1, meshTexture = null, texScale = 1, texOffsetX = 0, texOffsetY = 0, texRotation = 0, transitionKey = 0, figureRings = false, soloReact = false, graffitiMode = false, graffitiColor = '#ff2222', graffitiBrushSize = 8, graffitiClearKey = 0, bgColor = '#ffffff', bgImage = null, analyserRef, nutsaGlbs, nutsaGlbScale, nutsaGlbRepeat, drift = false }: { posts: Post[]; showDoggo?: boolean; doggoScale?: number; doggoX?: number; doggoY?: number; doggoZ?: number; showFigure?: boolean; figureRadius?: number; figureSpeed?: number; figureX?: number; figureY?: number; figureZ?: number; figureScale?: number; figureFacing?: number; figureWireframe?: boolean; wireframeStyle?: WireframeStyle; dotSize?: number; dotColor?: string; dotCount?: number; showVertexImages?: boolean; vertexSettings?: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>; figureStudent?: string | null; figureStudent2?: string | null; figureOrbiting?: boolean; camX?: number; camY?: number; camZ?: number; roomCameraMode?: RoomCameraMode; roomCamFov?: number; roomCamZoom?: number; roomCamXLoop?: boolean; roomCamXLoopSpeed?: number; meshTexture?: string | null; texScale?: number; texOffsetX?: number; texOffsetY?: number; texRotation?: number; transitionKey?: number; figureRings?: boolean; soloReact?: boolean; graffitiMode?: boolean; graffitiColor?: string; graffitiBrushSize?: number; graffitiClearKey?: number; bgColor?: string; bgImage?: string | null; analyserRef?: React.RefObject<AnalyserNode | null>; nutsaGlbs?: string[]; nutsaGlbScale?: number; nutsaGlbRepeat?: number; drift?: boolean }) {
+export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, doggoX = 0, doggoY = 0, doggoZ = 0, showFigure = true, figureRadius = 5, figureSpeed = 0.5, figureX = 0, figureY = 0, figureZ = 0, figureScale = 1, figureFacing = 0, figureWireframe = true, wireframeStyle = 'edges', dotSize = 0.200, dotColor = '#000000', dotCount = 30000, showVertexImages = false, vertexSettings = {} as Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>, figureStudent = null, figureStudent2 = null, figureOrbiting = true, camX = 0, camY = EYE, camZ = 55, roomCameraMode = 'freeroam' as RoomCameraMode, roomCamFov = 72, roomCamZoom = 1, roomCamXLoop = false, roomCamXLoopSpeed = 1, meshTexture = null, texScale = 1, texOffsetX = 0, texOffsetY = 0, texRotation = 0, transitionKey = 0, figureRings = false, soloReact = false, graffitiMode = false, graffitiColor = '#ff2222', graffitiBrushSize = 8, graffitiClearKey = 0, bgColor = '#ffffff', bgImage = null, analyserRef, nutsaGlbs, nutsaGlbScale, nutsaGlbRepeat, drift = false, captureRef }: { posts: Post[]; showDoggo?: boolean; doggoScale?: number; doggoX?: number; doggoY?: number; doggoZ?: number; showFigure?: boolean; figureRadius?: number; figureSpeed?: number; figureX?: number; figureY?: number; figureZ?: number; figureScale?: number; figureFacing?: number; figureWireframe?: boolean; wireframeStyle?: WireframeStyle; dotSize?: number; dotColor?: string; dotCount?: number; showVertexImages?: boolean; vertexSettings?: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>; figureStudent?: string | null; figureStudent2?: string | null; figureOrbiting?: boolean; camX?: number; camY?: number; camZ?: number; roomCameraMode?: RoomCameraMode; roomCamFov?: number; roomCamZoom?: number; roomCamXLoop?: boolean; roomCamXLoopSpeed?: number; meshTexture?: string | null; texScale?: number; texOffsetX?: number; texOffsetY?: number; texRotation?: number; transitionKey?: number; figureRings?: boolean; soloReact?: boolean; graffitiMode?: boolean; graffitiColor?: string; graffitiBrushSize?: number; graffitiClearKey?: number; bgColor?: string; bgImage?: string | null; analyserRef?: React.RefObject<AnalyserNode | null>; nutsaGlbs?: string[]; nutsaGlbScale?: number; nutsaGlbRepeat?: number; drift?: boolean; captureRef?: React.MutableRefObject<(() => void) | null> }) {
   return (
     <Canvas
       camera={{ position: [camX, camY, camZ], fov: 72 }}
       dpr={[1, MAX_DPR]}
+      gl={{ preserveDrawingBuffer: true }}
       style={{ width: '100%', height: '100%', touchAction: 'none', background: bgColor }}
     >
       <RoomScene posts={posts} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={vertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} drift={drift} />
+      {captureRef && <ScreenshotCapture captureRef={captureRef} />}
     </Canvas>
   )
+}
+
+// ── 8K screenshot via DPR scaling on the main canvas ─────────────────────────
+// Scale pixelRatio so canvas.width = TARGET_W while logical dimensions and
+// cam.aspect stay identical to the live view. toBlob snapshots synchronously
+// at call time so restoring DPR immediately after is safe.
+function ScreenshotCapture({ captureRef }: { captureRef: React.MutableRefObject<(() => void) | null> }) {
+  const { gl, scene, camera } = useThree()
+  useEffect(() => {
+    captureRef.current = () => {
+      const canvas = gl.domElement
+      const prevDpr = gl.getPixelRatio()
+      const displayW = Math.round(canvas.width / prevDpr)
+      const displayH = Math.round(canvas.height / prevDpr)
+      const TARGET_W = Math.min(7680, gl.capabilities.maxTextureSize)
+      const captureDpr = TARGET_W / displayW
+      gl.setPixelRatio(captureDpr)
+      gl.setSize(displayW, displayH, false)
+      gl.render(scene, camera)
+      canvas.toBlob(blob => {
+        if (!blob) return
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url; a.download = 'reply-8k.png'
+        document.body.appendChild(a); a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      }, 'image/png')
+      gl.setPixelRatio(prevDpr)
+      gl.setSize(displayW, displayH, false)
+    }
+    return () => { captureRef.current = null }
+  }, [gl, scene, camera, captureRef])
+  return null
 }
 
 // ── Circle room: all students in a ring facing inward ─────────────────────────

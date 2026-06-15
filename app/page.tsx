@@ -254,6 +254,7 @@ function AdminPanel({
   hidden,
   circleFacing, setCircleFacing,
   studentVertexSettings, updateStudentVS,
+  onCapture,
 }: {
   admin: AdminSettings
   setAdmin: React.Dispatch<React.SetStateAction<AdminSettings>>
@@ -271,6 +272,7 @@ function AdminPanel({
   hidden: boolean
   circleFacing: 'camera' | 'normal'; setCircleFacing: (v: 'camera' | 'normal') => void
   studentVertexSettings: Record<string, VertexSettings>; updateStudentVS: (name: string, updates: Partial<VertexSettings>) => void
+  onCapture?: () => void
 }) {
   const set = <K extends keyof AdminSettings>(key: K, value: AdminSettings[K]) =>
     setAdmin(prev => ({ ...prev, [key]: value }))
@@ -696,6 +698,17 @@ function AdminPanel({
         </PanelSection>
       )}
 
+      {(viewMode === 'room') && onCapture && (
+        <PanelSection title="Export">
+          <button
+            onClick={onCapture}
+            style={{ width: '100%', fontFamily: P.font, fontSize: 10, padding: '6px 0', cursor: 'pointer', background: P.surface, color: P.text, border: `1px solid ${P.border}`, letterSpacing: 1 }}
+          >
+            SAVE PNG
+          </button>
+        </PanelSection>
+      )}
+
       <PanelSection title="About">
         <div style={{ fontSize: 10, color: P.low, lineHeight: 1.7 }}>
           <strong style={{ color: P.dim }}>URL</strong> ?admin=true<br />
@@ -779,6 +792,7 @@ function HomeInner() {
   const [dragging, setDragging] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [roomKey, setRoomKey] = useState(0)
+  const captureRef = useRef<(() => void) | null>(null)
 
   const [admin, setAdmin] = useState<AdminSettings>(ADMIN_DEFAULTS)
   const {
@@ -1331,6 +1345,55 @@ function HomeInner() {
               >remove all</button>
             </div>
           )}
+
+          {/* Per-student drift toggles */}
+          {[figureStudent, figureStudent2].filter((s): s is string => !!s).map(name => {
+            const enabled = (studentVertexSettings[name] ?? {}).driftEnabled !== false
+            return (
+              <div key={name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+                <span style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.4)' }}>
+                  {name.split(' ')[0]} drift
+                </span>
+                <button
+                  onClick={() => setStudentVertexSettings(p => ({ ...p, [name]: { ...(p[name] ?? DEF_VS), driftEnabled: !enabled } }))}
+                  style={{
+                    fontFamily: 'var(--font-dm-mono), ui-monospace, monospace',
+                    fontSize: 9, padding: '3px 9px', cursor: 'pointer',
+                    background: enabled ? 'rgba(0,0,0,0.12)' : 'transparent',
+                    border: '1px solid rgba(0,0,0,0.18)',
+                    color: enabled ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.3)',
+                  }}
+                >{enabled ? 'on' : 'off'}</button>
+              </div>
+            )
+          })}
+
+          {/* Camera mode + Save PNG */}
+          <div style={{ display: 'flex', gap: 4, marginTop: 14 }}>
+            {(['perspective', 'orthographic', 'panoramic'] as const).map(mode => (
+              <button
+                key={mode}
+                onClick={() => setAdmin(prev => ({ ...prev, roomCameraMode: mode }))}
+                style={{
+                  flex: 1, fontFamily: 'var(--font-dm-mono), ui-monospace, monospace',
+                  fontSize: 9, padding: '4px 0', cursor: 'pointer',
+                  background: roomCameraMode === mode ? 'rgba(0,0,0,0.12)' : 'transparent',
+                  border: '1px solid rgba(0,0,0,0.18)',
+                  color: roomCameraMode === mode ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.35)',
+                }}
+              >{mode === 'orthographic' ? 'ortho' : mode === 'panoramic' ? 'pano' : 'persp'}</button>
+            ))}
+          </div>
+          <button
+            onClick={() => captureRef.current?.()}
+            style={{
+              width: '100%', marginTop: 6,
+              fontFamily: 'var(--font-dm-mono), ui-monospace, monospace',
+              fontSize: 10, padding: '5px 0', cursor: 'pointer',
+              background: 'transparent', border: '1px solid rgba(0,0,0,0.18)',
+              color: 'rgba(0,0,0,0.4)',
+            }}
+          >save png</button>
         </div>
       )}
 
@@ -1686,7 +1749,7 @@ Oto Prangishvili`}</p>
           </div>
         )}
         {!loading && mountedView === 'room' && !selectedStudent && (
-          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} drift={figureDrift} />
+          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} drift={figureDrift} captureRef={captureRef} />
         )}
         {!loading && mountedView === 'circle' && !selectedStudent && (
           <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={circleFigureY + (isMobileVp ? circleFigureYM : 0)} figureFacing={circleFigureFacing} drift={figureDrift} showVertexImages={circleShowImages && introImagesReady} vertexSettings={studentVertexSettings} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotSizeMobile : circleDotSize} dotColor={dotColor} dotCount={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotCountMobile : dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX + (isMobileVp ? circleCamXM : 0)} camY={circleCamY + (isMobileVp ? circleCamYM : 0)} camZ={circleCamZ + (isMobileVp ? circleCamZM : 0)} camFov={circleCamFov} camZoom={circleCamZoom + (isMobileVp ? circleCamZoomM : 0)} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} cameraInfoRef={isAdmin ? circleCameraInfoRef : undefined} soloReact={false} isAdmin={isAdmin} frameloop={phase === 'entry' ? 'demand' : 'always'} />
@@ -1722,7 +1785,7 @@ Oto Prangishvili`}</p>
 
         {/* Personal student room */}
         {mountedStudent && (
-          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} drift={figureDrift} />
+          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} drift={figureDrift} captureRef={captureRef} />
         )}
       </div>
 
@@ -1859,6 +1922,7 @@ Oto Prangishvili`}</p>
           ))}
           studentVertexSettings={studentVertexSettings}
           updateStudentVS={(name, updates) => setStudentVertexSettings(p => ({ ...p, [name]: { ...(p[name] ?? DEF_VS), ...updates } }))}
+          onCapture={() => captureRef.current?.()}
         />
       )}
 
