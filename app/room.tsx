@@ -1902,7 +1902,10 @@ function CircleFigure({ angle, radius, figureScale, figureY, figureFacing = 4.65
   const vs = vertexSettings[student] ?? { imgSize: 0.025, repeat: 1 }
   const isSergiFigure = student.trim().toLowerCase().includes('sergi')
   const isSesili = student === 'Sesili Gurgenidze'
-  const [sesiliImagesLoaded, setSesiliImagesLoaded] = useState(false)
+  // Start as loaded if showVertexImages is already true at mount (returning from another view)
+  // so dots never flash on remount. Only reset when student changes.
+  const [imagesLoaded, setImagesLoaded] = useState(() => showVertexImages)
+  useEffect(() => { setImagesLoaded(false) }, [student])
 
   const figureCenter = useMemo(() => {
     const box = new THREE.Box3().setFromObject(cloned)
@@ -1915,14 +1918,14 @@ function CircleFigure({ angle, radius, figureScale, figureY, figureFacing = 4.65
     <group position={[radius * Math.sin(angle), figureY, radius * Math.cos(angle)]} scale={figureScale} rotation={[0, rotY, 0]} frustumCulled={false}>
       <group position={[-figureCenter.x, -figureCenter.y, -figureCenter.z]}>
         <primitive object={cloned} frustumCulled={false} />
-        {showWireframe && !isSergiFigure && (!isSesili || !showVertexImages || !sesiliImagesLoaded) && (
+        {showWireframe && !isSergiFigure && !(showVertexImages && imagesLoaded) && (
           <FigureWireframe scene={cloned} style={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} transitionKey={0} />
         )}
         {isSergiFigure && <FigureRings scene={cloned} analyserRef={analyserRef} />}
         {showVertexImages && posts.length > 0 && (
           <group visible={imagesVisible}>
             <Suspense fallback={null}>
-              <FigureVertexImages scene={cloned} posts={posts} size={vs.imgSize} repeat={vs.repeat} audioImgSize={vs.audioImgSize} audioRepeat={vs.audioRepeat} facing={vs.facing} analyserRef={analyserRef} showConnections={isSesili} drift={drift && vs.driftEnabled !== false} driftSpeed={vs.driftSpeed} driftAmp={vs.driftAmp} onLoaded={isSesili ? () => setSesiliImagesLoaded(true) : undefined} />
+              <FigureVertexImages scene={cloned} posts={posts} size={vs.imgSize} repeat={vs.repeat} audioImgSize={vs.audioImgSize} audioRepeat={vs.audioRepeat} facing={vs.facing} analyserRef={analyserRef} showConnections={isSesili} drift={drift && vs.driftEnabled !== false} driftSpeed={vs.driftSpeed} driftAmp={vs.driftAmp} onLoaded={() => setImagesLoaded(true)} />
             </Suspense>
           </group>
         )}
