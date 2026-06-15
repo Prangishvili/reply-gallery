@@ -823,6 +823,8 @@ function HomeInner() {
   const [wireframeColor, setWireframeColor] = useState('#000000')
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set())
   const [showAbout, setShowAbout] = useState(false)
+  const [shuffledGlobePosts, setShuffledGlobePosts] = useState<Post[] | null>(null)
+  const [roomShuffleSeeds, setRoomShuffleSeeds] = useState<Record<string, number>>({})
 
   const [viewMode, setViewMode] = useState<'globe' | 'room' | 'circle' | 'self'>('circle')
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null)
@@ -1094,6 +1096,18 @@ function HomeInner() {
     bgAudioRef.current = audio
   }
 
+  function shuffleGlobe() {
+    const visible = posts.filter(p => !hiddenIds.has(p.id))
+    if (visible.length === 0) return
+    setShuffledGlobePosts(
+      Array.from({ length: visible.length }, () => visible[Math.floor(Math.random() * visible.length)])
+    )
+  }
+
+  function shuffleRoomStudent(name: string) {
+    setRoomShuffleSeeds(prev => ({ ...prev, [name]: (prev[name] ?? 0) + 1 }))
+  }
+
   function goToGallery() {
     localStorage.setItem('reply_visited', 'true')
     setPhase('gallery')
@@ -1226,6 +1240,32 @@ function HomeInner() {
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Shuffle button — globe view only */}
+      {phase === 'gallery' && viewMode === 'globe' && !selectedStudent && (
+        <div style={{ position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)', zIndex: 20, display: 'flex', gap: 12 }}>
+          <button
+            onClick={shuffleGlobe}
+            style={{
+              fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5,
+              padding: '5px 16px', border: '1px solid rgba(0,0,0,0.18)', cursor: 'pointer',
+              textTransform: 'uppercase', background: 'transparent', color: 'rgba(0,0,0,0.5)',
+              transition: 'color 0.15s',
+            }}
+          >shuffle</button>
+          {shuffledGlobePosts && (
+            <button
+              onClick={() => setShuffledGlobePosts(null)}
+              style={{
+                fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5,
+                padding: '5px 16px', border: '1px solid rgba(0,0,0,0.12)', cursor: 'pointer',
+                textTransform: 'uppercase', background: 'transparent', color: 'rgba(0,0,0,0.3)',
+                transition: 'color 0.15s',
+              }}
+            >reset</button>
+          )}
         </div>
       )}
 
@@ -1381,6 +1421,29 @@ function HomeInner() {
                       }}
                     >{f}</button>
                   ))}
+                </div>
+                <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+                  <button
+                    onClick={() => shuffleRoomStudent(name)}
+                    style={{
+                      flex: 1, fontFamily: 'var(--font-dm-mono), ui-monospace, monospace',
+                      fontSize: 9, padding: '3px 0', cursor: 'pointer',
+                      background: (roomShuffleSeeds[name] ?? 0) > 0 ? 'rgba(0,0,0,0.12)' : 'transparent',
+                      border: '1px solid rgba(0,0,0,0.18)',
+                      color: (roomShuffleSeeds[name] ?? 0) > 0 ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.3)',
+                    }}
+                  >shuffle</button>
+                  {(roomShuffleSeeds[name] ?? 0) > 0 && (
+                    <button
+                      onClick={() => setRoomShuffleSeeds(prev => { const n = { ...prev }; delete n[name]; return n })}
+                      style={{
+                        fontFamily: 'var(--font-dm-mono), ui-monospace, monospace',
+                        fontSize: 9, padding: '3px 8px', cursor: 'pointer',
+                        background: 'transparent', border: '1px solid rgba(0,0,0,0.12)',
+                        color: 'rgba(0,0,0,0.25)',
+                      }}
+                    >reset</button>
+                  )}
                 </div>
               </div>
             )
@@ -1767,7 +1830,7 @@ Oto Prangishvili`}</p>
           </div>
         )}
         {!loading && mountedView === 'room' && !selectedStudent && (
-          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} drift={figureDrift} captureRef={captureRef} />
+          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} drift={figureDrift} origShuffleSeed={roomShuffleSeeds[figureStudent ?? ''] ?? 0} mirrorShuffleSeed={roomShuffleSeeds[figureStudent2 ?? ''] ?? 0} captureRef={captureRef} />
         )}
         {!loading && !selectedStudent && (
           <div style={{ display: mountedView === 'circle' ? 'block' : 'none', position: 'absolute', inset: 0 }}>
@@ -1776,7 +1839,7 @@ Oto Prangishvili`}</p>
         )}
         {!loading && posts.length > 0 && mountedView === 'globe' && !selectedStudent && (
           <GlobeCanvas
-            posts={posts.filter(p => !hiddenIds.has(p.id))}
+            posts={shuffledGlobePosts ?? posts.filter(p => !hiddenIds.has(p.id))}
             showNames={showNames}
             nameSize={nameSize}
             showWireframe={showWireframe}
