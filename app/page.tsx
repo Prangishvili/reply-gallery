@@ -844,7 +844,6 @@ function HomeInner() {
 
   const switchView = (v: 'globe' | 'room' | 'circle' | 'self') => {
     if (v === 'room') setRoomKey(k => k + 1)
-    if (v === 'circle') setCircleKey(k => k + 1)
     setSelectedStudent(null)
     setViewMode(v)
   }
