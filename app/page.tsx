@@ -1346,24 +1346,43 @@ function HomeInner() {
             </div>
           )}
 
-          {/* Per-student drift toggles */}
+          {/* Per-student drift + facing toggles */}
           {[figureStudent, figureStudent2].filter((s): s is string => !!s).map(name => {
-            const enabled = (studentVertexSettings[name] ?? {}).driftEnabled !== false
+            const vs = studentVertexSettings[name] ?? {}
+            const driftEnabled = vs.driftEnabled !== false
+            const facing = vs.facing ?? 'camera'
             return (
-              <div key={name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
-                <span style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.4)' }}>
-                  {name.split(' ')[0]} drift
-                </span>
-                <button
-                  onClick={() => setStudentVertexSettings(p => ({ ...p, [name]: { ...(p[name] ?? DEF_VS), driftEnabled: !enabled } }))}
-                  style={{
-                    fontFamily: 'var(--font-dm-mono), ui-monospace, monospace',
-                    fontSize: 9, padding: '3px 9px', cursor: 'pointer',
-                    background: enabled ? 'rgba(0,0,0,0.12)' : 'transparent',
-                    border: '1px solid rgba(0,0,0,0.18)',
-                    color: enabled ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.3)',
-                  }}
-                >{enabled ? 'on' : 'off'}</button>
+              <div key={name} style={{ marginTop: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+                  <span style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 10, color: 'rgba(0,0,0,0.4)' }}>
+                    {name.split(' ')[0]} drift
+                  </span>
+                  <button
+                    onClick={() => setStudentVertexSettings(p => ({ ...p, [name]: { ...(p[name] ?? DEF_VS), driftEnabled: !driftEnabled } }))}
+                    style={{
+                      fontFamily: 'var(--font-dm-mono), ui-monospace, monospace',
+                      fontSize: 9, padding: '3px 9px', cursor: 'pointer',
+                      background: driftEnabled ? 'rgba(0,0,0,0.12)' : 'transparent',
+                      border: '1px solid rgba(0,0,0,0.18)',
+                      color: driftEnabled ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.3)',
+                    }}
+                  >{driftEnabled ? 'on' : 'off'}</button>
+                </div>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {(['camera', 'normal'] as const).map(f => (
+                    <button
+                      key={f}
+                      onClick={() => setStudentVertexSettings(p => ({ ...p, [name]: { ...(p[name] ?? DEF_VS), facing: f } }))}
+                      style={{
+                        flex: 1, fontFamily: 'var(--font-dm-mono), ui-monospace, monospace',
+                        fontSize: 9, padding: '3px 0', cursor: 'pointer',
+                        background: facing === f ? 'rgba(0,0,0,0.12)' : 'transparent',
+                        border: '1px solid rgba(0,0,0,0.18)',
+                        color: facing === f ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.3)',
+                      }}
+                    >{f}</button>
+                  ))}
+                </div>
               </div>
             )
           })}
