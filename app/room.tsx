@@ -294,7 +294,7 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
     })
     if ((showConnections || drift) && driftRef.current.length > 0) {
       clockRef.current += delta
-      const amp = size * driftAmp
+      const amp = activeSize * driftAmp
       meshMap.current.forEach((mesh, i) => {
         const d = driftRef.current[i]
         const v = vertices[i]
