@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { useGLTF, OrbitControls, Html, PerspectiveCamera, OrthographicCamera } from '@react-three/drei'
+import { useGLTF, OrbitControls, Html, PerspectiveCamera, OrthographicCamera, Line } from '@react-three/drei'
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { Post } from '@/lib/supabase'
@@ -680,8 +680,8 @@ function FigureWireframe({ scene, style, dotSize, dotColor, dotCount, transition
 }
 
 // ── Vertical-axis rings ────────────────────────────────────────────────────────
-function FigureRings({ scene, ringCount = 40, color = '#000000', analyserRef }: { scene: THREE.Object3D; ringCount?: number; color?: string; analyserRef?: React.RefObject<AnalyserNode | null> }) {
-  const ringRefs = useRef<(THREE.LineSegments | null)[]>([])
+function FigureRings({ scene, ringCount = 40, color = '#000000', lineWidth = 3, analyserRef }: { scene: THREE.Object3D; ringCount?: number; color?: string; lineWidth?: number; analyserRef?: React.RefObject<AnalyserNode | null> }) {
+  const ringRefs = useRef<(THREE.Object3D | null)[]>([])
   const dataArrRef = useRef<Uint8Array | null>(null)
 
   // Each ring follows its own frequency band — bottom rings move with the
@@ -747,7 +747,7 @@ function FigureRings({ scene, ringCount = 40, color = '#000000', analyserRef }: 
     })
     if (tris.length === 0) return []
 
-    const out: { geo: THREE.BufferGeometry; cx: number; cz: number }[] = []
+    const out: { pts: [number, number, number][]; cx: number; cz: number }[] = []
     // Sample slightly inside the bounds — planes exactly at min/max miss
     const pad = (maxY - minY) * 0.005
     for (let ri = 0; ri <= ringCount; ri++) {
@@ -777,21 +777,24 @@ function FigureRings({ scene, ringCount = 40, color = '#000000', analyserRef }: 
       for (let i = 0; i < ringPts.length; i += 3) { cx += ringPts[i]; cz += ringPts[i + 2] }
       cx /= ptCount; cz /= ptCount
 
-      const g = new THREE.BufferGeometry()
-      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(ringPts), 3))
-      out.push({ geo: g, cx, cz })
+      const pts: [number, number, number][] = []
+      for (let i = 0; i < ringPts.length; i += 3) pts.push([ringPts[i], ringPts[i + 1], ringPts[i + 2]])
+      out.push({ pts, cx, cz })
     }
     return out
   }, [scene, ringCount])
 
-  useEffect(() => () => { rings.forEach(r => r.geo.dispose()) }, [rings])
-
   return (
     <group>
       {rings.map((r, i) => (
-        <lineSegments key={i} ref={(el: THREE.LineSegments | null) => { ringRefs.current[i] = el }} geometry={r.geo}>
-          <lineBasicMaterial color={color} />
-        </lineSegments>
+        <Line
+          key={i}
+          ref={(el: THREE.Object3D | null) => { ringRefs.current[i] = el }}
+          points={r.pts}
+          segments
+          lineWidth={lineWidth}
+          color={color}
+        />
       ))}
     </group>
   )
