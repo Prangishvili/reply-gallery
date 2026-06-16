@@ -5,6 +5,9 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useGLTF, OrbitControls, Html, PerspectiveCamera, OrthographicCamera } from '@react-three/drei'
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
+import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js'
+import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js'
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js'
 import { Post } from '@/lib/supabase'
 import { NoiseGlobe } from './globe'
 
@@ -251,9 +254,12 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
   const gifAnimRef     = useRef<Map<string, { img: HTMLImageElement; canvas: HTMLCanvasElement; tex: THREE.CanvasTexture }>>(new Map())
   const driftRef       = useRef<{ dx: number; dy: number; dz: number; phase: number; speed: number }[]>([])
   const clockRef       = useRef(0)
-  const connectionsRef = useRef<[number, number][]>([])
-  const lineGeoRef     = useRef(new THREE.BufferGeometry())
-  const lineGroupRef   = useRef<THREE.Group | null>(null)
+  const connectionsRef  = useRef<[number, number][]>([])
+  const lineGeoRef      = useRef(new LineSegmentsGeometry())
+  const lineMatRef      = useRef(new LineMaterial({ color: '#444444', linewidth: 0.5, transparent: true, opacity: 0.85, vertexColors: false }))
+  const lineSegs2Ref    = useRef((() => { const l = new LineSegments2(lineGeoRef.current, lineMatRef.current); l.frustumCulled = false; return l })())
+  const posArrRef       = useRef<Float32Array | null>(null)
+  const lineGroupRef    = useRef<THREE.Group | null>(null)
   const _cvd  = useRef(new THREE.Vector3())
   const _cdl  = useRef(new THREE.Vector3())
   const _imat = useRef(new THREE.Matrix4())
@@ -268,7 +274,8 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
   // Per-sprite data built synchronously from loadedTex + vertices — no network needed on repeat change
   const [spriteData, setSpriteData] = useState<{ tex: THREE.Texture; aspect: number }[]>([])
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
+    lineMatRef.current.resolution.set(state.size.width, state.size.height)
     gifAnimRef.current.forEach(({ img, canvas, tex }) => {
       if (img.complete && img.naturalWidth > 0) {
         canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
@@ -313,8 +320,9 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
       })
     }
     if (showConnections && connectionsRef.current.length > 0 && lineGroupRef.current) {
-      const attr = lineGeoRef.current.getAttribute('position') as THREE.BufferAttribute | null
-      if (attr) {
+      const posArr = posArrRef.current
+      const instanceStart = lineGeoRef.current.getAttribute('instanceStart') as THREE.InterleavedBufferAttribute | null
+      if (posArr && instanceStart) {
         // Camera direction in local space of the figure group
         camera.getWorldDirection(_cvd.current)
         _imat.current.copy(lineGroupRef.current.matrixWorld).invert()
@@ -340,19 +348,19 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
           // External tangent: normal n̂ makes angle φ with dir where cos(φ) = (rA-rB)/dist
           const cosφ = Math.max(-0.9999, Math.min(0.9999, (rA - rB) / dist))
           const sinφ = Math.sqrt(1 - cosφ * cosφ)
-          // Line 1 (+perp side): tangent points where n̂ = cosφ·dir + sinφ·perp
+          // Line 1 (+perp side)
           _tA.current.copy(ma.position).addScaledVector(_cdir.current, rA * cosφ).addScaledVector(_cper.current,  rA * sinφ)
           _tB.current.copy(mb.position).addScaledVector(_cdir.current, rB * cosφ).addScaledVector(_cper.current,  rB * sinφ)
-          attr.setXYZ(vi,   _tA.current.x, _tA.current.y, _tA.current.z)
-          attr.setXYZ(vi+1, _tB.current.x, _tB.current.y, _tB.current.z)
-          // Line 2 (-perp side): n̂ = cosφ·dir - sinφ·perp
+          posArr[vi*3]   = _tA.current.x; posArr[vi*3+1]   = _tA.current.y; posArr[vi*3+2]   = _tA.current.z
+          posArr[vi*3+3] = _tB.current.x; posArr[vi*3+4]   = _tB.current.y; posArr[vi*3+5]   = _tB.current.z
+          // Line 2 (-perp side)
           _tA.current.copy(ma.position).addScaledVector(_cdir.current, rA * cosφ).addScaledVector(_cper.current, -rA * sinφ)
           _tB.current.copy(mb.position).addScaledVector(_cdir.current, rB * cosφ).addScaledVector(_cper.current, -rB * sinφ)
-          attr.setXYZ(vi+2, _tA.current.x, _tA.current.y, _tA.current.z)
-          attr.setXYZ(vi+3, _tB.current.x, _tB.current.y, _tB.current.z)
+          posArr[vi*3+6] = _tA.current.x; posArr[vi*3+7]   = _tA.current.y; posArr[vi*3+8]   = _tA.current.z
+          posArr[vi*3+9] = _tB.current.x; posArr[vi*3+10]  = _tB.current.y; posArr[vi*3+11]  = _tB.current.z
           vi += 4
         }
-        attr.needsUpdate = true
+        instanceStart.data.needsUpdate = true
       }
     }
   })
@@ -421,7 +429,7 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
   useEffect(() => {
     if (!showConnections || vertices.length < 2) {
       connectionsRef.current = []
-      lineGeoRef.current.deleteAttribute('position')
+      posArrRef.current = null
       return
     }
     const k = 3
@@ -440,7 +448,8 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
     }
     connectionsRef.current = pairs
     const buf = new Float32Array(pairs.length * 12)
-    lineGeoRef.current.setAttribute('position', new THREE.BufferAttribute(buf, 3).setUsage(THREE.DynamicDrawUsage))
+    posArrRef.current = buf
+    lineGeoRef.current.setPositions(buf)
   }, [showConnections, vertices])
 
   useEffect(() => {
@@ -460,7 +469,8 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
 
   useEffect(() => {
     const geo = lineGeoRef.current
-    return () => { geo.dispose() }
+    const mat = lineMatRef.current
+    return () => { geo.dispose(); mat.dispose() }
   }, [])
 
   if (vertices.length === 0 || spriteData.length === 0) return null
@@ -470,9 +480,7 @@ function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRep
     <>
       {showConnections && (
         <group ref={lineGroupRef}>
-          <lineSegments geometry={lineGeoRef.current}>
-            <lineBasicMaterial color="#444444" transparent opacity={0.85} />
-          </lineSegments>
+          <primitive object={lineSegs2Ref.current} />
         </group>
       )}
       {vertices.map((v, i) => {
