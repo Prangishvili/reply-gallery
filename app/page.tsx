@@ -31,7 +31,7 @@ const STUDENT_VERTEX_DEFAULTS: Record<string, VertexSettings> = {
   'Natali Chixelidze':     { imgSize: 0.155, repeat: 15, driftSpeed: 0.4, driftAmp: 0.50, audioImgSize: 0.100, audioRepeat: 17, facing: 'camera', driftEnabled: true },
   'Salome Shalvashvili':   { imgSize: 0.095, repeat: 11, audioImgSize: 0.065, audioRepeat: 11, facing: 'camera', driftEnabled: false },
   'Bako Shengelia':        { imgSize: 0.090, repeat: 30, audioImgSize: 0.090, audioRepeat: 17, facing: 'camera', driftEnabled: false },
-  'Mariam Wulaia':         { imgSize: 0.065, repeat: 5, audioImgSize: 0.050, audioRepeat: 5, facing: 'normal', driftEnabled: false},
+  'Mariam Wulaia':         { imgSize: 0.065, repeat: 5, audioImgSize: 0.050, audioRepeat: 5, facing: 'camera', driftEnabled: false},
   'Mariam Qsovreli':       { imgSize: 0.135, repeat: 15, audioImgSize: 0.090, audioRepeat: 15, facing: 'camera', driftEnabled: false },
 }
 
