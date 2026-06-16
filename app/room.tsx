@@ -1709,7 +1709,8 @@ async function save16BitPNG(
   const prevDpr = gl.getPixelRatio()
   const displayW = Math.round(canvas.width / prevDpr)
   const displayH = Math.round(canvas.height / prevDpr)
-  const TARGET_W = Math.min(gl.capabilities.maxTextureSize, 8192)
+  // A0 at 300 DPI landscape requires 14043px wide; cap at GPU max (usually 16384)
+  const TARGET_W = Math.min(gl.capabilities.maxTextureSize, 14044)
   const TARGET_H = Math.round(TARGET_W * displayH / displayW)
 
   // Camera aspect adjustment
