@@ -25,14 +25,14 @@ const STUDENT_VERTEX_DEFAULTS: Record<string, VertexSettings> = {
   'Sesili Gurgenidze':     { imgSize: 0.170, repeat: 11, audioImgSize: 0.110, audioRepeat: 11, facing: 'camera', driftEnabled: true },
   'Dominika Davshrishovi': { imgSize: 0.275, repeat: 17, driftSpeed: 0.4, driftAmp: 0.25, audioImgSize: 0.150, audioRepeat: 17, facing: 'camera', driftEnabled: true },
   'Nutsa Kavtelishvili':   { imgSize: 0.135, repeat: 19, driftSpeed: 0.6, driftAmp: 0.20, audioImgSize: 0.125, audioRepeat: 18, facing: 'camera', driftEnabled: true },
-  'Ketevan Lomiashvili':   { imgSize: 0.150, repeat: 7, audioImgSize: 0.100, audioRepeat: 7, facing: 'camera', driftEnabled: false },
-  'Ana Mamniashvili':      { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1, facing: 'camera', driftEnabled: false },
+  'Ketevan Lomiashvili':   { imgSize: 0.150, repeat: 7, driftSpeed: 0.15, driftAmp: 0.50, audioImgSize: 0.100, audioRepeat: 7, facing: 'camera', driftEnabled: true },
+  'Ana Mamniashvili':      { imgSize: 0.175, repeat: 12, audioImgSize: 0.115, audioRepeat: 9, facing: 'camera', driftEnabled: false },
   'Sergi Sarajevi':        { imgSize: 0.025, repeat: 1, audioImgSize: 0.025, audioRepeat: 1, facing: 'camera', driftEnabled: false },
-  'Natali Chixelidze':     { imgSize: 0.155, repeat: 15, driftSpeed: 0.4, driftAmp: 0.50, audioImgSize: 0.100, audioRepeat: 17, facing: 'camera', driftEnabled: true },
-  'Salome Shalvashvili':   { imgSize: 0.095, repeat: 11, audioImgSize: 0.065, audioRepeat: 11, facing: 'camera', driftEnabled: false },
+  'Natali Chixelidze':     { imgSize: 0.155, repeat: 15, driftSpeed: 0.45, driftAmp: 0.50, audioImgSize: 0.100, audioRepeat: 17, facing: 'camera', driftEnabled: true },
+  'Salome Shalvashvili':   { imgSize: 0.095, repeat: 11, driftSpeed: 0.45, driftAmp: 0.50, audioImgSize: 0.065, audioRepeat: 11, facing: 'camera', driftEnabled: true },
   'Bako Shengelia':        { imgSize: 0.090, repeat: 30, audioImgSize: 0.090, audioRepeat: 17, facing: 'camera', driftEnabled: false },
   'Mariam Wulaia':         { imgSize: 0.065, repeat: 5, audioImgSize: 0.050, audioRepeat: 5, facing: 'camera', driftEnabled: false},
-  'Mariam Qsovreli':       { imgSize: 0.135, repeat: 15, audioImgSize: 0.090, audioRepeat: 15, facing: 'camera', driftEnabled: false },
+  'Mariam Qsovreli':       { imgSize: 0.135, repeat: 15, driftSpeed: 0.35, driftAmp: 0.50, audioImgSize: 0.090, audioRepeat: 15, facing: 'camera', driftEnabled: true },
 }
 
 type ImageItem = { file: File; preview: string; caption: string }
