@@ -680,7 +680,7 @@ function FigureWireframe({ scene, style, dotSize, dotColor, dotCount, transition
 }
 
 // ── Vertical-axis rings ────────────────────────────────────────────────────────
-function FigureRings({ scene, ringCount = 40, color = '#000000', lineWidth = 1.8, analyserRef }: { scene: THREE.Object3D; ringCount?: number; color?: string; lineWidth?: number; analyserRef?: React.RefObject<AnalyserNode | null> }) {
+function FigureRings({ scene, ringCount = 40, color = '#000000', lineWidth = 1.4, analyserRef }: { scene: THREE.Object3D; ringCount?: number; color?: string; lineWidth?: number; analyserRef?: React.RefObject<AnalyserNode | null> }) {
   const ringRefs = useRef<(THREE.Object3D | null)[]>([])
   const dataArrRef = useRef<Uint8Array | null>(null)
 
