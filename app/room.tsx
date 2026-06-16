@@ -1726,17 +1726,19 @@ async function save16BitPNG(
     oCam.updateProjectionMatrix()
   }
 
-  // Render into a float render target (linear, no hardware gamma)
+  // Render into a standard uint8 render target — proven reliable at 16K.
+  // FloatType targets silently fail or get capped on some GPUs; since all source
+  // textures are 8-bit JPEGs, float precision in the RT adds no real benefit.
   const savedRT = gl.getRenderTarget()
   const savedCS = gl.outputColorSpace
   gl.outputColorSpace = THREE.LinearSRGBColorSpace
-  const rt = new THREE.WebGLRenderTarget(TARGET_W, TARGET_H, { type: THREE.FloatType })
+  const rt = new THREE.WebGLRenderTarget(TARGET_W, TARGET_H)
   gl.setRenderTarget(rt); gl.render(scene, camera)
   gl.setRenderTarget(savedRT); gl.outputColorSpace = savedCS
 
-  // GPU→CPU readback as float32
-  const pixels = new Float32Array(TARGET_W * TARGET_H * 4)
-  gl.readRenderTargetPixels(rt, 0, 0, TARGET_W, TARGET_H, pixels)
+  // GPU→CPU readback as uint8 linear values
+  const raw8 = new Uint8Array(TARGET_W * TARGET_H * 4)
+  gl.readRenderTargetPixels(rt, 0, 0, TARGET_W, TARGET_H, raw8)
   rt.dispose()
 
   // Restore camera
@@ -1744,7 +1746,7 @@ async function save16BitPNG(
   else if (oCam.isOrthographicCamera) { oCam.left = prevL; oCam.right = prevR; oCam.top = prevT; oCam.bottom = prevB; oCam.updateProjectionMatrix() }
 
   // Build PNG raw rows: filter byte (0=None) + RGB uint16 big-endian per pixel
-  // Y-flip here (WebGL bottom-to-top → PNG top-to-bottom)
+  // Y-flip (WebGL bottom-to-top → PNG top-to-bottom); uint8 linear → sRGB → uint16
   const rowBytes = 1 + TARGET_W * 6
   const raw = new Uint8Array(TARGET_H * rowBytes)
   for (let y = 0; y < TARGET_H; y++) {
@@ -1755,7 +1757,7 @@ async function save16BitPNG(
       const s = (srcY * TARGET_W + x) * 4
       const d = base + 1 + x * 6
       for (let c = 0; c < 3; c++) {
-        const lin = Math.max(0, Math.min(1, pixels[s + c]))
+        const lin = raw8[s + c] / 255
         const srgb = lin <= 0.0031308 ? lin * 12.92 : 1.055 * Math.pow(lin, 1 / 2.4) - 0.055
         const v = Math.round(srgb * 65535)
         raw[d + c * 2] = (v >> 8) & 0xff
