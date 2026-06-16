@@ -1697,87 +1697,115 @@ export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, do
   )
 }
 
-// ── High-res screenshot via WebGLRenderTarget ─────────────────────────────────
-// Renders into an off-screen texture (not the canvas backing store, which has
-// browser-imposed size limits). Reads pixels back synchronously, Y-flips them
-// (WebGL is bottom-to-top), then encodes via a 2D canvas. Caps at maxTextureSize
-// which is 16384 on modern GPUs — well above the canvas DPR approach limit.
+// ── 16-bit PNG encoder ────────────────────────────────────────────────────────
+// Renders to a FloatType WebGLRenderTarget, reads linear RGBA float pixels, applies
+// linear→sRGB gamma in float space, and writes a 16-bit-per-channel RGB PNG using
+// CompressionStream (no external deps). Caps at 8192px wide to stay within ~200MB
+// GPU readback + raw-row budget — sufficient for A2/A1 at 300 DPI.
+async function save16BitPNG(
+  gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera
+) {
+  const canvas = gl.domElement
+  const prevDpr = gl.getPixelRatio()
+  const displayW = Math.round(canvas.width / prevDpr)
+  const displayH = Math.round(canvas.height / prevDpr)
+  const TARGET_W = Math.min(gl.capabilities.maxTextureSize, 8192)
+  const TARGET_H = Math.round(TARGET_W * displayH / displayW)
+
+  // Camera aspect adjustment
+  const pCam = camera as THREE.PerspectiveCamera
+  const oCam = camera as THREE.OrthographicCamera
+  let prevAspect = 0, prevL = 0, prevR = 0, prevT = 0, prevB = 0
+  if (pCam.isPerspectiveCamera) {
+    prevAspect = pCam.aspect; pCam.aspect = TARGET_W / TARGET_H; pCam.updateProjectionMatrix()
+  } else if (oCam.isOrthographicCamera) {
+    prevL = oCam.left; prevR = oCam.right; prevT = oCam.top; prevB = oCam.bottom
+    const halfH = (oCam.top - oCam.bottom) / 2
+    oCam.left = -halfH * TARGET_W / TARGET_H; oCam.right = halfH * TARGET_W / TARGET_H
+    oCam.updateProjectionMatrix()
+  }
+
+  // Render into a float render target (linear, no hardware gamma)
+  const savedRT = gl.getRenderTarget()
+  const savedCS = gl.outputColorSpace
+  gl.outputColorSpace = THREE.LinearSRGBColorSpace
+  const rt = new THREE.WebGLRenderTarget(TARGET_W, TARGET_H, { type: THREE.FloatType })
+  gl.setRenderTarget(rt); gl.render(scene, camera)
+  gl.setRenderTarget(savedRT); gl.outputColorSpace = savedCS
+
+  // GPU→CPU readback as float32
+  const pixels = new Float32Array(TARGET_W * TARGET_H * 4)
+  gl.readRenderTargetPixels(rt, 0, 0, TARGET_W, TARGET_H, pixels)
+  rt.dispose()
+
+  // Restore camera
+  if (pCam.isPerspectiveCamera) { pCam.aspect = prevAspect; pCam.updateProjectionMatrix() }
+  else if (oCam.isOrthographicCamera) { oCam.left = prevL; oCam.right = prevR; oCam.top = prevT; oCam.bottom = prevB; oCam.updateProjectionMatrix() }
+
+  // Build PNG raw rows: filter byte (0=None) + RGB uint16 big-endian per pixel
+  // Y-flip here (WebGL bottom-to-top → PNG top-to-bottom)
+  const rowBytes = 1 + TARGET_W * 6
+  const raw = new Uint8Array(TARGET_H * rowBytes)
+  for (let y = 0; y < TARGET_H; y++) {
+    const srcY = TARGET_H - 1 - y
+    const base = y * rowBytes
+    raw[base] = 0
+    for (let x = 0; x < TARGET_W; x++) {
+      const s = (srcY * TARGET_W + x) * 4
+      const d = base + 1 + x * 6
+      for (let c = 0; c < 3; c++) {
+        const lin = Math.max(0, Math.min(1, pixels[s + c]))
+        const srgb = lin <= 0.0031308 ? lin * 12.92 : 1.055 * Math.pow(lin, 1 / 2.4) - 0.055
+        const v = Math.round(srgb * 65535)
+        raw[d + c * 2] = (v >> 8) & 0xff
+        raw[d + c * 2 + 1] = v & 0xff
+      }
+    }
+  }
+
+  // Compress with zlib deflate (PNG IDAT format)
+  const cs = new CompressionStream('deflate')
+  const w = cs.writable.getWriter()
+  w.write(raw); w.close()
+  const parts: Uint8Array[] = []
+  const r = cs.readable.getReader()
+  while (true) { const { done, value } = await r.read(); if (done) break; parts.push(value) }
+  const compressed = new Uint8Array(parts.reduce((n, p) => n + p.length, 0))
+  let off = 0; for (const p of parts) { compressed.set(p, off); off += p.length }
+
+  // CRC32 for PNG chunks
+  const crcT = new Int32Array(256)
+  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1); crcT[n] = c }
+  const crc32 = (d: Uint8Array) => { let c = -1; for (let i = 0; i < d.length; i++) c = crcT[(c ^ d[i]) & 0xff] ^ (c >>> 8); return (c ^ -1) >>> 0 }
+  const pngChunk = (type: string, data: Uint8Array) => {
+    const t = new TextEncoder().encode(type)
+    const out = new Uint8Array(12 + data.length); const dv = new DataView(out.buffer)
+    dv.setUint32(0, data.length); out.set(t, 4); out.set(data, 8)
+    dv.setUint32(8 + data.length, crc32(out.subarray(4, 8 + data.length)))
+    return out
+  }
+
+  // IHDR: 16-bit RGB (bit depth 16, color type 2)
+  const ihdr = new Uint8Array(13); const hv = new DataView(ihdr.buffer)
+  hv.setUint32(0, TARGET_W); hv.setUint32(4, TARGET_H); ihdr[8] = 16; ihdr[9] = 2
+
+  const blob = new Blob([
+    new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]),
+    pngChunk('IHDR', ihdr),
+    pngChunk('IDAT', compressed),
+    pngChunk('IEND', new Uint8Array(0)),
+  ], { type: 'image/png' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = `reply-${TARGET_W}x${TARGET_H}-16bit.png`
+  document.body.appendChild(a); a.click(); document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 function ScreenshotCapture({ captureRef }: { captureRef: React.MutableRefObject<(() => void) | null> }) {
   const { gl, scene, camera } = useThree()
   useEffect(() => {
-    captureRef.current = () => {
-      const canvas = gl.domElement
-      const prevDpr = gl.getPixelRatio()
-      const displayW = Math.round(canvas.width / prevDpr)
-      const displayH = Math.round(canvas.height / prevDpr)
-      const TARGET_W = gl.capabilities.maxTextureSize
-      const TARGET_H = Math.round(TARGET_W * displayH / displayW)
-
-      // Adjust camera for capture aspect ratio
-      const pCam = camera as THREE.PerspectiveCamera
-      const oCam = camera as THREE.OrthographicCamera
-      let prevAspect = 0, prevL = 0, prevR = 0, prevT = 0, prevB = 0
-      if (pCam.isPerspectiveCamera) {
-        prevAspect = pCam.aspect; pCam.aspect = TARGET_W / TARGET_H; pCam.updateProjectionMatrix()
-      } else if (oCam.isOrthographicCamera) {
-        prevL = oCam.left; prevR = oCam.right; prevT = oCam.top; prevB = oCam.bottom
-        const halfH = (oCam.top - oCam.bottom) / 2
-        oCam.left = -halfH * TARGET_W / TARGET_H; oCam.right = halfH * TARGET_W / TARGET_H
-        oCam.updateProjectionMatrix()
-      }
-
-      // Render to off-screen texture
-      // Force sRGB output encoding into the RT by temporarily matching the
-      // renderer's output color space — the canvas framebuffer gets hardware
-      // sRGB conversion for free, but a plain RGBA render target does not.
-      const savedRT = gl.getRenderTarget()
-      const savedOutputCS = gl.outputColorSpace
-      gl.outputColorSpace = THREE.LinearSRGBColorSpace  // raw linear → we gamma-encode below
-      const rt = new THREE.WebGLRenderTarget(TARGET_W, TARGET_H)
-      gl.setRenderTarget(rt)
-      gl.render(scene, camera)
-      gl.setRenderTarget(savedRT)
-      gl.outputColorSpace = savedOutputCS
-
-      // Read pixels back (synchronous GPU→CPU readback)
-      const pixels = new Uint8Array(TARGET_W * TARGET_H * 4)
-      gl.readRenderTargetPixels(rt, 0, 0, TARGET_W, TARGET_H, pixels)
-      rt.dispose()
-
-      // Restore camera
-      if (pCam.isPerspectiveCamera) { pCam.aspect = prevAspect; pCam.updateProjectionMatrix() }
-      else if (oCam.isOrthographicCamera) { oCam.left = prevL; oCam.right = prevR; oCam.top = prevT; oCam.bottom = prevB; oCam.updateProjectionMatrix() }
-
-      // Y-flip (WebGL bottom-to-top → canvas top-to-bottom) + linear→sRGB gamma encode
-      const enc = document.createElement('canvas')
-      enc.width = TARGET_W; enc.height = TARGET_H
-      const ctx = enc.getContext('2d')!
-      const img = ctx.createImageData(TARGET_W, TARGET_H)
-      for (let y = 0; y < TARGET_H; y++) {
-        const srcRow = (TARGET_H - 1 - y) * TARGET_W * 4
-        const dstRow = y * TARGET_W * 4
-        for (let x = 0; x < TARGET_W; x++) {
-          const s = srcRow + x * 4
-          const d = dstRow + x * 4
-          for (let c = 0; c < 3; c++) {
-            const lin = pixels[s + c] / 255
-            const srgb = lin <= 0.0031308 ? lin * 12.92 : 1.055 * Math.pow(lin, 1 / 2.4) - 0.055
-            img.data[d + c] = Math.round(Math.min(255, srgb * 255))
-          }
-          img.data[d + 3] = pixels[s + 3]
-        }
-      }
-      ctx.putImageData(img, 0, 0)
-      enc.toBlob(blob => {
-        if (!blob) return
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url; a.download = 'reply-16k.png'
-        document.body.appendChild(a); a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
-      }, 'image/png')
-    }
+    captureRef.current = () => { save16BitPNG(gl, scene, camera) }
     return () => { captureRef.current = null }
   }, [gl, scene, camera, captureRef])
   return null

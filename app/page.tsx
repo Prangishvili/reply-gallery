@@ -704,7 +704,7 @@ function AdminPanel({
             onClick={onCapture}
             style={{ width: '100%', fontFamily: P.font, fontSize: 10, padding: '6px 0', cursor: 'pointer', background: P.surface, color: P.text, border: `1px solid ${P.border}`, letterSpacing: 1 }}
           >
-            SAVE PNG
+            SAVE 16-BIT PNG
           </button>
         </PanelSection>
       )}
@@ -1474,7 +1474,7 @@ function HomeInner() {
               background: 'transparent', border: '1px solid rgba(0,0,0,0.18)',
               color: 'rgba(0,0,0,0.4)',
             }}
-          >save png</button>
+          >save 16-bit</button>
         </div>
       )}
 
