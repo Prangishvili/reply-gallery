@@ -10,6 +10,7 @@ const INFO_H = 157
 export default function GalleryPage() {
   const [posts, setPosts] = useState<VisitorPost[]>([])
   const [preview, setPreview] = useState<VisitorPost | null>(null)
+  const [showAbout, setShowAbout] = useState(false)
 
   const closePreview = useCallback(() => setPreview(null), [])
 
@@ -43,12 +44,12 @@ export default function GalleryPage() {
       </div>
 
       {/* Left nav — ABOUT */}
-      <a
-        href="/"
-        style={{ position: 'fixed', top: 24, left: 24, zIndex: 20, fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5, padding: 0, border: 'none', background: 'transparent', textTransform: 'uppercase', textDecoration: 'none', color: 'rgb(0,0,0)', transition: 'color 0.15s' }}
+      <button
+        onClick={() => setShowAbout(v => !v)}
+        style={{ position: 'fixed', top: 24, left: 24, zIndex: 60, fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5, padding: 0, border: 'none', background: 'transparent', textTransform: 'uppercase', cursor: 'pointer', color: 'rgb(0,0,0)', transition: 'color 0.15s' }}
       >
-        about
-      </a>
+        {showAbout ? 'close' : 'about'}
+      </button>
 
       {/* Right nav — MAKE */}
       <a
@@ -104,6 +105,36 @@ export default function GalleryPage() {
         <p style={{ textAlign: 'center', color: 'rgba(0,0,0,0.3)', fontSize: 11, letterSpacing: '0.2em', marginTop: 80 }}>
           NO ENTRIES YET
         </p>
+      )}
+
+      {/* About overlay */}
+      {showAbout && (
+        <div
+          onClick={() => setShowAbout(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 55, background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '64px 24px 40px' }}
+        >
+          <div onClick={e => e.stopPropagation()} className="about-scroll" style={{ maxWidth: 720, width: '100%', maxHeight: '100%', overflowY: 'auto', paddingRight: 28 }}>
+            <p style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2, color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em', whiteSpace: 'pre-line' }}>{`"The action of being is so revolutionary that society rejects it and concerns itself exclusively with the action of becoming."
+
+— Jiddu Krishnamurti
+
+REPLY is a collaborative work by students of the Free University of Georgia, a meditation on digital identity, performed selfhood, and what gets lost in translation.
+
+Every platform demands a different version of us. The visual self. The political self. The one who informs, the one who entertains. Collectively, they account for everything except the self that simply exists.
+
+In search of the self, each student developed their own writing system, a personal visual language designed not for legibility, but for honesty. Something to be felt rather than decoded.
+
+REPLY is a virtual art exhibition that abandons natural language as its framework, presenting each participant through a visual representation that resists performance and asks, instead, for presence.
+
+Visitors are also invited to construct their own version, to reply, and in that act, to consider what genuine dialogue between selves might actually look like, to say what they truly feel, without being observed, evaluated, or judged. Only felt.`}</p>
+            <img src="/credits.png" alt="Student signatures" style={{ width: '100%', maxWidth: 560, display: 'block', margin: '32px auto', mixBlendMode: 'multiply' }} />
+            <p style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2, color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em', whiteSpace: 'pre-line' }}>{`Students\nMariam Wulaia, Nodar Gogichaishvili, Dominika Davshrishovi, Salome Shalvashvili, Nutsa Kavtelishvili, Ketevan Lomiashvili, Mariam Qsovreli, Ana Mamniashvili, Bako Shengelia, Sergi Sarajevi, Natali Chixelidze\n\nLecturer\nOto Prangishvili`}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, margin: '24px 0 8px' }}>
+              <img src="/FREEUNI.svg" alt="Free University of Georgia" style={{ height: 48, width: 'auto', display: 'block' }} />
+              <span style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2, color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em' }}>Free University of Georgia</span>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Full-screen preview */}
