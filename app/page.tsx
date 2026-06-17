@@ -1217,36 +1217,28 @@ function HomeInner() {
         <img src="/logo.svg" alt="Reply" className="h-12 w-auto" fetchPriority="low" />
       </div>
 
-      {/* Right nav: MAKE + ABOUT */}
+      {/* View toggle */}
       {phase === 'gallery' && !loading && !selectedStudent && (
         <div
-          className="fixed top-6 z-60"
+          className="fixed top-6 z-20"
           style={{ right: isAdmin && !panelHidden ? 296 : 16 }}
         >
-          <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-            <a
-              href="/make"
-              style={{
-                fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5,
-                textDecoration: 'none', textTransform: 'uppercase',
-                color: 'rgba(0,0,0,0.3)',
-                transition: 'color 0.15s',
-              }}
-            >
-              make
-            </a>
-            <button
-              onClick={() => setShowAbout(v => !v)}
-              style={{
-                fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5,
-                padding: 0, border: 'none', cursor: 'pointer', textTransform: 'uppercase',
-                background: 'transparent',
-                color: 'rgba(0,0,0,0.3)',
-                transition: 'color 0.15s',
-              }}
-            >
-              {showAbout ? 'close' : 'about'}
-            </button>
+          <div style={{ display: 'flex', gap: 14 }}>
+            {(['room', 'circle', 'self'] as const).map(mode => (
+              <button
+                key={mode}
+                onClick={() => switchView(mode)}
+                style={{
+                  fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5,
+                  padding: 0, border: 'none', cursor: 'pointer', textTransform: 'uppercase',
+                  background: 'transparent',
+                  color: viewMode === mode ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.3)',
+                  transition: 'color 0.15s',
+                }}
+              >
+                {mode}
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -1693,6 +1685,21 @@ function HomeInner() {
       )}
 
       {/* About button */}
+      {phase === 'gallery' && !selectedStudent && (
+        <button
+          onClick={() => setShowAbout(v => !v)}
+          style={{
+            position: 'fixed', top: 24, left: 24, zIndex: 60,
+            fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5,
+            textTransform: 'uppercase', background: 'transparent', border: 'none',
+            cursor: 'pointer', padding: 0,
+            color: showAbout ? 'rgb(0, 0, 0)' : 'rgb(0, 0, 0)',
+            transition: 'color 0.15s',
+          }}
+        >
+          {showAbout ? 'close' : 'about'}
+        </button>
+      )}
 
       {/* About overlay */}
       {showAbout && phase === 'gallery' && (
