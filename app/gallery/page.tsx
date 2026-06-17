@@ -42,18 +42,18 @@ export default function GalleryPage() {
         <img src="/logo.svg" alt="Reply" style={{ height: 48, width: 'auto' }} />
       </div>
 
-      {/* Left nav — ABOUT, same position as CIRCLE */}
+      {/* Left nav — ABOUT */}
       <a
         href="/"
-        style={{ position: 'fixed', top: 24, left: 24, zIndex: 20, fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: 'rgba(0,0,0,0.3)', textDecoration: 'none', transition: 'color 0.15s' }}
+        style={{ position: 'fixed', top: 24, left: 24, zIndex: 20, fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5, padding: 0, border: 'none', background: 'transparent', textTransform: 'uppercase', textDecoration: 'none', color: 'rgba(0,0,0,0.3)', transition: 'color 0.15s' }}
       >
         about
       </a>
 
-      {/* Right nav — MAKE, same position as ROOM/CIRCLE/SELF in CIRCLE */}
+      {/* Right nav — MAKE */}
       <a
         href="/make"
-        style={{ position: 'fixed', top: 24, right: 16, zIndex: 20, fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: 'rgba(0,0,0,0.3)', textDecoration: 'none', transition: 'color 0.15s' }}
+        style={{ position: 'fixed', top: 24, right: 16, zIndex: 20, fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5, padding: 0, border: 'none', background: 'transparent', textTransform: 'uppercase', textDecoration: 'none', color: 'rgba(0,0,0,0.3)', transition: 'color 0.15s' }}
       >
         make
       </a>
