@@ -6,16 +6,10 @@ import { PerspectiveCamera, OrbitControls, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 
 // ── Capture ───────────────────────────────────────────────────────────────────
-function CaptureSetup({ captureRef }: { captureRef: React.MutableRefObject<(() => void) | null> }) {
+function CaptureSetup({ captureRef }: { captureRef: React.MutableRefObject<(() => string) | null> }) {
   const { gl } = useThree()
   useEffect(() => {
-    captureRef.current = () => {
-      const url = gl.domElement.toDataURL('image/png')
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'make.png'
-      a.click()
-    }
+    captureRef.current = () => gl.domElement.toDataURL('image/png')
     return () => { captureRef.current = null }
   }, [gl, captureRef])
   return null
@@ -272,7 +266,7 @@ function Figure({ imageUrls, size, repeat, cameraStream }: { imageUrls: string[]
 }
 
 // ── Canvas ─────────────────────────────────────────────────────────────────────
-export default function Scene({ imageUrls, size, repeat, bgColor, bgImage, cameraStream, captureRef }: { imageUrls: string[]; size: number; repeat: number; bgColor: string; bgImage: string | null; cameraStream: MediaStream | null; captureRef: React.MutableRefObject<(() => void) | null> }) {
+export default function Scene({ imageUrls, size, repeat, bgColor, bgImage, cameraStream, captureRef }: { imageUrls: string[]; size: number; repeat: number; bgColor: string; bgImage: string | null; cameraStream: MediaStream | null; captureRef: React.MutableRefObject<(() => string) | null> }) {
   return (
     <Canvas style={{ width: '100%', height: '100%', cursor: 'default', background: bgColor }} gl={{ preserveDrawingBuffer: true }} onPointerMissed={undefined}>
       <CaptureSetup captureRef={captureRef} />

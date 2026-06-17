@@ -12,3 +12,10 @@ export type Post = {
   created_at: string
   student_name: string | null
 }
+
+export type VisitorPost = {
+  id: string
+  image_url: string
+  visitor_name: string | null
+  created_at: string
+}
