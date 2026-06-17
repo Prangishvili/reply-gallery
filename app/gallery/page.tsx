@@ -35,7 +35,7 @@ export default function GalleryPage() {
   }
 
   return (
-    <div style={{ height: '100vh', overflowY: 'auto', background: '#fff', padding: '80px 20px 80px', fontFamily: 'var(--font-dm-mono)', cursor: 'default' }}>
+    <div style={{ height: '100vh', overflowY: 'auto', background: '#fff', padding: '140px 20px 80px', fontFamily: 'var(--font-dm-mono)', cursor: 'default' }}>
       <style>{`*, *::before, *::after { cursor: default !important; } button, a, .clickable { cursor: pointer !important; }`}</style>
 
       {/* Logo — centered, same as CIRCLE */}
