@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase, type VisitorPost } from '@/lib/supabase'
 
 const IMAGE_W = 613
@@ -9,6 +9,15 @@ const INFO_H = 157
 
 export default function GalleryPage() {
   const [posts, setPosts] = useState<VisitorPost[]>([])
+  const [preview, setPreview] = useState<VisitorPost | null>(null)
+
+  const closePreview = useCallback(() => setPreview(null), [])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closePreview() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [closePreview])
 
   useEffect(() => {
     supabase
@@ -26,7 +35,7 @@ export default function GalleryPage() {
 
   return (
     <div style={{ height: '100vh', overflowY: 'auto', background: '#fff', padding: '40px 40px 80px', fontFamily: 'var(--font-dm-mono)', cursor: 'default' }}>
-      <style>{`*, *::before, *::after { cursor: default !important; } button, a { cursor: pointer !important; }`}</style>
+      <style>{`*, *::before, *::after { cursor: default !important; } button, a, .clickable { cursor: pointer !important; }`}</style>
 
       {/* Title */}
       <h1 style={{ textAlign: 'center', letterSpacing: '0.5em', fontWeight: 300, fontSize: 32, color: '#222', marginBottom: 48, marginTop: 8 }}>
@@ -39,7 +48,7 @@ export default function GalleryPage() {
           <div key={post.id}>
 
             {/* Image card */}
-            <div style={{ aspectRatio: `${IMAGE_W} / ${IMAGE_H}`, background: '#fff', border: '1px solid rgba(0,0,0,0.08)', position: 'relative', overflow: 'hidden' }}>
+            <div onClick={() => setPreview(post)} style={{ aspectRatio: `${IMAGE_W} / ${IMAGE_H}`, background: '#fff', border: '1px solid rgba(0,0,0,0.08)', position: 'relative', overflow: 'hidden', cursor: 'pointer' }}>
               {/* Watermark */}
               <div style={{ position: 'absolute', top: 20, left: 0, right: 0, textAlign: 'center', letterSpacing: '0.35em', fontSize: 11, color: 'rgba(0,0,0,0.12)', fontWeight: 400, pointerEvents: 'none', zIndex: 1 }}>
                 R E P L Y &nbsp; G A L L E R Y
@@ -79,6 +88,31 @@ export default function GalleryPage() {
         <p style={{ textAlign: 'center', color: 'rgba(0,0,0,0.3)', fontSize: 11, letterSpacing: '0.2em', marginTop: 80 }}>
           NO ENTRIES YET
         </p>
+      )}
+
+      {/* Full-screen preview */}
+      {preview && (
+        <div
+          onClick={closePreview}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 100, gap: 20 }}
+        >
+          <img
+            src={preview.image_url}
+            alt={preview.visitor_name ?? ''}
+            onClick={e => e.stopPropagation()}
+            style={{ maxHeight: '85vh', maxWidth: '90vw', objectFit: 'contain' }}
+          />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+            {preview.visitor_name && (
+              <span style={{ fontFamily: 'var(--font-dm-mono)', fontSize: 11, letterSpacing: '0.2em', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>
+                {preview.visitor_name}
+              </span>
+            )}
+            <span style={{ fontFamily: 'var(--font-dm-mono)', fontSize: 10, letterSpacing: '0.15em', color: 'rgba(255,255,255,0.25)' }}>
+              ESC TO CLOSE
+            </span>
+          </div>
+        </div>
       )}
     </div>
   )
