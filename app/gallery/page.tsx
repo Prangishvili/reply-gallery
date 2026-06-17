@@ -45,7 +45,7 @@ export default function GalleryPage() {
       {/* Left nav — ABOUT */}
       <a
         href="/"
-        style={{ position: 'fixed', top: 24, left: 24, zIndex: 20, fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5, padding: 0, border: 'none', background: 'transparent', textTransform: 'uppercase', textDecoration: 'none', color: 'rgba(0,0,0,0.3)', transition: 'color 0.15s' }}
+        style={{ position: 'fixed', top: 24, left: 24, zIndex: 20, fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5, padding: 0, border: 'none', background: 'transparent', textTransform: 'uppercase', textDecoration: 'none', color: 'rgb(0,0,0)', transition: 'color 0.15s' }}
       >
         about
       </a>
