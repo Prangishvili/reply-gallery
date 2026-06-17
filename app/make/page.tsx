@@ -23,10 +23,12 @@ export default function MakePage() {
   const [uploadToGallery, setUploadToGallery] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   const inputRef = useRef<HTMLInputElement>(null)
   const bgInputRef = useRef<HTMLInputElement>(null)
   const captureRef = useRef<(() => string) | null>(null)
+  const frozenDataUrl = useRef<string | null>(null)
 
   const toggleCamera = async () => {
     if (cameraStream) {
@@ -45,11 +47,16 @@ export default function MakePage() {
     setImageUrls(prev => [...prev, ...Array.from(files).map(f => URL.createObjectURL(f))])
   }
 
-  const openModal = () => { setSaved(false); setModal(true) }
+  const openModal = () => {
+    frozenDataUrl.current = captureRef.current?.() ?? null
+    setSaved(false)
+    setUploadError(null)
+    setModal(true)
+  }
   const closeModal = () => setModal(false)
 
   const handleShareDownload = async () => {
-    const dataUrl = captureRef.current?.()
+    const dataUrl = frozenDataUrl.current
     if (!dataUrl) return
     setSaving(true)
 
@@ -61,12 +68,24 @@ export default function MakePage() {
 
     // Upload to gallery if opted in
     if (uploadToGallery) {
-      const blob = await fetch(dataUrl).then(r => r.blob())
-      const file = new File([blob], 'artwork.png', { type: 'image/png' })
-      const fd = new FormData()
-      fd.append('image', file)
-      if (name.trim()) fd.append('visitor_name', name.trim())
-      await fetch('/api/visitor-posts', { method: 'POST', body: fd })
+      try {
+        const blob = await fetch(dataUrl).then(r => r.blob())
+        const file = new File([blob], 'artwork.png', { type: 'image/png' })
+        const fd = new FormData()
+        fd.append('image', file)
+        if (name.trim()) fd.append('visitor_name', name.trim())
+        const res = await fetch('/api/visitor-posts', { method: 'POST', body: fd })
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}))
+          setSaving(false)
+          setUploadError(body.error ?? `Upload failed (${res.status})`)
+          return
+        }
+      } catch (e) {
+        setSaving(false)
+        setUploadError('Network error — upload failed')
+        return
+      }
     }
 
     setSaving(false)
@@ -143,6 +162,10 @@ export default function MakePage() {
               <input type="checkbox" checked={uploadToGallery} onChange={e => setUploadToGallery(e.target.checked)} style={{ width: 14, height: 14 }} />
               Upload artwork to Reply Gallery
             </label>
+
+            {uploadError && (
+              <p style={{ margin: 0, fontSize: 10, color: '#c0392b', letterSpacing: '0.05em' }}>{uploadError}</p>
+            )}
 
             {saved ? (
               <p style={{ margin: 0, fontSize: 11, color: 'rgba(0,0,0,0.4)', textAlign: 'center', letterSpacing: '0.1em' }}>
