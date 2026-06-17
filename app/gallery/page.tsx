@@ -34,13 +34,29 @@ export default function GalleryPage() {
   }
 
   return (
-    <div style={{ height: '100vh', overflowY: 'auto', background: '#fff', padding: '40px 20px 80px', fontFamily: 'var(--font-dm-mono)', cursor: 'default' }}>
+    <div style={{ height: '100vh', overflowY: 'auto', background: '#fff', padding: '80px 20px 80px', fontFamily: 'var(--font-dm-mono)', cursor: 'default' }}>
       <style>{`*, *::before, *::after { cursor: default !important; } button, a, .clickable { cursor: pointer !important; }`}</style>
 
-      {/* Title */}
-      <h1 style={{ textAlign: 'center', letterSpacing: '0.5em', fontWeight: 300, fontSize: 32, color: '#222', marginBottom: 48, marginTop: 8 }}>
-        R E P L Y
-      </h1>
+      {/* Logo — centered, same as CIRCLE */}
+      <div style={{ position: 'fixed', top: 36, left: '50%', transform: 'translateX(-50%)', zIndex: 20, pointerEvents: 'none', userSelect: 'none' }}>
+        <img src="/logo.svg" alt="Reply" style={{ height: 48, width: 'auto' }} />
+      </div>
+
+      {/* Left nav — ABOUT, same position as CIRCLE */}
+      <a
+        href="/"
+        style={{ position: 'fixed', top: 24, left: 24, zIndex: 20, fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: 'rgba(0,0,0,0.3)', textDecoration: 'none', transition: 'color 0.15s' }}
+      >
+        about
+      </a>
+
+      {/* Right nav — MAKE, same position as ROOM/CIRCLE/SELF in CIRCLE */}
+      <a
+        href="/make"
+        style={{ position: 'fixed', top: 24, right: 16, zIndex: 20, fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: 'rgba(0,0,0,0.3)', textDecoration: 'none', transition: 'color 0.15s' }}
+      >
+        make
+      </a>
 
       {/* Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
