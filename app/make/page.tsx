@@ -25,8 +25,6 @@ export default function MakePage() {
   const [saved, setSaved] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
 
-  const inputRef = useRef<HTMLInputElement>(null)
-  const bgInputRef = useRef<HTMLInputElement>(null)
   const captureRef = useRef<(() => string) | null>(null)
   const frozenDataUrl = useRef<string | null>(null)
 
@@ -43,8 +41,12 @@ export default function MakePage() {
   }
 
   const handleFiles = (files: FileList | null) => {
-    if (!files) return
-    setImageUrls(prev => [...prev, ...Array.from(files).map(f => URL.createObjectURL(f))])
+    if (!files || files.length === 0) return
+    // Build URLs synchronously NOW — before the input value is reset, which would
+    // empty this FileList. Doing it inside the setState updater (called async) risks
+    // reading an already-cleared FileList → no images added.
+    const urls = Array.from(files).map(f => URL.createObjectURL(f))
+    setImageUrls(prev => [...prev, ...urls])
   }
 
   const openModal = () => {
@@ -81,7 +83,7 @@ export default function MakePage() {
           setUploadError(body.error ?? `Upload failed (${res.status})`)
           return
         }
-      } catch (e) {
+      } catch {
         setSaving(false)
         setUploadError('Network error — upload failed')
         return
@@ -116,7 +118,7 @@ export default function MakePage() {
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, ...mono, color: 'rgba(0,0,0,0.55)' }}>
               repeat
-              <input type="range" min={1} max={30} step={1} value={repeat} onChange={e => setRepeat(Number(e.target.value))} style={{ width: 90 }} />
+              <input type="range" min={1} max={99} step={1} value={repeat} onChange={e => setRepeat(Number(e.target.value))} style={{ width: 90 }} />
               {repeat}
             </label>
           </>)}
@@ -124,18 +126,20 @@ export default function MakePage() {
             bg
             <input type="color" value={bgColor} onChange={e => { setBgColor(e.target.value); setBgImage(null) }} style={{ width: 28, height: 20, border: 'none', padding: 0 }} />
           </label>
-          <span onClick={() => bgInputRef.current?.click()} className="make-clickable" style={{ ...mono, color: 'rgba(0,0,0,0.55)' }}>
+          <label className="make-clickable" style={{ ...mono, color: 'rgba(0,0,0,0.55)' }}>
             {bgImage ? 'change bg image' : '+ bg image'}
-          </span>
-          <input ref={bgInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) setBgImage(URL.createObjectURL(f)); e.target.value = '' }} />
+            <input type="file" accept="image/*" style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) setBgImage(URL.createObjectURL(f)); e.target.value = '' }} />
+          </label>
           {bgImage && <button onClick={() => setBgImage(null)} style={{ ...mono, background: 'none', border: 'none', color: 'rgba(0,0,0,0.35)', padding: 0 }}>remove bg</button>}
           <button onClick={openModal} style={btn}>save png</button>
           <button onClick={toggleCamera} style={{ ...btn, background: cameraStream ? 'rgba(0,0,0,0.12)' : 'rgba(0,0,0,0.07)', color: cameraStream ? 'rgba(0,0,0,0.8)' : 'rgba(0,0,0,0.6)' }}>
             {cameraStream ? '⏹ camera' : '⏺ camera'}
           </button>
-          <button onClick={() => inputRef.current?.click()} style={btn}>+ upload images</button>
+          <label style={{ ...btn, display: 'inline-block' }}>
+            + upload images
+            <input type="file" accept="image/*" multiple style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={e => { handleFiles(e.target.files); e.target.value = '' }} />
+          </label>
           {imageUrls.length > 0 && <button onClick={() => setImageUrls([])} style={{ ...mono, background: 'none', border: 'none', color: 'rgba(0,0,0,0.35)', padding: 0 }}>clear</button>}
-          <input ref={inputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => { handleFiles(e.target.files); e.target.value = '' }} />
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useMemo, useEffect, useState, useRef } from 'react'
+import { Suspense, useMemo, useEffect, useState } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
 import { PerspectiveCamera, OrbitControls, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
@@ -39,6 +39,7 @@ function BackgroundSetter({ color, image }: { color: string; image: string | nul
       img.src = image
       return () => { cancelled = true; tex?.dispose(); scene.background = null }
     }
+    // eslint-disable-next-line react-hooks/immutability -- setting scene.background is the standard R3F imperative pattern
     scene.background = new THREE.Color(color)
     return () => { scene.background = null }
   }, [color, image, scene, size.width, size.height])
@@ -46,11 +47,16 @@ function BackgroundSetter({ color, image }: { color: string; image: string | nul
 }
 
 // ── Vertex sampler (area-weighted, deterministic) ─────────────────────────────
-function sampleVerticesWithNormals(root: THREE.Object3D, count: number): { pos: THREE.Vector3; normal: THREE.Vector3 }[] {
-  if (count === 0) return []
+// Split in two: building the triangle list traverses the whole mesh (expensive,
+// allocation-heavy) and depends only on the model, so it's memoized on `scene`.
+// Sampling N points from that prebuilt list is cheap — so dragging the repeat
+// slider only re-samples instead of rebuilding the triangle list every tick.
+type Tri = { a: THREE.Vector3; b: THREE.Vector3; c: THREE.Vector3; na: THREE.Vector3; nb: THREE.Vector3; nc: THREE.Vector3; area: number }
+type TriangleData = { tris: Tri[]; cum: Float64Array; totalArea: number }
+
+function buildTriangleData(root: THREE.Object3D): TriangleData {
   root.updateMatrixWorld(true)
   const rootInv = new THREE.Matrix4().copy(root.matrixWorld).invert()
-  type Tri = { a: THREE.Vector3; b: THREE.Vector3; c: THREE.Vector3; na: THREE.Vector3; nb: THREE.Vector3; nc: THREE.Vector3; area: number }
   const tris: Tri[] = []
   let totalArea = 0
   root.traverse(obj => {
@@ -78,10 +84,14 @@ function sampleVerticesWithNormals(root: THREE.Object3D, count: number): { pos: 
       tris.push({ a, b, c, na: getN(ia), nb: getN(ib), nc: getN(ic), area })
     }
   })
-  if (tris.length === 0 || totalArea === 0) return []
   const cum = new Float64Array(tris.length)
   let acc = 0
   for (let i = 0; i < tris.length; i++) { acc += tris[i].area; cum[i] = acc }
+  return { tris, cum, totalArea }
+}
+
+function sampleTriangleData({ tris, cum, totalArea }: TriangleData, count: number): { pos: THREE.Vector3; normal: THREE.Vector3 }[] {
+  if (count === 0 || tris.length === 0 || totalArea === 0) return []
   const result: { pos: THREE.Vector3; normal: THREE.Vector3 }[] = []
   for (let s = 0; s < count; s++) {
     const target = (s + 0.5) / count * totalArea
@@ -108,10 +118,9 @@ function loadTex(url: string): Promise<TexEntry> {
   if (p) return p
   p = new Promise<TexEntry>(resolve => {
     const img = new window.Image()
-    img.crossOrigin = 'anonymous'
+    if (!url.startsWith('blob:')) img.crossOrigin = 'anonymous'
     img.decoding = 'async'
-    img.src = url
-    img.decode().then(() => {
+    img.onload = () => {
       const w = img.naturalWidth || 1, h = img.naturalHeight || 1
       const maxDim = 1024
       const scale = Math.min(1, maxDim / Math.max(w, h))
@@ -122,51 +131,126 @@ function loadTex(url: string): Promise<TexEntry> {
       const tex = new THREE.CanvasTexture(canvas)
       tex.colorSpace = THREE.SRGBColorSpace
       resolve({ tex, aspect: w / h })
-    }).catch(() => resolve({ tex: new THREE.Texture(), aspect: 1 }))
+    }
+    img.onerror = () => resolve({ tex: new THREE.Texture(), aspect: 1 })
+    img.src = url
   })
   texCache.set(url, p)
   return p
 }
 
-// ── Vertex images ──────────────────────────────────────────────────────────────
-function VertexImages({ scene, imageUrls, size, repeat }: {
+// ── Mixed vertex images (camera + uploaded) ────────────────────────────────────
+// Images and camera are managed by SEPARATE effects so that uploading images never
+// tears down a running camera, and toggling the camera never reloads images. This
+// makes the two orderings (camera-first vs images-first) behave identically.
+function MixedImages({ scene, imageUrls, cameraStream, size, repeat }: {
   scene: THREE.Object3D
   imageUrls: string[]
+  cameraStream: MediaStream | null
   size: number
   repeat: number
 }) {
-  const totalCount = imageUrls.length * repeat
-  const vertices = useMemo(() => sampleVerticesWithNormals(scene, totalCount), [scene, totalCount])
-  const [textures, setTextures] = useState<Map<string, TexEntry>>(new Map())
+  const imgSrcCount = imageUrls.length
+  const imgCount = imgSrcCount * repeat
+  const camCount = cameraStream ? repeat : 0
+  const count = imgCount + camCount
 
+  const triData = useMemo(() => buildTriangleData(scene), [scene])
+  const vertices = useMemo(() => sampleTriangleData(triData, count), [triData, count])
+
+  // ── Image textures — rebuilt ONLY when imageUrls changes ──────────────────────
+  const [imgEntries, setImgEntries] = useState<TexEntry[]>([])
   useEffect(() => {
-    if (imageUrls.length === 0) return
-    imageUrls.forEach(url => {
-      loadTex(url).then(entry => {
-        setTextures(prev => {
-          if (prev.get(url)?.tex === entry.tex) return prev
-          return new Map(prev).set(url, entry)
-        })
-      })
+    let cancelled = false
+    // Empty imageUrls → Promise.all([]) resolves to [] and clears entries, without a
+    // synchronous setState in the effect body.
+    Promise.all(imageUrls.map(url => loadTex(url))).then(entries => {
+      if (!cancelled) setImgEntries(entries)
     })
+    return () => { cancelled = true }
   }, [imageUrls])
 
-  if (vertices.length === 0 || textures.size < imageUrls.length) return null
+  // ── Camera texture — set up ONLY when cameraStream changes ─────────────────────
+  const [camTex, setCamTex] = useState<THREE.VideoTexture | null>(null)
+  const [camAspect, setCamAspect] = useState(4 / 3)
+  useEffect(() => {
+    // No stream → nothing to set up. The previous run's cleanup already disposed and
+    // nulled camTex, so there's no synchronous setState here.
+    if (!cameraStream) return
+    let cancelled = false
+    let made = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const video = document.createElement('video')
+    video.srcObject = cameraStream
+    video.muted = true
+    video.playsInline = true
+    video.autoplay = true
+    video.play().catch(() => {})
+
+    // Always create the texture once metadata is known; a timeout fallback guarantees
+    // it's created even if 'loadedmetadata' is missed — this is what makes it reliable.
+    const make = () => {
+      if (cancelled || made) return
+      made = true
+      if (timer) clearTimeout(timer)
+      if (video.videoWidth > 0) setCamAspect(video.videoWidth / video.videoHeight)
+      const tex = new THREE.VideoTexture(video)
+      tex.colorSpace = THREE.SRGBColorSpace
+      setCamTex(tex)
+    }
+
+    if (video.readyState >= 1 && video.videoWidth > 0) make()
+    else {
+      video.addEventListener('loadedmetadata', make, { once: true })
+      timer = setTimeout(make, 2000)
+    }
+
+    return () => {
+      cancelled = true
+      if (timer) clearTimeout(timer)
+      video.removeEventListener('loadedmetadata', make)
+      video.pause()
+      video.srcObject = null
+      setCamTex(prev => { prev?.dispose(); return null })
+    }
+  }, [cameraStream])
+
+  // ── Materials — one per source; disposed only when its source changes ─────────
+  const imgMats = useMemo(
+    () => imgEntries.map(e => new THREE.SpriteMaterial({ map: e.tex, sizeAttenuation: true, transparent: true, depthWrite: false })),
+    [imgEntries]
+  )
+  useEffect(() => () => { imgMats.forEach(m => m.dispose()) }, [imgMats])
+
+  const camMat = useMemo(
+    () => camTex ? new THREE.SpriteMaterial({ map: camTex, sizeAttenuation: true, transparent: true, depthWrite: false }) : null,
+    [camTex]
+  )
+  useEffect(() => () => { camMat?.dispose() }, [camMat])
+
+  if (vertices.length === 0 || (imgMats.length === 0 && !camMat)) return null
 
   return (
     <>
       {vertices.map((v, i) => {
-        const url = imageUrls[i % imageUrls.length]
-        const entry = textures.get(url)
-        if (!entry) return null
+        // First imgCount slots cycle through uploaded images; the rest use the camera
+        let mat: THREE.SpriteMaterial
+        let aspect: number
+        if (i < imgCount && imgMats.length > 0) {
+          const si = i % imgMats.length
+          mat = imgMats[si]; aspect = imgEntries[si].aspect
+        } else if (camMat) {
+          mat = camMat; aspect = camAspect
+        } else {
+          return null
+        }
         return (
           <sprite
             key={i}
+            material={mat}
             position={[v.pos.x + v.normal.x * 0.02, v.pos.y + v.normal.y * 0.02, v.pos.z + v.normal.z * 0.02]}
-            scale={[size * entry.aspect, size, 1]}
-          >
-            <spriteMaterial map={entry.tex} sizeAttenuation transparent depthWrite={false} />
-          </sprite>
+            scale={[size * aspect, size, 1]}
+          />
         )
       })}
     </>
@@ -207,60 +291,17 @@ function FigureDots({ scene }: { scene: THREE.Object3D }) {
   )
 }
 
-// ── Camera vertex images ───────────────────────────────────────────────────────
-function CameraVertexImages({ scene, stream, size, repeat }: { scene: THREE.Object3D; stream: MediaStream; size: number; repeat: number }) {
-  const vertices = useMemo(() => sampleVerticesWithNormals(scene, repeat), [scene, repeat])
-  const texRef = useRef<THREE.VideoTexture | null>(null)
-  const [ready, setReady] = useState(false)
-
-  useEffect(() => {
-    const video = document.createElement('video')
-    video.srcObject = stream
-    video.muted = true
-    video.playsInline = true
-    video.play().then(() => {
-      const tex = new THREE.VideoTexture(video)
-      tex.colorSpace = THREE.SRGBColorSpace
-      texRef.current = tex
-      setReady(true)
-    })
-    return () => {
-      texRef.current?.dispose()
-      texRef.current = null
-      video.srcObject = null
-      setReady(false)
-    }
-  }, [stream])
-
-  if (!ready || !texRef.current || vertices.length === 0) return null
-
-  const tex = texRef.current
-  const aspect = stream.getVideoTracks()[0]?.getSettings().aspectRatio ?? 16 / 9
-
-  return (
-    <>
-      {vertices.map((v, i) => (
-        <sprite
-          key={i}
-          position={[v.pos.x + v.normal.x * 0.02, v.pos.y + v.normal.y * 0.02, v.pos.z + v.normal.z * 0.02]}
-          scale={[size * aspect, size, 1]}
-        >
-          <spriteMaterial map={tex} sizeAttenuation transparent depthWrite={false} />
-        </sprite>
-      ))}
-    </>
-  )
-}
-
 // ── Figure ─────────────────────────────────────────────────────────────────────
 function Figure({ imageUrls, size, repeat, cameraStream }: { imageUrls: string[]; size: number; repeat: number; cameraStream: MediaStream | null }) {
   const { scene } = useGLTF('/figure.glb')
   const clone = useMemo(() => scene.clone(true), [scene])
+
   return (
     <group scale={200} rotation={[0, 0, 0]}>
       <FigureDots scene={clone} />
-      {imageUrls.length > 0 && <VertexImages scene={clone} imageUrls={imageUrls} size={size} repeat={repeat} />}
-      {cameraStream && <CameraVertexImages scene={clone} stream={cameraStream} size={size} repeat={repeat} />}
+      {(imageUrls.length > 0 || !!cameraStream) && (
+        <MixedImages scene={clone} imageUrls={imageUrls} cameraStream={cameraStream} size={size} repeat={repeat} />
+      )}
     </group>
   )
 }
