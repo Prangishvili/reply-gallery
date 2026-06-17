@@ -34,7 +34,7 @@ export default function GalleryPage() {
   }
 
   return (
-    <div style={{ height: '100vh', overflowY: 'auto', background: '#fff', padding: '40px 40px 80px', fontFamily: 'var(--font-dm-mono)', cursor: 'default' }}>
+    <div style={{ height: '100vh', overflowY: 'auto', background: '#fff', padding: '40px 20px 80px', fontFamily: 'var(--font-dm-mono)', cursor: 'default' }}>
       <style>{`*, *::before, *::after { cursor: default !important; } button, a, .clickable { cursor: pointer !important; }`}</style>
 
       {/* Title */}
@@ -43,7 +43,7 @@ export default function GalleryPage() {
       </h1>
 
       {/* Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, maxWidth: 1400, margin: '0 auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
         {posts.map(post => (
           <div key={post.id}>
 
