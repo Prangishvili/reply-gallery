@@ -732,35 +732,7 @@ function HomeInner() {
     const id = setInterval(() => setReplyFrame(f => (f + 1) % 3), 250)
     return () => clearInterval(id)
   }, [phase])
-  const cursorWrapRef = useRef<HTMLDivElement>(null)
-  const cursorDotRef  = useRef<HTMLElement>(null)
-
-  useEffect(() => {
-    const wrap = cursorWrapRef.current
-    const dot  = cursorDotRef.current
-    if (!wrap || !dot) return
-    const onMove = (e: MouseEvent) => {
-      wrap.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`
-      const el = e.target as Element
-      const isPointer = !!el.closest('button, a, input, label, select, textarea, [role="button"]')
-      dot.style.transform = `translate(-50%, -50%) scale(${isPointer ? 1.8 : 1})`
-    }
-    const onLeave = () => { wrap.style.transform = 'translate(-100px, -100px)' }
-    document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseleave', onLeave)
-    // Override any JS cursor changes (e.g. Three.js / OrbitControls)
-    const observer = new MutationObserver(() => {
-      document.querySelectorAll<HTMLElement>('canvas, [style*="cursor"]').forEach(el => {
-        if (el.style.cursor && el.style.cursor !== 'none') el.style.cursor = 'none'
-      })
-    })
-    observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['style'] })
-    return () => {
-      document.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseleave', onLeave)
-      observer.disconnect()
-    }
-  }, [])
+  // Native cursor — custom orange cursor removed
 
   // Block iOS Safari's native page pinch-zoom (it ignores the viewport flag
   // for accessibility) — canvas pinch still reaches OrbitControls
@@ -878,11 +850,24 @@ function HomeInner() {
     // don't replay it, but make sure images aren't gated forever
     if (circleAnimPlayedRef.current) { setIntroImagesReady(true); return }
     circleAnimPlayedRef.current = true
+
+    const targetZoom = window.innerWidth < 1000 ? 0.6 : 1.4
+
+    // The fly-in animation always plays (it frames the scene and gates the images so
+    // they appear jank-free after it ends); only the quote is limited to once per day.
+    const INTRO_KEY = 'reply_circle_intro_seen'
+    const INTRO_TTL_MS = 24 * 60 * 60 * 1000
+    let showQuoteThisTime = true
+    try {
+      const ts = Number(localStorage.getItem(INTRO_KEY))
+      if (ts > 0 && Date.now() - ts < INTRO_TTL_MS) showQuoteThisTime = false
+    } catch { /* localStorage unavailable */ }
+    if (showQuoteThisTime) { try { localStorage.setItem(INTRO_KEY, String(Date.now())) } catch { /* ignore */ } }
+
     if (circleAnimRef.current !== null) cancelAnimationFrame(circleAnimRef.current)
     const fromCamY = circleCamYRef.current
     const fromZoom = circleCamZoomRef.current
     const fromFigY = circleFigureYRef.current
-    const targetZoom = window.innerWidth < 1000 ? 0.6 : 1.4
     const duration = 5000
     const start = performance.now()
     const tick = (now: number) => {
@@ -895,9 +880,9 @@ function HomeInner() {
         circleFigureY: fromFigY + (160 - fromFigY) * e,
       }))
       if (t < 1) circleAnimRef.current = requestAnimationFrame(tick)
-      else { setAdmin(prev => ({ ...prev, circleCamXLoop: true, circleCamXLoopSpeed: 0.1 })); setIntroImagesReady(true); setTimeout(() => setShowQuote(false), 1000) }
+      else { setAdmin(prev => ({ ...prev, circleCamXLoop: true, circleCamXLoopSpeed: 0.1 })); setIntroImagesReady(true); setShowQuote(false) }
     }
-    setShowQuote(true)
+    if (showQuoteThisTime) setShowQuote(true)
     circleAnimRef.current = requestAnimationFrame(tick)
     return () => { if (circleAnimRef.current !== null) cancelAnimationFrame(circleAnimRef.current) }
   }, [viewMode, phase]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -985,6 +970,7 @@ function HomeInner() {
   }, [viewMode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [panelHidden, setPanelHidden] = useState(false)
+  const [uiHidden, setUiHidden] = useState(false)
 
   const isAdmin = useSearchParams().get('admin') === 'true'
 
@@ -999,6 +985,15 @@ function HomeInner() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [isAdmin])
+
+  // X key toggles all UI visibility
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'x' || e.key === 'X') setUiHidden(v => !v)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   // Z key toggles sound on/off
   useEffect(() => {
@@ -1208,17 +1203,15 @@ function HomeInner() {
 
   return (
     <div suppressHydrationWarning className="w-screen h-dvh overflow-hidden relative" style={{ background: bgImage ? `url(${bgImage}) center/cover no-repeat` : bgColor }}>
-      {/* Custom cursor */}
-      <div ref={cursorWrapRef} className="custom-cursor" style={{ position: 'fixed', top: 0, left: 0, pointerEvents: 'none', zIndex: 99999, transform: 'translate(-100px, -100px)', willChange: 'transform' }}>
-        <div ref={cursorDotRef as React.RefObject<HTMLDivElement>} style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff6600', transform: 'translate(-50%, -50%) scale(1)', transition: 'transform 0.12s ease' }} />
-      </div>
       {/* Logo */}
-      <div className="fixed top-9 left-1/2 -translate-x-1/2 z-20 pointer-events-none select-none">
-        <img src="/logo.svg" alt="Reply" className="h-12 w-auto" fetchPriority="low" />
-      </div>
+      {!uiHidden && (
+        <div className="fixed top-9 left-1/2 -translate-x-1/2 z-20 pointer-events-none select-none">
+          <img src="/logo.svg" alt="Reply" className="h-12 w-auto" fetchPriority="low" />
+        </div>
+      )}
 
       {/* View toggle */}
-      {phase === 'gallery' && !loading && !selectedStudent && (
+      {phase === 'gallery' && !loading && !selectedStudent && !uiHidden && (
         <div
           className="fixed top-6 z-20"
           style={{ right: isAdmin && !panelHidden ? 296 : 16 }}
@@ -1244,7 +1237,7 @@ function HomeInner() {
       )}
 
       {/* Shuffle button — globe view only */}
-      {phase === 'gallery' && viewMode === 'globe' && !selectedStudent && (
+      {phase === 'gallery' && viewMode === 'globe' && !selectedStudent && !uiHidden && (
         <div style={{ position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)', zIndex: 20, display: 'flex', gap: 12 }}>
           <button
             onClick={shuffleGlobe}
@@ -1270,7 +1263,7 @@ function HomeInner() {
       )}
 
       {/* Texture mapping overlay — circle view, after upload */}
-      {mountedView === 'circle' && activeEditStudent && studentTextures[activeEditStudent] && (
+      {mountedView === 'circle' && activeEditStudent && studentTextures[activeEditStudent] && !uiHidden && (
         <div style={{
           position: 'fixed', right: 24, top: '50%', transform: 'translateY(-50%)',
           zIndex: 30, width: 160, display: 'flex', flexDirection: 'column', gap: 0,
@@ -1310,7 +1303,7 @@ function HomeInner() {
       )}
 
       {/* Image controls overlay — room view */}
-      {phase === 'gallery' && mountedView === 'room' && !selectedStudent && (
+      {phase === 'gallery' && mountedView === 'room' && !selectedStudent && !uiHidden && (
         <div style={{
           position: 'fixed', right: isAdmin && !panelHidden ? 296 + 24 : 24,
           top: '50%', transform: 'translateY(-50%)',
@@ -1479,7 +1472,7 @@ function HomeInner() {
       )}
 
       {/* Image controls overlay — self view */}
-      {phase === 'gallery' && mountedView === 'self' && selfPermission === 'granted' && !selectedStudent && (
+      {phase === 'gallery' && mountedView === 'self' && selfPermission === 'granted' && !selectedStudent && !uiHidden && (
         <div style={{
           position: 'fixed', right: isAdmin && !panelHidden ? 296 + 24 : 24,
           top: '50%', transform: 'translateY(-50%)',
@@ -1610,7 +1603,7 @@ function HomeInner() {
 
 
       {/* SELF — camera permission overlay */}
-      {phase === 'gallery' && viewMode === 'self' && selfPermission !== 'granted' && (
+      {phase === 'gallery' && viewMode === 'self' && selfPermission !== 'granted' && !uiHidden && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 25,
           background: 'rgba(8,8,8,0.94)',
@@ -1685,7 +1678,7 @@ function HomeInner() {
       )}
 
       {/* About button */}
-      {phase === 'gallery' && !selectedStudent && (
+      {phase === 'gallery' && !selectedStudent && !uiHidden && (
         <button
           onClick={() => setShowAbout(v => !v)}
           style={{
@@ -1702,7 +1695,7 @@ function HomeInner() {
       )}
 
       {/* About overlay */}
-      {showAbout && phase === 'gallery' && (
+      {showAbout && phase === 'gallery' && !uiHidden && (
         <div
           onClick={() => setShowAbout(false)}
           style={{
@@ -1766,23 +1759,27 @@ Oto Prangishvili`}</p>
       )}
 
       {/* Uni logo */}
-      <a
-        href="https://www.freeuni.edu.ge/"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-6 right-6 z-20"
-        style={isAdmin && !panelHidden ? { right: 286 } : {}}
-      >
-        <img src="/UNI.svg" alt="Free University of Tbilisi" className="h-10 w-auto" fetchPriority="low" />
-      </a>
+      {!uiHidden && (
+        <a
+          href="https://www.freeuni.edu.ge/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="fixed bottom-6 right-6 z-20"
+          style={isAdmin && !panelHidden ? { right: 286 } : {}}
+        >
+          <img src="/UNI.svg" alt="Free University of Tbilisi" className="h-10 w-auto" fetchPriority="low" />
+        </a>
+      )}
 
       {/* Open mark */}
-      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-20 pointer-events-none select-none">
-        <img src="/OPEN.svg" alt="Open" className="h-8 w-auto" fetchPriority="low" />
-      </div>
+      {!uiHidden && (
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-20 pointer-events-none select-none">
+          <img src="/OPEN.svg" alt="Open" className="h-8 w-auto" fetchPriority="low" />
+        </div>
+      )}
 
       {/* Student selector — left panel, room view only */}
-      {phase === 'gallery' && mountedView === 'room' && !selectedStudent && (
+      {phase === 'gallery' && mountedView === 'room' && !selectedStudent && !uiHidden && (
         <div style={{
           position: 'fixed', left: 0, top: 0, bottom: 0, zIndex: 20,
           width: 160,
@@ -1873,7 +1870,7 @@ Oto Prangishvili`}</p>
       </div>
 
       {/* Student room back button */}
-      {selectedStudent && (
+      {selectedStudent && !uiHidden && (
         <button
           onClick={closeStudentRoom}
           style={{
@@ -1889,7 +1886,7 @@ Oto Prangishvili`}</p>
       )}
 
       {/* Student name label */}
-      {selectedStudent && (
+      {selectedStudent && !uiHidden && (
         <div style={{
           position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 60,
           fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 2,
@@ -1900,7 +1897,7 @@ Oto Prangishvili`}</p>
       )}
 
       {/* Background controls */}
-      {phase === 'gallery' && !selectedStudent && (
+      {phase === 'gallery' && !selectedStudent && !uiHidden && (
         <div style={{
           position: 'fixed', bottom: 24, left: 24, zIndex: 20,
           display: 'flex', alignItems: 'center', gap: 8,
@@ -1964,13 +1961,13 @@ Oto Prangishvili`}</p>
       )}
 
       {/* Intro quote overlay */}
-      {phase === 'gallery' && (
+      {phase === 'gallery' && !uiHidden && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 50,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           pointerEvents: 'none',
           opacity: showQuote ? 1 : 0,
-          transition: 'opacity 3.4s ease',
+          transition: 'opacity 2s ease',
         }}>
           <p style={{
             width: isMobileVp ? '70%' : '50%', textAlign: 'center',
@@ -1997,7 +1994,7 @@ Oto Prangishvili`}</p>
           circleCameraInfoRef={circleCameraInfoRef}
           studentTextures={studentTextures} setStudentTextures={setStudentTextures}
           nutsaGlbs={nutsaGlbs} setNutsaGlbs={setNutsaGlbs}
-          hidden={panelHidden}
+          hidden={panelHidden || uiHidden}
           phase={phase}
           circleFacing={studentVertexSettings[STUDENTS[0]]?.facing ?? 'camera'}
           setCircleFacing={v => setStudentVertexSettings(p => Object.fromEntries(
