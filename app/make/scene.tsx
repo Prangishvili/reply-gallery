@@ -143,12 +143,13 @@ function loadTex(url: string): Promise<TexEntry> {
 // Images and camera are managed by SEPARATE effects so that uploading images never
 // tears down a running camera, and toggling the camera never reloads images. This
 // makes the two orderings (camera-first vs images-first) behave identically.
-function MixedImages({ scene, imageUrls, cameraStream, size, repeat }: {
+function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed }: {
   scene: THREE.Object3D
   imageUrls: string[]
   cameraStream: MediaStream | null
   size: number
   repeat: number
+  shuffleSeed: number
 }) {
   const imgSrcCount = imageUrls.length
   const imgCount = imgSrcCount * repeat
@@ -228,17 +229,39 @@ function MixedImages({ scene, imageUrls, cameraStream, size, repeat }: {
   )
   useEffect(() => () => { camMat?.dispose() }, [camMat])
 
+  // Per-vertex source: an image index (>= 0) or -1 for the camera. shuffleSeed === 0
+  // keeps the default order (images first, camera after); any other seed deterministically
+  // shuffles the pool so images — and the camera — interleave across the whole figure.
+  const assignment = useMemo(() => {
+    const pool: number[] = []
+    for (let i = 0; i < imgCount; i++) pool.push(imgSrcCount > 0 ? i % imgSrcCount : -1)
+    for (let i = 0; i < camCount; i++) pool.push(-1)
+    if (shuffleSeed !== 0) {
+      let a = shuffleSeed >>> 0
+      const rand = () => {
+        a = (a + 0x6d2b79f5) | 0
+        let t = Math.imul(a ^ (a >>> 15), 1 | a)
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+      }
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1))
+        const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp
+      }
+    }
+    return pool
+  }, [imgCount, camCount, imgSrcCount, shuffleSeed])
+
   if (vertices.length === 0 || (imgMats.length === 0 && !camMat)) return null
 
   return (
     <>
       {vertices.map((v, i) => {
-        // First imgCount slots cycle through uploaded images; the rest use the camera
+        const src = assignment[i] ?? -1
         let mat: THREE.SpriteMaterial
         let aspect: number
-        if (i < imgCount && imgMats.length > 0) {
-          const si = i % imgMats.length
-          mat = imgMats[si]; aspect = imgEntries[si].aspect
+        if (src >= 0 && imgMats.length > 0) {
+          mat = imgMats[src]; aspect = imgEntries[src].aspect
         } else if (camMat) {
           mat = camMat; aspect = camAspect
         } else {
@@ -292,7 +315,7 @@ function FigureDots({ scene }: { scene: THREE.Object3D }) {
 }
 
 // ── Figure ─────────────────────────────────────────────────────────────────────
-function Figure({ imageUrls, size, repeat, cameraStream }: { imageUrls: string[]; size: number; repeat: number; cameraStream: MediaStream | null }) {
+function Figure({ imageUrls, size, repeat, cameraStream, shuffleSeed }: { imageUrls: string[]; size: number; repeat: number; cameraStream: MediaStream | null; shuffleSeed: number }) {
   const { scene } = useGLTF('/figure.glb')
   const clone = useMemo(() => scene.clone(true), [scene])
 
@@ -300,14 +323,14 @@ function Figure({ imageUrls, size, repeat, cameraStream }: { imageUrls: string[]
     <group scale={200} rotation={[0, 0, 0]}>
       <FigureDots scene={clone} />
       {(imageUrls.length > 0 || !!cameraStream) && (
-        <MixedImages scene={clone} imageUrls={imageUrls} cameraStream={cameraStream} size={size} repeat={repeat} />
+        <MixedImages scene={clone} imageUrls={imageUrls} cameraStream={cameraStream} size={size} repeat={repeat} shuffleSeed={shuffleSeed} />
       )}
     </group>
   )
 }
 
 // ── Canvas ─────────────────────────────────────────────────────────────────────
-export default function Scene({ imageUrls, size, repeat, bgColor, bgImage, cameraStream, captureRef }: { imageUrls: string[]; size: number; repeat: number; bgColor: string; bgImage: string | null; cameraStream: MediaStream | null; captureRef: React.MutableRefObject<(() => string) | null> }) {
+export default function Scene({ imageUrls, size, repeat, shuffleSeed, bgColor, bgImage, cameraStream, captureRef }: { imageUrls: string[]; size: number; repeat: number; shuffleSeed: number; bgColor: string; bgImage: string | null; cameraStream: MediaStream | null; captureRef: React.MutableRefObject<(() => string) | null> }) {
   return (
     <Canvas style={{ width: '100%', height: '100%', cursor: 'default', background: bgColor }} gl={{ preserveDrawingBuffer: true }} onPointerMissed={undefined}>
       <CaptureSetup captureRef={captureRef} />
@@ -323,7 +346,7 @@ export default function Scene({ imageUrls, size, repeat, bgColor, bgImage, camer
         maxAzimuthAngle={Math.PI / 4}
       />
       <Suspense fallback={null}>
-        <Figure imageUrls={imageUrls} size={size} repeat={repeat} cameraStream={cameraStream} />
+        <Figure imageUrls={imageUrls} size={size} repeat={repeat} cameraStream={cameraStream} shuffleSeed={shuffleSeed} />
       </Suspense>
     </Canvas>
   )

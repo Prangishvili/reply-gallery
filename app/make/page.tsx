@@ -16,6 +16,7 @@ export default function MakePage() {
   const [bgColor, setBgColor] = useState('#ffffff')
   const [bgImage, setBgImage] = useState<string | null>(null)
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
+  const [shuffleSeed, setShuffleSeed] = useState(0)
 
   // Save modal
   const [modal, setModal] = useState(false)
@@ -105,7 +106,7 @@ export default function MakePage() {
 
         {/* Canvas */}
         <div style={{ aspectRatio: `${830} / ${1020}`, maxHeight: 'calc(100vh - 100px)', maxWidth: `calc((100vh - 100px) * ${CANVAS_RATIO})`, width: '100%', position: 'relative', flexShrink: 0 }}>
-          <Scene imageUrls={imageUrls} size={size} repeat={repeat} bgColor={bgColor} bgImage={bgImage} cameraStream={cameraStream} captureRef={captureRef} />
+          <Scene imageUrls={imageUrls} size={size} repeat={repeat} shuffleSeed={shuffleSeed} bgColor={bgColor} bgImage={bgImage} cameraStream={cameraStream} captureRef={captureRef} />
         </div>
 
         {/* Controls */}
@@ -139,6 +140,7 @@ export default function MakePage() {
             + upload images
             <input type="file" accept="image/*" multiple style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={e => { handleFiles(e.target.files); e.target.value = '' }} />
           </label>
+          {imageUrls.length > 0 && <button onClick={() => setShuffleSeed(s => s + 1)} style={btn}>shuffle</button>}
           {imageUrls.length > 0 && <button onClick={() => setImageUrls([])} style={{ ...mono, background: 'none', border: 'none', color: 'rgba(0,0,0,0.35)', padding: 0 }}>clear</button>}
         </div>
       </div>
