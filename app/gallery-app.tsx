@@ -1060,7 +1060,7 @@ Visitors are also invited to construct their own version, to reply, and in that 
             }}>{`Students
 Mariam Wulaia, Nodar Gogichaishvili,  Dominika Davshrishovi, Salome Shalvashvili, Nutsa Kavtelishvili, Ketevan Lomiashvili, Mariam Qsovreli, Ana Mamniashvili, Bako Shengelia, Sergi Sarajevi, Natali Chixelidze
 
-Lecturer
+Teacher
 Oto Prangishvili`}</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, margin: '24px 0 8px' }}>
               <img
