@@ -1001,7 +1001,7 @@ export function GalleryApp({ initialView = 'circle', showEntry = false }: { init
         <button
           onClick={() => setShowAbout(v => !v)}
           style={{
-            position: 'fixed', top: 24, left: 24, zIndex: 60,
+            position: 'fixed', bottom: 24, left: 24, zIndex: 60,
             fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5,
             textTransform: 'uppercase', background: 'transparent', border: 'none',
             cursor: 'pointer', padding: 0,
@@ -1086,7 +1086,7 @@ Oto Prangishvili`}</p>
           className="fixed bottom-6 right-6 z-20"
           style={isAdmin && !panelHidden ? { right: 286 } : {}}
         >
-          <img src="/UNI.svg" alt="Free University of Tbilisi" className="h-10 w-auto" fetchPriority="low" />
+          <img src="/UNI.svg" alt="Free University of Tbilisi" className="h-8 w-auto" fetchPriority="low" />
         </a>
       )}
 
@@ -1215,10 +1215,10 @@ Oto Prangishvili`}</p>
         </div>
       )}
 
-      {/* Background controls */}
-      {phase === 'gallery' && !selectedStudent && !uiHidden && (
+      {/* Background controls — admin only */}
+      {phase === 'gallery' && !selectedStudent && !uiHidden && isAdmin && (
         <div style={{
-          position: 'fixed', bottom: 24, left: 24, zIndex: 20,
+          position: 'fixed', top: 24, left: 24, zIndex: 20,
           display: 'flex', alignItems: 'center', gap: 8,
           fontFamily: 'var(--font-dm-mono), ui-monospace, monospace',
         }}>
