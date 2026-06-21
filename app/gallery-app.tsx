@@ -17,6 +17,7 @@ const SelfCanvas   = dynamic(() => import('./self'),  { ssr: false })
 import type { TextureMapping } from './room'
 import { STUDENTS, ROOM_STUDENTS, STUDENT_VERTEX_DEFAULTS, fileToCaption, ADMIN_DEFAULTS, AdminPanel } from './lib/gallery-shared'
 import type { VertexSettings, AdminSettings, ImageItem, Phase } from './lib/gallery-shared'
+import { SongPlayer } from './components/SongPlayer'
 
 
 // ─── Main app ─────────────────────────────────────────────────────────────────
@@ -411,6 +412,36 @@ export function GalleryApp({ initialView = 'circle', showEntry = false }: { init
     } catch {}
     audio.play().catch(() => {})
     bgAudioRef.current = audio
+  }
+
+  function replaceBgAudioFromUrl(url: string, onEnded?: () => void) {
+    const old = bgAudioRef.current
+    bgAudioRef.current = null
+    analyserRef.current = null
+    gainNodeRef.current = null
+    if (old) { old.pause(); old.src = '' }
+    audioCtxRef.current?.close().catch(() => {})
+    audioCtxRef.current = null
+    if (bgAudioBlobRef.current) { URL.revokeObjectURL(bgAudioBlobRef.current); bgAudioBlobRef.current = null }
+    const audio = new Audio(url)
+    audio.crossOrigin = 'anonymous'
+    audio.volume = 1
+    if (onEnded) audio.onended = onEnded
+    bgAudioRef.current = audio
+    try {
+      const ctx = new AudioContext()
+      const source = ctx.createMediaElementSource(audio)
+      const analyser = ctx.createAnalyser()
+      analyser.fftSize = 256
+      analyser.smoothingTimeConstant = 0.8
+      source.connect(analyser)
+      analyser.connect(ctx.destination)
+      audioCtxRef.current = ctx
+      analyserRef.current = analyser
+      ctx.resume().then(() => audio.play().catch(() => {})).catch(() => {})
+    } catch {
+      audio.play().catch(() => {})
+    }
   }
 
   function shuffleGlobe() {
@@ -1031,7 +1062,7 @@ export function GalleryApp({ initialView = 'circle', showEntry = false }: { init
         <button
           onClick={() => setShowAbout(v => !v)}
           style={{
-            position: 'fixed', bottom: 24, left: 24, zIndex: 60,
+            position: 'fixed', top: 24, left: 24, zIndex: 60,
             fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5,
             textTransform: 'uppercase', background: 'transparent', border: 'none',
             cursor: 'pointer', padding: 0,
@@ -1108,7 +1139,7 @@ Oto Prangishvili`}</p>
       )}
 
       {/* Uni logo */}
-      {!uiHidden && (
+      {!uiHidden && mountedView !== 'circle' && (
         <a
           href="https://www.freeuni.edu.ge/"
           target="_blank"
@@ -1180,6 +1211,11 @@ Oto Prangishvili`}</p>
         )}
         {!loading && !selectedStudent && (
           <div style={{ display: mountedView === 'circle' ? 'block' : 'none', position: 'absolute', inset: 0 }}>
+            <SongPlayer
+              style={{ position: 'absolute', bottom: 24, left: 24, zIndex: 10, width: 300 }}
+              onPlay={(url, onEnded) => replaceBgAudioFromUrl(url, onEnded)}
+              onPause={() => { bgAudioRef.current?.pause() }}
+            />
             <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={circleFigureY + (isMobileVp ? circleFigureYM : 0)} figureFacing={circleFigureFacing} drift={figureDrift} showVertexImages={circleShowImages && introImagesReady} vertexSettings={studentVertexSettings} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotSizeMobile : circleDotSize} dotColor={dotColor} dotCount={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotCountMobile : dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX + (isMobileVp ? circleCamXM : 0)} camY={circleCamY + (isMobileVp ? circleCamYM : 0)} camZ={circleCamZ + (isMobileVp ? circleCamZM : 0)} camFov={circleCamFov} camZoom={circleCamZoom + (isMobileVp ? circleCamZoomM : 0)} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} cameraInfoRef={isAdmin ? circleCameraInfoRef : undefined} soloReact={false} isAdmin={isAdmin} frameloop={mountedView === 'circle' && phase !== 'entry' ? 'always' : 'demand'} lockPolar={introImagesReady} />
           </div>
         )}
