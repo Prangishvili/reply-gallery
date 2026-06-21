@@ -1080,7 +1080,7 @@ function CircleCamDriver({ x, y, z, zoom, mode }: { x: number; y: number; z: num
   return null
 }
 
-function CircleScene({ posts, students, circleRadius, figureScale, figureY, figureFacing = 4.65, showVertexImages, vertexSettings, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, studentTextures, studentTextureMappings, onTextureUpload, showNoiseGlobe, noiseColor1, noiseColor2, noiseSpeed, noiseScale, audioVolume, cameraMode, camX, camY, camZ, camFov, camZoom, camXLoop, camXLoopSpeed, bgColor, bgImage, analyserRef, cameraInfoRef, soloReact = false, isAdmin = false, drift = false }: {
+function CircleScene({ posts, students, circleRadius, figureScale, figureY, figureFacing = 4.65, showVertexImages, vertexSettings, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, studentTextures, studentTextureMappings, onTextureUpload, showNoiseGlobe, noiseColor1, noiseColor2, noiseSpeed, noiseScale, audioVolume, cameraMode, camX, camY, camZ, camFov, camZoom, camXLoop, camXLoopSpeed, bgColor, bgImage, analyserRef, cameraInfoRef, soloReact = false, isAdmin = false, drift = false, lockPolar = false }: {
   posts: Post[]; students: string[]; circleRadius: number; figureScale: number; figureY: number; figureFacing?: number; drift?: boolean
   showVertexImages: boolean; vertexSettings: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>
   showWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
@@ -1095,6 +1095,7 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, figu
   cameraInfoRef?: React.RefObject<HTMLDivElement | null>
   soloReact?: boolean
   isAdmin?: boolean
+  lockPolar?: boolean
 }) {
   const [activeStudents, setActiveStudents] = useState<Set<number>>(new Set([0]))
   const soloTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -1125,7 +1126,7 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, figu
         : <PerspectiveCamera makeDefault fov={camFov} near={0.1} far={10000} />
       }
       <CircleCamDriver key={cameraMode} x={camX} y={camY} z={camZ} zoom={camZoom} mode={cameraMode} />
-      <OrbitControls target={[0, 150, 0]} enableDamping dampingFactor={0.08} autoRotate={camXLoop} autoRotateSpeed={camXLoopSpeed} enablePan={false} minZoom={0.5} maxZoom={4} minDistance={500} maxDistance={2500} />
+      <OrbitControls target={[0, 150, 0]} enableDamping dampingFactor={0.08} autoRotate={camXLoop} autoRotateSpeed={camXLoopSpeed} enablePan={false} minZoom={0.5} maxZoom={4} minDistance={500} maxDistance={2500} minPolarAngle={lockPolar ? Math.PI * 0.35 : 0} maxPolarAngle={lockPolar ? Math.PI * 0.65 : Math.PI} />
       {showNoiseGlobe && analyserRef && (
         <group scale={circleRadius * 0.6}>
           <NoiseGlobe audioVolume={audioVolume} analyserRef={analyserRef} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} />
@@ -1172,7 +1173,7 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, figu
 
 export type { CircleCameraMode, TextureMapping }
 
-export function CircleCanvas({ posts, students, circleRadius = 300, figureScale = 200, figureY = -10, figureFacing = 4.65, showVertexImages = true, vertexSettings = {} as Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>, showWireframe = true, wireframeStyle = 'points' as WireframeStyle, dotSize = 0.800, dotColor = '#000000', dotCount = 30000, studentTextures = {}, studentTextureMappings = {}, onTextureUpload = () => {}, showNoiseGlobe = false, noiseColor1 = '#08003a', noiseColor2 = '#8c1aff', noiseSpeed = 0.5, noiseScale = 1.0, audioVolume = 0, cameraMode = 'orthographic' as CircleCameraMode, camX = 150, camY = 930, camZ = -1350, camFov = 60, camZoom = 1.8, camXLoop = false, camXLoopSpeed = 1.0, bgColor = '#ffffff', bgImage = null, analyserRef, cameraInfoRef, soloReact = false, isAdmin = false, frameloop = 'always', drift = false }: {
+export function CircleCanvas({ posts, students, circleRadius = 300, figureScale = 200, figureY = -10, figureFacing = 4.65, showVertexImages = true, vertexSettings = {} as Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>, showWireframe = true, wireframeStyle = 'points' as WireframeStyle, dotSize = 0.800, dotColor = '#000000', dotCount = 30000, studentTextures = {}, studentTextureMappings = {}, onTextureUpload = () => {}, showNoiseGlobe = false, noiseColor1 = '#08003a', noiseColor2 = '#8c1aff', noiseSpeed = 0.5, noiseScale = 1.0, audioVolume = 0, cameraMode = 'orthographic' as CircleCameraMode, camX = 150, camY = 930, camZ = -1350, camFov = 60, camZoom = 1.8, camXLoop = false, camXLoopSpeed = 1.0, bgColor = '#ffffff', bgImage = null, analyserRef, cameraInfoRef, soloReact = false, isAdmin = false, frameloop = 'always', drift = false, lockPolar = false }: {
   posts: Post[]; students: string[]
   circleRadius?: number; figureScale?: number; figureY?: number; figureFacing?: number; drift?: boolean
   showVertexImages?: boolean; vertexSettings?: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>
@@ -1189,6 +1190,7 @@ export function CircleCanvas({ posts, students, circleRadius = 300, figureScale 
   soloReact?: boolean
   isAdmin?: boolean
   frameloop?: 'always' | 'demand' | 'never'
+  lockPolar?: boolean
 }) {
   return (
     <Canvas
@@ -1211,6 +1213,7 @@ export function CircleCanvas({ posts, students, circleRadius = 300, figureScale 
         cameraInfoRef={cameraInfoRef}
         soloReact={soloReact}
         isAdmin={isAdmin}
+        lockPolar={lockPolar}
       />
     </Canvas>
   )
