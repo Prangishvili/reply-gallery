@@ -9,8 +9,8 @@ const MONO: React.CSSProperties = {
   fontFamily: "'DM Mono', ui-monospace, monospace",
   fontStyle: 'normal',
   fontWeight: 400,
-  fontSize: 12,
-  lineHeight: '16px',
+  fontSize: 11,
+  lineHeight: '14px',
   color: '#000000',
 }
 
@@ -77,13 +77,13 @@ export function SongPlayer({
 
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14,
       background: '#fff',
       padding: '12px 20px 12px 12px',
       userSelect: 'none',
       ...style,
     }}>
-      <img src={COVER_ART} alt="cover" style={{ width: 38, height: 38, objectFit: 'cover', flexShrink: 0, display: 'block' }} />
+      <img src={COVER_ART} alt="cover" style={{ width: 36, height: 36, objectFit: 'cover', flexShrink: 0, display: 'block' }} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ ...MONO, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {current.title}

@@ -536,7 +536,7 @@ export function GalleryApp({ initialView = 'circle', showEntry = false }: { init
       {/* Logo */}
       {!uiHidden && (
         <div className="fixed top-9 left-1/2 -translate-x-1/2 z-20 pointer-events-none select-none">
-          <img src="/logo.svg" alt="Reply" className="h-12 w-auto" fetchPriority="low" />
+          <img src="/logo.svg" alt="Reply" className="h-16 w-auto" fetchPriority="low" />
         </div>
       )}
 
@@ -1182,7 +1182,7 @@ Oto Prangishvili`}</p>
           <div style={{ display: mountedView === 'circle' ? 'block' : 'none', position: 'absolute', inset: 0 }}>
             {phase === 'gallery' && (
               <SongPlayer
-                style={{ position: 'absolute', bottom: 24, left: 24, zIndex: 10, width: 300 }}
+                style={{ position: 'absolute', bottom: 24, left: 24, zIndex: 10, width: 280 }}
                 onPlay={(url, onEnded) => replaceBgAudioFromUrl(url, onEnded)}
                 onPause={() => { bgAudioRef.current?.pause() }}
               />
