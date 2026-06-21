@@ -389,46 +389,56 @@ export function GalleryApp({ initialView = 'circle', showEntry = false }: { init
     bgAudioRef.current = audio
   }
 
-  // Called synchronously inside the entry button handler (user gesture) so the
-  // AudioContext is created while the activation token is live — this is what
-  // lets iOS Safari play audio that starts asynchronously (after the Supabase fetch).
+  // Called synchronously inside the entry button handler (user gesture).
+  // Creates the Audio element AND calls play() while the iOS activation token
+  // is live — this unlocks the element so async play() calls work later.
   function unlockAudioContext(sound: boolean) {
     if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') return
     try {
       const ctx = new AudioContext()
+      // 1-sample silent WAV — gives iOS a valid src to unlock the element
+      const SILENCE = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA'
+      const audio = new Audio(SILENCE)
+      audio.crossOrigin = 'anonymous'
+      audio.volume = 0
+      audio.play().catch(() => {})   // gesture-synchronous unlock
+      bgAudioRef.current = audio
+      const source = ctx.createMediaElementSource(audio)
       const analyser = ctx.createAnalyser()
       analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.8
       const gain = ctx.createGain()
       gain.gain.value = sound ? audioVolume : 0
-      analyser.connect(gain); gain.connect(ctx.destination)
+      source.connect(analyser); analyser.connect(gain); gain.connect(ctx.destination)
       audioCtxRef.current = ctx; analyserRef.current = analyser; gainNodeRef.current = gain
       ctx.resume().catch(() => {})
     } catch {}
   }
 
   function replaceBgAudioFromUrl(url: string, onEnded?: () => void) {
-    const old = bgAudioRef.current
-    if (old) { old.pause(); old.src = '' }
-    bgAudioRef.current = null
     if (bgAudioBlobRef.current) { URL.revokeObjectURL(bgAudioBlobRef.current); bgAudioBlobRef.current = null }
-    const audio = new Audio(url)
-    audio.crossOrigin = 'anonymous'; audio.volume = 1
-    if (onEnded) audio.onended = onEnded
-    bgAudioRef.current = audio
 
     const ctx = audioCtxRef.current
-    if (ctx && ctx.state !== 'closed' && analyserRef.current) {
-      // Reuse the context that was unlocked during the user gesture — critical for iOS
+    if (ctx && ctx.state !== 'closed' && bgAudioRef.current && analyserRef.current) {
+      // Reuse the same element that was unlocked during the gesture — critical for iOS.
+      // Swapping src on the existing element keeps the Web Audio source node intact.
+      const audio = bgAudioRef.current
+      audio.pause()
+      audio.crossOrigin = 'anonymous'
+      audio.volume = 1
+      audio.src = url
+      audio.onended = onEnded ?? null
       if (gainNodeRef.current) gainNodeRef.current.gain.value = withSound ? audioVolume : 0
-      try {
-        const source = ctx.createMediaElementSource(audio)
-        source.connect(analyserRef.current)
-        ctx.resume().then(() => audio.play().catch(() => {})).catch(() => {})
-      } catch { audio.play().catch(() => {}) }
+      ctx.resume().then(() => audio.play().catch(() => {})).catch(() => {})
     } else {
-      // Fallback for sub-pages (no prior gesture unlock)
-      analyserRef.current = null; gainNodeRef.current = null
+      // Fallback for sub-pages (no prior gesture unlock) — build fresh pipeline
+      const old = bgAudioRef.current
+      if (old) { old.pause(); old.src = '' }
+      bgAudioRef.current = null; analyserRef.current = null; gainNodeRef.current = null
       audioCtxRef.current?.close().catch(() => {}); audioCtxRef.current = null
+      const audio = new Audio(url)
+      audio.crossOrigin = 'anonymous'; audio.volume = 1
+      if (onEnded) audio.onended = onEnded
+      bgAudioRef.current = audio
       try {
         const newCtx = new AudioContext()
         const source = newCtx.createMediaElementSource(audio)
