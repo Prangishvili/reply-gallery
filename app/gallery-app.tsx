@@ -389,28 +389,58 @@ export function GalleryApp({ initialView = 'circle', showEntry = false }: { init
     bgAudioRef.current = audio
   }
 
+  // Called synchronously inside the entry button handler (user gesture) so the
+  // AudioContext is created while the activation token is live — this is what
+  // lets iOS Safari play audio that starts asynchronously (after the Supabase fetch).
+  function unlockAudioContext(sound: boolean) {
+    if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') return
+    try {
+      const ctx = new AudioContext()
+      const analyser = ctx.createAnalyser()
+      analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.8
+      const gain = ctx.createGain()
+      gain.gain.value = sound ? audioVolume : 0
+      analyser.connect(gain); gain.connect(ctx.destination)
+      audioCtxRef.current = ctx; analyserRef.current = analyser; gainNodeRef.current = gain
+      ctx.resume().catch(() => {})
+    } catch {}
+  }
+
   function replaceBgAudioFromUrl(url: string, onEnded?: () => void) {
     const old = bgAudioRef.current
-    bgAudioRef.current = null; analyserRef.current = null; gainNodeRef.current = null
     if (old) { old.pause(); old.src = '' }
-    audioCtxRef.current?.close().catch(() => {}); audioCtxRef.current = null
+    bgAudioRef.current = null
     if (bgAudioBlobRef.current) { URL.revokeObjectURL(bgAudioBlobRef.current); bgAudioBlobRef.current = null }
     const audio = new Audio(url)
     audio.crossOrigin = 'anonymous'; audio.volume = 1
     if (onEnded) audio.onended = onEnded
     bgAudioRef.current = audio
-    try {
-      const ctx = new AudioContext()
-      const source = ctx.createMediaElementSource(audio)
-      const analyser = ctx.createAnalyser()
-      analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.8
-      const gain = ctx.createGain()
-      // Mute output when user chose silent, but keep analyser wired so figures react
-      gain.gain.value = withSound ? audioVolume : 0
-      source.connect(analyser); analyser.connect(gain); gain.connect(ctx.destination)
-      audioCtxRef.current = ctx; analyserRef.current = analyser; gainNodeRef.current = gain
-      ctx.resume().then(() => audio.play().catch(() => {})).catch(() => {})
-    } catch { audio.play().catch(() => {}) }
+
+    const ctx = audioCtxRef.current
+    if (ctx && ctx.state !== 'closed' && analyserRef.current) {
+      // Reuse the context that was unlocked during the user gesture — critical for iOS
+      if (gainNodeRef.current) gainNodeRef.current.gain.value = withSound ? audioVolume : 0
+      try {
+        const source = ctx.createMediaElementSource(audio)
+        source.connect(analyserRef.current)
+        ctx.resume().then(() => audio.play().catch(() => {})).catch(() => {})
+      } catch { audio.play().catch(() => {}) }
+    } else {
+      // Fallback for sub-pages (no prior gesture unlock)
+      analyserRef.current = null; gainNodeRef.current = null
+      audioCtxRef.current?.close().catch(() => {}); audioCtxRef.current = null
+      try {
+        const newCtx = new AudioContext()
+        const source = newCtx.createMediaElementSource(audio)
+        const analyser = newCtx.createAnalyser()
+        analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.8
+        const gain = newCtx.createGain()
+        gain.gain.value = withSound ? audioVolume : 0
+        source.connect(analyser); analyser.connect(gain); gain.connect(newCtx.destination)
+        audioCtxRef.current = newCtx; analyserRef.current = analyser; gainNodeRef.current = gain
+        newCtx.resume().then(() => audio.play().catch(() => {})).catch(() => {})
+      } catch { audio.play().catch(() => {}) }
+    }
   }
 
   function shuffleGlobe() {
@@ -1382,11 +1412,11 @@ Oto Prangishvili`}</p>
               {/* buttons */}
               <div style={{ paddingBottom: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
                 <button
-                  onClick={() => { setWithSound(true); goToGallery() }}
+                  onClick={() => { setWithSound(true); unlockAudioContext(true); goToGallery() }}
                   style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.75)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                 >ENTER WITH SOUND</button>
                 <button
-                  onClick={() => { setWithSound(false); goToGallery() }}
+                  onClick={() => { setWithSound(false); unlockAudioContext(false); goToGallery() }}
                   style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.35)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                 >ENTER WITHOUT SOUND</button>
               </div>

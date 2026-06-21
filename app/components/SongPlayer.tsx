@@ -72,8 +72,8 @@ export function SongPlayer({
     else playAt(index)
   }
 
-  if (songs.length === 0) return null
   const current = songs[index]
+  const loaded = songs.length > 0
 
   return (
     <div style={{
@@ -84,18 +84,22 @@ export function SongPlayer({
       ...style,
     }}>
       <img src={COVER_ART} alt="cover" style={{ width: 24, height: 24, objectFit: 'cover', flexShrink: 0, display: 'block' }} />
-      <div style={{ ...MONO, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {current.title}
-        <span style={{ opacity: 0.45 }}> by </span>
-        <a href={ARTIST_URL} target="_blank" rel="noopener noreferrer"
-          style={{ color: '#000', textDecoration: 'underline' }}>
-          {ARTIST_NAME}
-        </a>
+      <div style={{ ...MONO, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: loaded ? '#000' : 'rgba(0,0,0,0.3)' }}>
+        {loaded ? (
+          <>
+            {current.title}
+            <span style={{ opacity: 0.45 }}> by </span>
+            <a href={ARTIST_URL} target="_blank" rel="noopener noreferrer"
+              style={{ color: '#000', textDecoration: 'underline' }}>
+              {ARTIST_NAME}
+            </a>
+          </>
+        ) : '…'}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-        <button style={btn} onClick={() => playAt(index - 1)}>&#9664;</button>
-        <button style={btn} onClick={toggle}>{playing ? '■' : '▶'}</button>
-        <button style={btn} onClick={() => playAt(index + 1)}>&#9654;</button>
+        <button style={btn} onClick={() => playAt(index - 1)} disabled={!loaded}>&#9664;</button>
+        <button style={btn} onClick={toggle} disabled={!loaded}>{playing ? '■' : '▶'}</button>
+        <button style={btn} onClick={() => playAt(index + 1)} disabled={!loaded}>&#9654;</button>
       </div>
     </div>
   )
