@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { WireframeStyle, CircleCameraMode, RoomCameraMode } from '../room'
 
 export const STUDENTS = ['Mariam Wulaia','Nodar Gogichaishvili','Sesili Gurgenidze','Dominika Davshrishovi','Salome Shalvashvili','Nutsa Kavtelishvili','Ketevan Lomiashvili','Mariam Qsovreli','Ana Mamniashvili','Bako Shengelia','Sergi Sarajevi','Natali Chixelidze']
+export const ROOM_STUDENTS = [...STUDENTS, 'Name']
 
 // ── Per-student image size & repeat defaults — edit values here ───────────────
 // imgSize / repeat           → used when no audio is playing

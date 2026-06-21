@@ -15,7 +15,7 @@ const RoomCanvas   = dynamic(() => import('./room'),  { ssr: false })
 const CircleCanvas = dynamic(() => import('./room').then(m => ({ default: m.CircleCanvas })), { ssr: false })
 const SelfCanvas   = dynamic(() => import('./self'),  { ssr: false })
 import type { TextureMapping } from './room'
-import { STUDENTS, STUDENT_VERTEX_DEFAULTS, fileToCaption, ADMIN_DEFAULTS, AdminPanel } from './lib/gallery-shared'
+import { STUDENTS, ROOM_STUDENTS, STUDENT_VERTEX_DEFAULTS, fileToCaption, ADMIN_DEFAULTS, AdminPanel } from './lib/gallery-shared'
 import type { VertexSettings, AdminSettings, ImageItem, Phase } from './lib/gallery-shared'
 
 
@@ -65,6 +65,8 @@ export function GalleryApp({ initialView = 'circle', showEntry = false }: { init
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [roomKey, setRoomKey] = useState(0)
   const captureRef = useRef<(() => void) | null>(null)
+  const recordRef = useRef<{ start: () => void; stop: () => void } | null>(null)
+  const [isRecording, setIsRecording] = useState(false)
 
   const [admin, setAdmin] = useState<AdminSettings>(ADMIN_DEFAULTS)
   const {
@@ -796,6 +798,25 @@ export function GalleryApp({ initialView = 'circle', showEntry = false }: { init
               color: 'rgba(0,0,0,0.4)',
             }}
           >save 16-bit</button>
+          <button
+            onClick={() => {
+              if (isRecording) {
+                recordRef.current?.stop()
+                setIsRecording(false)
+              } else {
+                recordRef.current?.start()
+                setIsRecording(true)
+              }
+            }}
+            style={{
+              width: '100%', marginTop: 4,
+              fontFamily: 'var(--font-dm-mono), ui-monospace, monospace',
+              fontSize: 10, padding: '5px 0', cursor: 'pointer',
+              background: isRecording ? 'rgba(200,0,0,0.08)' : 'transparent',
+              border: `1px solid ${isRecording ? 'rgba(200,0,0,0.5)' : 'rgba(0,0,0,0.18)'}`,
+              color: isRecording ? 'rgba(200,0,0,0.8)' : 'rgba(0,0,0,0.4)',
+            }}
+          >{isRecording ? '● stop rec' : 'record video'}</button>
         </div>
       )}
 
@@ -1116,7 +1137,7 @@ Oto Prangishvili`}</p>
           fontFamily: 'var(--font-dm-mono), ui-monospace, monospace',
           overflowY: 'auto',
         }}>
-          {STUDENTS.map(name => {
+          {ROOM_STUDENTS.map(name => {
             const isSelf = name === 'SELF'
             const isSelected = isSelf ? viewMode === 'self' : selectedStudents.includes(name)
             return (
@@ -1155,7 +1176,7 @@ Oto Prangishvili`}</p>
           </div>
         )}
         {!loading && mountedView === 'room' && !selectedStudent && (
-          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} drift={figureDrift} origShuffleSeed={roomShuffleSeeds[figureStudent ?? ''] ?? 0} mirrorShuffleSeed={roomShuffleSeeds[figureStudent2 ?? ''] ?? 0} captureRef={captureRef} />
+          <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} drift={figureDrift} origShuffleSeed={roomShuffleSeeds[figureStudent ?? ''] ?? 0} mirrorShuffleSeed={roomShuffleSeeds[figureStudent2 ?? ''] ?? 0} captureRef={captureRef} recordRef={recordRef} />
         )}
         {!loading && !selectedStudent && (
           <div style={{ display: mountedView === 'circle' ? 'block' : 'none', position: 'absolute', inset: 0 }}>
@@ -1195,7 +1216,7 @@ Oto Prangishvili`}</p>
 
         {/* Personal student room */}
         {mountedStudent && (
-          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} drift={figureDrift} captureRef={captureRef} />
+          <RoomCanvas key={personalRoomKey} posts={posts.filter(p => p.student_name === mountedStudent)} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} drift={figureDrift} captureRef={captureRef} recordRef={recordRef} />
         )}
       </div>
 
@@ -1416,7 +1437,7 @@ Oto Prangishvili`}</p>
                   className="w-full font-mono text-xs border border-gray-200 rounded-lg px-3 py-2 focus:border-black outline-none bg-white"
                 >
                   <option value="">— select your name —</option>
-                  {STUDENTS.filter(s => s !== 'SELF').map(n => (
+                  {ROOM_STUDENTS.filter(s => s !== 'SELF').map(n => (
                     <option key={n} value={n}>{n}</option>
                   ))}
                 </select>

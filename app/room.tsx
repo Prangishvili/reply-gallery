@@ -710,7 +710,7 @@ function RoomScene({ posts, showDoggo, doggoScale, doggoX, doggoY, doggoZ, showF
 }
 
 // ── Entry point — pre-loads image dimensions before mounting scene ─────────────
-export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, doggoX = 0, doggoY = 0, doggoZ = 0, showFigure = true, figureRadius = 5, figureSpeed = 0.5, figureX = 0, figureY = 0, figureZ = 0, figureScale = 1, figureFacing = 0, figureWireframe = true, wireframeStyle = 'edges', dotSize = 0.200, dotColor = '#000000', dotCount = 30000, showVertexImages = false, vertexSettings = {} as Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>, figureStudent = null, figureStudent2 = null, figureOrbiting = true, camX = 0, camY = EYE, camZ = 55, roomCameraMode = 'freeroam' as RoomCameraMode, roomCamFov = 72, roomCamZoom = 1, roomCamXLoop = false, roomCamXLoopSpeed = 1, meshTexture = null, texScale = 1, texOffsetX = 0, texOffsetY = 0, texRotation = 0, transitionKey = 0, figureRings = false, soloReact = false, graffitiMode = false, graffitiColor = '#ff2222', graffitiBrushSize = 8, graffitiClearKey = 0, bgColor = '#ffffff', bgImage = null, analyserRef, nutsaGlbs, nutsaGlbScale, nutsaGlbRepeat, drift = false, origShuffleSeed = 0, mirrorShuffleSeed = 0, captureRef }: { posts: Post[]; showDoggo?: boolean; doggoScale?: number; doggoX?: number; doggoY?: number; doggoZ?: number; showFigure?: boolean; figureRadius?: number; figureSpeed?: number; figureX?: number; figureY?: number; figureZ?: number; figureScale?: number; figureFacing?: number; figureWireframe?: boolean; wireframeStyle?: WireframeStyle; dotSize?: number; dotColor?: string; dotCount?: number; showVertexImages?: boolean; vertexSettings?: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>; figureStudent?: string | null; figureStudent2?: string | null; figureOrbiting?: boolean; camX?: number; camY?: number; camZ?: number; roomCameraMode?: RoomCameraMode; roomCamFov?: number; roomCamZoom?: number; roomCamXLoop?: boolean; roomCamXLoopSpeed?: number; meshTexture?: string | null; texScale?: number; texOffsetX?: number; texOffsetY?: number; texRotation?: number; transitionKey?: number; figureRings?: boolean; soloReact?: boolean; graffitiMode?: boolean; graffitiColor?: string; graffitiBrushSize?: number; graffitiClearKey?: number; bgColor?: string; bgImage?: string | null; analyserRef?: React.RefObject<AnalyserNode | null>; nutsaGlbs?: string[]; nutsaGlbScale?: number; nutsaGlbRepeat?: number; drift?: boolean; origShuffleSeed?: number; mirrorShuffleSeed?: number; captureRef?: React.MutableRefObject<(() => void) | null> }) {
+export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, doggoX = 0, doggoY = 0, doggoZ = 0, showFigure = true, figureRadius = 5, figureSpeed = 0.5, figureX = 0, figureY = 0, figureZ = 0, figureScale = 1, figureFacing = 0, figureWireframe = true, wireframeStyle = 'edges', dotSize = 0.200, dotColor = '#000000', dotCount = 30000, showVertexImages = false, vertexSettings = {} as Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>, figureStudent = null, figureStudent2 = null, figureOrbiting = true, camX = 0, camY = EYE, camZ = 55, roomCameraMode = 'freeroam' as RoomCameraMode, roomCamFov = 72, roomCamZoom = 1, roomCamXLoop = false, roomCamXLoopSpeed = 1, meshTexture = null, texScale = 1, texOffsetX = 0, texOffsetY = 0, texRotation = 0, transitionKey = 0, figureRings = false, soloReact = false, graffitiMode = false, graffitiColor = '#ff2222', graffitiBrushSize = 8, graffitiClearKey = 0, bgColor = '#ffffff', bgImage = null, analyserRef, nutsaGlbs, nutsaGlbScale, nutsaGlbRepeat, drift = false, origShuffleSeed = 0, mirrorShuffleSeed = 0, captureRef, recordRef }: { posts: Post[]; showDoggo?: boolean; doggoScale?: number; doggoX?: number; doggoY?: number; doggoZ?: number; showFigure?: boolean; figureRadius?: number; figureSpeed?: number; figureX?: number; figureY?: number; figureZ?: number; figureScale?: number; figureFacing?: number; figureWireframe?: boolean; wireframeStyle?: WireframeStyle; dotSize?: number; dotColor?: string; dotCount?: number; showVertexImages?: boolean; vertexSettings?: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>; figureStudent?: string | null; figureStudent2?: string | null; figureOrbiting?: boolean; camX?: number; camY?: number; camZ?: number; roomCameraMode?: RoomCameraMode; roomCamFov?: number; roomCamZoom?: number; roomCamXLoop?: boolean; roomCamXLoopSpeed?: number; meshTexture?: string | null; texScale?: number; texOffsetX?: number; texOffsetY?: number; texRotation?: number; transitionKey?: number; figureRings?: boolean; soloReact?: boolean; graffitiMode?: boolean; graffitiColor?: string; graffitiBrushSize?: number; graffitiClearKey?: number; bgColor?: string; bgImage?: string | null; analyserRef?: React.RefObject<AnalyserNode | null>; nutsaGlbs?: string[]; nutsaGlbScale?: number; nutsaGlbRepeat?: number; drift?: boolean; origShuffleSeed?: number; mirrorShuffleSeed?: number; captureRef?: React.MutableRefObject<(() => void) | null>; recordRef?: React.MutableRefObject<{ start: () => void; stop: () => void } | null> }) {
   return (
     <Canvas
       camera={{ position: [camX, camY, camZ], fov: 72 }}
@@ -720,6 +720,7 @@ export default function RoomCanvas({ posts, showDoggo = true, doggoScale = 1, do
     >
       <RoomScene posts={posts} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={vertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} drift={drift} origShuffleSeed={origShuffleSeed} mirrorShuffleSeed={mirrorShuffleSeed} />
       {captureRef && <ScreenshotCapture captureRef={captureRef} />}
+      {recordRef && <VideoRecorder recordRef={recordRef} />}
     </Canvas>
   )
 }
@@ -838,6 +839,34 @@ function ScreenshotCapture({ captureRef }: { captureRef: React.MutableRefObject<
     captureRef.current = () => { save16BitPNG(gl, scene, camera) }
     return () => { captureRef.current = null }
   }, [gl, scene, camera, captureRef])
+  return null
+}
+
+function VideoRecorder({ recordRef }: { recordRef: React.MutableRefObject<{ start: () => void; stop: () => void } | null> }) {
+  const { gl } = useThree()
+  useEffect(() => {
+    let recorder: MediaRecorder | null = null
+    let chunks: Blob[] = []
+    recordRef.current = {
+      start: () => {
+        chunks = []
+        const stream = gl.domElement.captureStream(60)
+        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm'
+        recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 50_000_000 })
+        recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
+        recorder.onstop = () => {
+          const blob = new Blob(chunks, { type: 'video/webm' })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url; a.download = `room-${Date.now()}.webm`; a.click()
+          URL.revokeObjectURL(url)
+        }
+        recorder.start()
+      },
+      stop: () => { recorder?.stop(); recorder = null },
+    }
+    return () => { recorder?.stop(); recordRef.current = null }
+  }, [gl, recordRef])
   return null
 }
 
