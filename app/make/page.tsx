@@ -48,6 +48,9 @@ const [layersOpen, setLayersOpen] = useState(false)
 
   const captureRef = useRef<(() => string) | null>(null)
   const frozenDataUrl = useRef<string | null>(null)
+  const analyserRef = useRef<AnalyserNode | null>(null)
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  const micStreamRef = useRef<MediaStream | null>(null)
 
   const [studentOpen, setStudentOpen] = useState(false)
   const [loadingStudent, setLoadingStudent] = useState<string | null>(null)
@@ -64,11 +67,29 @@ const [layersOpen, setLayersOpen] = useState(false)
     if (cameraStream) {
       cameraStream.getTracks().forEach(t => t.stop())
       setCameraStream(null)
+      micStreamRef.current?.getTracks().forEach(t => t.stop())
+      micStreamRef.current = null
+      audioCtxRef.current?.close().catch(() => {})
+      audioCtxRef.current = null
+      analyserRef.current = null
     } else {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true })
         setCameraStream(stream)
-      } catch { /* permission denied */ }
+        try {
+          const mic = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+          micStreamRef.current = mic
+          const ctx = new AudioContext()
+          const source = ctx.createMediaStreamSource(mic)
+          const analyser = ctx.createAnalyser()
+          analyser.fftSize = 256
+          analyser.smoothingTimeConstant = 0.8
+          source.connect(analyser)
+          audioCtxRef.current = ctx
+          analyserRef.current = analyser
+          ctx.resume().catch(() => {})
+        } catch { /* mic denied — camera still works */ }
+      } catch { /* camera denied */ }
     }
   }
 
@@ -164,7 +185,7 @@ const [layersOpen, setLayersOpen] = useState(false)
 
       {/* Canvas — full-screen on desktop, page card on mobile */}
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: isMobile ? toolbarH : 0 }}>
-        <Scene imageUrls={imageUrls} size={size} repeat={repeat} shuffleSeed={shuffleSeed} bgColor={bgColor} bgImage={bgImage} cameraStream={cameraStream} captureRef={captureRef} />
+        <Scene imageUrls={imageUrls} size={size} repeat={repeat} shuffleSeed={shuffleSeed} bgColor={bgColor} bgImage={bgImage} cameraStream={cameraStream} captureRef={captureRef} analyserRef={analyserRef} />
       </div>
 
       {/* Crop guide — desktop only */}

@@ -1,7 +1,7 @@
 'use client'
 
-import { Suspense, useMemo, useEffect, useState } from 'react'
-import { Canvas, useThree } from '@react-three/fiber'
+import { Suspense, useMemo, useEffect, useRef, useState } from 'react'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { PerspectiveCamera, OrbitControls, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 
@@ -113,29 +113,49 @@ function sampleTriangleData({ tris, cum, totalArea }: TriangleData, count: numbe
 type TexEntry = { tex: THREE.Texture; aspect: number }
 const texCache = new Map<string, Promise<TexEntry>>()
 
+async function detectSvg(url: string): Promise<boolean> {
+  if (url.split('?')[0].toLowerCase().endsWith('.svg')) return true
+  if (url.startsWith('blob:')) {
+    try { return (await (await fetch(url)).blob()).type.includes('svg') } catch {}
+  }
+  return false
+}
+
 function loadTex(url: string): Promise<TexEntry> {
   let p = texCache.get(url)
   if (p) return p
-  p = new Promise<TexEntry>(resolve => {
-    const img = new window.Image()
-    if (!url.startsWith('blob:')) img.crossOrigin = 'anonymous'
-    img.decoding = 'async'
-    img.onload = () => {
-      const w = img.naturalWidth || 1, h = img.naturalHeight || 1
-      const maxDim = 1024
-      const scale = Math.min(1, maxDim / Math.max(w, h))
-      const canvas = document.createElement('canvas')
-      canvas.width  = Math.max(1, Math.round(w * scale))
-      canvas.height = Math.max(1, Math.round(h * scale))
-      const ctx = canvas.getContext('2d')!
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-      const tex = new THREE.CanvasTexture(canvas)
-      tex.colorSpace = THREE.SRGBColorSpace
-      resolve({ tex, aspect: w / h })
-    }
-    img.onerror = () => resolve({ tex: new THREE.Texture(), aspect: 1 })
-    img.src = url
-  })
+  p = (async () => {
+    const isSvg = await detectSvg(url)
+    return new Promise<TexEntry>(resolve => {
+      const img = new window.Image()
+      if (!url.startsWith('blob:')) img.crossOrigin = 'anonymous'
+      img.decoding = 'async'
+      img.onload = () => {
+        const w = img.naturalWidth || 300, h = img.naturalHeight || 300
+        const aspect = w / h
+        let cW: number, cH: number
+        if (isSvg) {
+          // Rasterize SVGs at 4096px wide so zoom never reveals pixels
+          cW = 4096; cH = Math.max(1, Math.round(4096 / aspect))
+        } else if (url.startsWith('blob:')) {
+          // Native resolution for user uploads, cap at 4096 to avoid GPU OOM
+          cW = Math.min(w, 4096); cH = Math.min(h, 4096)
+        } else {
+          // Remote (Supabase) images: 2048 cap
+          const scale = Math.min(1, 2048 / Math.max(w, h))
+          cW = Math.round(w * scale); cH = Math.round(h * scale)
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.max(1, cW); canvas.height = Math.max(1, cH)
+        canvas.getContext('2d')!.drawImage(img, 0, 0, cW, cH)
+        const tex = new THREE.CanvasTexture(canvas)
+        tex.colorSpace = THREE.SRGBColorSpace
+        resolve({ tex, aspect })
+      }
+      img.onerror = () => resolve({ tex: new THREE.Texture(), aspect: 1 })
+      img.src = url
+    })
+  })()
   texCache.set(url, p)
   return p
 }
@@ -144,7 +164,7 @@ function loadTex(url: string): Promise<TexEntry> {
 // Images and camera are managed by SEPARATE effects so that uploading images never
 // tears down a running camera, and toggling the camera never reloads images. This
 // makes the two orderings (camera-first vs images-first) behave identically.
-function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed, bgColor }: {
+function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed, bgColor, analyserRef }: {
   scene: THREE.Object3D
   imageUrls: string[]
   cameraStream: MediaStream | null
@@ -152,6 +172,7 @@ function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed
   repeat: number
   shuffleSeed: number
   bgColor: string
+  analyserRef?: React.RefObject<AnalyserNode | null>
 }) {
   const imgSrcCount = imageUrls.length
   const imgCount = imgSrcCount * repeat
@@ -254,6 +275,27 @@ function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed
     return pool
   }, [imgCount, camCount, imgSrcCount, shuffleSeed])
 
+  const spriteRefs = useRef<(THREE.Sprite | null)[]>([])
+  const aspectsRef = useRef<number[]>([])
+  const dataArrRef = useRef<Uint8Array | null>(null)
+
+  useFrame(() => {
+    let vol = 0
+    if (analyserRef?.current) {
+      const a = analyserRef.current
+      if (!dataArrRef.current || dataArrRef.current.length !== a.frequencyBinCount)
+        dataArrRef.current = new Uint8Array(a.frequencyBinCount)
+      a.getByteFrequencyData(dataArrRef.current as Uint8Array<ArrayBuffer>)
+      let sum = 0
+      for (let i = 0; i < dataArrRef.current.length; i++) sum += dataArrRef.current[i]
+      vol = Math.min((sum / dataArrRef.current.length / 255) * 2, 1)
+    }
+    const s = 1 + vol * 3
+    spriteRefs.current.forEach((sprite, i) => {
+      if (sprite) sprite.scale.set(s * size * (aspectsRef.current[i] ?? 1), s * size, 1)
+    })
+  })
+
   if (vertices.length === 0 || (imgMats.length === 0 && !camMat)) return null
 
   return (
@@ -271,9 +313,11 @@ function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed
         } else {
           return null
         }
+        aspectsRef.current[i] = aspect
         return (
           <sprite
             key={i}
+            ref={el => { spriteRefs.current[i] = el }}
             material={mat}
             position={[v.pos.x + v.normal.x * 0.02, v.pos.y + v.normal.y * 0.02, v.pos.z + v.normal.z * 0.02]}
             scale={[size * aspect, size, 1]}
@@ -319,7 +363,7 @@ function FigureDots({ scene }: { scene: THREE.Object3D }) {
 }
 
 // ── Figure ─────────────────────────────────────────────────────────────────────
-function Figure({ imageUrls, size, repeat, cameraStream, shuffleSeed, bgColor }: { imageUrls: string[]; size: number; repeat: number; cameraStream: MediaStream | null; shuffleSeed: number; bgColor: string }) {
+function Figure({ imageUrls, size, repeat, cameraStream, shuffleSeed, bgColor, analyserRef }: { imageUrls: string[]; size: number; repeat: number; cameraStream: MediaStream | null; shuffleSeed: number; bgColor: string; analyserRef?: React.RefObject<AnalyserNode | null> }) {
   const { scene } = useGLTF('/figure.glb')
   const clone = useMemo(() => scene.clone(true), [scene])
 
@@ -327,14 +371,14 @@ function Figure({ imageUrls, size, repeat, cameraStream, shuffleSeed, bgColor }:
     <group scale={200} rotation={[0, 0, 0]}>
       <FigureDots scene={clone} />
       {(imageUrls.length > 0 || !!cameraStream) && (
-        <MixedImages scene={clone} imageUrls={imageUrls} cameraStream={cameraStream} size={size} repeat={repeat} shuffleSeed={shuffleSeed} bgColor={bgColor} />
+        <MixedImages scene={clone} imageUrls={imageUrls} cameraStream={cameraStream} size={size} repeat={repeat} shuffleSeed={shuffleSeed} bgColor={bgColor} analyserRef={analyserRef} />
       )}
     </group>
   )
 }
 
 // ── Canvas ─────────────────────────────────────────────────────────────────────
-export default function Scene({ imageUrls, size, repeat, shuffleSeed, bgColor, bgImage, cameraStream, captureRef }: { imageUrls: string[]; size: number; repeat: number; shuffleSeed: number; bgColor: string; bgImage: string | null; cameraStream: MediaStream | null; captureRef: React.MutableRefObject<(() => string) | null> }) {
+export default function Scene({ imageUrls, size, repeat, shuffleSeed, bgColor, bgImage, cameraStream, captureRef, analyserRef }: { imageUrls: string[]; size: number; repeat: number; shuffleSeed: number; bgColor: string; bgImage: string | null; cameraStream: MediaStream | null; captureRef: React.MutableRefObject<(() => string) | null>; analyserRef?: React.RefObject<AnalyserNode | null> }) {
   return (
     <Canvas style={{ width: '100%', height: '100%', cursor: 'default', background: bgColor }} gl={{ preserveDrawingBuffer: true }} dpr={[1, 3]} onPointerMissed={undefined}>
       <CaptureSetup captureRef={captureRef} />
@@ -350,7 +394,7 @@ export default function Scene({ imageUrls, size, repeat, shuffleSeed, bgColor, b
         maxAzimuthAngle={Math.PI / 4}
       />
       <Suspense fallback={null}>
-        <Figure imageUrls={imageUrls} size={size} repeat={repeat} cameraStream={cameraStream} shuffleSeed={shuffleSeed} bgColor={bgColor} />
+        <Figure imageUrls={imageUrls} size={size} repeat={repeat} cameraStream={cameraStream} shuffleSeed={shuffleSeed} bgColor={bgColor} analyserRef={analyserRef} />
       </Suspense>
     </Canvas>
   )
