@@ -102,8 +102,8 @@ export default function GalleryPage() {
       </div>
 
       {posts.length === 0 && (
-        <p style={{ textAlign: 'center', color: 'rgba(0,0,0,0.3)', fontSize: 11, letterSpacing: '0.2em', marginTop: 80 }}>
-          NO ENTRIES YET
+        <p style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'rgba(0,0,0,0.3)', fontSize: 11, letterSpacing: '0.2em', margin: 0 }}>
+          LOADING ARTWORKS
         </p>
       )}
 
