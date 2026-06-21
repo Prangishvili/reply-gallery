@@ -53,6 +53,7 @@ export function GalleryApp({ initialView = 'circle', showEntry = false }: { init
   const soundInputRef = useRef<HTMLInputElement>(null)
 
   const [posts, setPosts] = useState<Post[]>([])
+  const [visitorPosts, setVisitorPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [showUpload, setShowUpload] = useState(false)
   const [items, setItems] = useState<ImageItem[]>([])
@@ -448,6 +449,14 @@ export function GalleryApp({ initialView = 'circle', showEntry = false }: { init
         localStorage.setItem(CACHE_KEY, JSON.stringify(data))
       })
   }, [])
+
+  const globeMounted = mountedView === 'globe'
+  useEffect(() => {
+    if (!globeMounted) return
+    fetch('/api/visitor-posts')
+      .then(r => r.ok ? r.json() : [])
+      .then(setVisitorPosts)
+  }, [globeMounted])
 
   // Start downloading figure images as soon as posts are known — they land in
   // the session texture cache while the user is still on the entry screen
@@ -1153,9 +1162,11 @@ Oto Prangishvili`}</p>
             <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={circleFigureY + (isMobileVp ? circleFigureYM : 0)} figureFacing={circleFigureFacing} drift={figureDrift} showVertexImages={circleShowImages && introImagesReady} vertexSettings={studentVertexSettings} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotSizeMobile : circleDotSize} dotColor={dotColor} dotCount={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotCountMobile : dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX + (isMobileVp ? circleCamXM : 0)} camY={circleCamY + (isMobileVp ? circleCamYM : 0)} camZ={circleCamZ + (isMobileVp ? circleCamZM : 0)} camFov={circleCamFov} camZoom={circleCamZoom + (isMobileVp ? circleCamZoomM : 0)} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} cameraInfoRef={isAdmin ? circleCameraInfoRef : undefined} soloReact={false} isAdmin={isAdmin} frameloop={mountedView === 'circle' && phase !== 'entry' ? 'always' : 'demand'} />
           </div>
         )}
-        {!loading && posts.length > 0 && mountedView === 'globe' && !selectedStudent && (
+        {!loading && (posts.length > 0 || visitorPosts.length > 0) && mountedView === 'globe' && !selectedStudent && (
           <GlobeCanvas
-            posts={shuffledGlobePosts ?? posts.filter(p => !hiddenIds.has(p.id))}
+            posts={shuffledGlobePosts ?? visitorPosts}
+            studentPosts={posts.filter(p => !hiddenIds.has(p.id))}
+            vertexSettings={studentVertexSettings}
             showNames={showNames}
             nameSize={nameSize}
             showWireframe={showWireframe}

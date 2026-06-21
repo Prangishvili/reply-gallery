@@ -1,10 +1,12 @@
 'use client'
 
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { useTexture, Html, Billboard } from '@react-three/drei'
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { useTexture, Html, Billboard, useGLTF } from '@react-three/drei'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { Post } from '@/lib/supabase'
+import { FigureVertexImages, FigureWireframe, FigureRings } from './lib/figure-parts'
+import type { VertexSettings } from './lib/gallery-shared'
 
 const MAX_DPR = typeof window !== 'undefined' && (window.innerWidth < 1000 || /iPhone|iPad|Android/i.test(navigator.userAgent)) ? 1.5 : 2
 const RADIUS = 3.2
@@ -13,7 +15,7 @@ const INNER_RADIUS = 1.6
 const NAMES = [
   'Nodar Gogichaishvili', 'Sesili Gurgenidze', 'Dominika Davshrishovi', 'Nutsa Kavtelishvili',
   'Ketevan Lomiashvili', 'Ana Mamniashvili', 'Sergi Sarajevi', 'Natali Chixelidze',
-  'Salome Shalvashvili', 'Bako Shengelaia', 'Mariam Wulaia', 'Mariam Qsovreli',
+  'Salome Shalvashvili', 'Bako Shengelia', 'Mariam Wulaia', 'Mariam Qsovreli',
 ]
 
 function spherePoint(index: number, total: number, radius = RADIUS): THREE.Vector3 {
@@ -81,6 +83,7 @@ function TileBillboard({ post, index, total, tileSize }: { post: Post; index: nu
   const [hovered, setHovered] = useState(false)
   const texture = useTexture(post.image_url)
   texture.colorSpace = THREE.SRGBColorSpace
+  const aspect = texture.image ? (texture.image as HTMLImageElement).width / (texture.image as HTMLImageElement).height : 1
   const pos = spherePoint(index, total, RADIUS)
 
   useFrame(() => {
@@ -92,7 +95,7 @@ function TileBillboard({ post, index, total, tileSize }: { post: Post; index: nu
   return (
     <Billboard position={pos}>
       <mesh ref={mesh} onPointerOver={e => { e.stopPropagation(); setHovered(true) }} onPointerOut={() => setHovered(false)}>
-        <planeGeometry args={[tileSize, tileSize]} />
+        <planeGeometry args={[tileSize * aspect, tileSize]} />
         <meshBasicMaterial map={texture} side={THREE.DoubleSide} />
         {hovered && <Caption text={post.text} />}
       </mesh>
@@ -105,6 +108,7 @@ function TileOutward({ post, index, total, tileSize }: { post: Post; index: numb
   const [hovered, setHovered] = useState(false)
   const texture = useTexture(post.image_url)
   texture.colorSpace = THREE.SRGBColorSpace
+  const aspect = texture.image ? (texture.image as HTMLImageElement).width / (texture.image as HTMLImageElement).height : 1
   const pos = spherePoint(index, total, RADIUS)
   const normal = pos.clone().normalize()
   const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal)
@@ -117,7 +121,7 @@ function TileOutward({ post, index, total, tileSize }: { post: Post; index: numb
 
   return (
     <mesh ref={mesh} position={pos} quaternion={quaternion} onPointerOver={e => { e.stopPropagation(); setHovered(true) }} onPointerOut={() => setHovered(false)}>
-      <planeGeometry args={[tileSize, tileSize]} />
+      <planeGeometry args={[tileSize * aspect, tileSize]} />
       <meshBasicMaterial map={texture} side={THREE.DoubleSide} />
       {hovered && <Caption text={post.text} />}
     </mesh>
@@ -307,8 +311,37 @@ function BackgroundSetter({ color, image }: { color: string; image: string | nul
   return null
 }
 
-function Scene({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle, showNames, nameSize, showWireframe, wireframeSegments, wireframeOpacity, wireframeColor, showNoiseGlobe, audioVolume, analyserRef, noiseColor1, noiseColor2, noiseSpeed, noiseScale, blurNames, onNameClick, namesClickable, bgColor, bgImage }: {
+const DEF_VS: VertexSettings = { imgSize: 0.025, repeat: 1, facing: 'normal' }
+
+function GlobeFigure({ studentName, index, total, studentPosts, vertexSettings }: { studentName: string; index: number; total: number; studentPosts: Post[]; vertexSettings: Record<string, VertexSettings> }) {
+  const { scene } = useGLTF('/figure.glb')
+  const clone = useMemo(() => scene.clone(true), [scene])
+  const pos = spherePoint(index, total, RADIUS)
+  const filtered = useMemo(() => studentPosts.filter(p => p.student_name === studentName), [studentPosts, studentName])
+  const vs = vertexSettings[studentName] ?? DEF_VS
+  const isSergi = studentName.trim().toLowerCase().includes('sergi')
+  const isSesili = studentName === 'Sesili Gurgenidze'
+
+  return (
+    <Billboard position={pos} follow={true}>
+      <group scale={1}>
+        {isSergi ? (
+          <FigureRings scene={clone} />
+        ) : (
+          <FigureWireframe scene={clone} style="points" dotSize={0.022} dotColor="#000000" dotCount={1200} transitionKey={0} />
+        )}
+        {filtered.length > 0 && (
+          <FigureVertexImages scene={clone} posts={filtered} size={vs.imgSize} repeat={vs.repeat} facing={vs.facing} showConnections={isSesili} />
+        )}
+      </group>
+    </Billboard>
+  )
+}
+
+function Scene({ posts, studentPosts, vertexSettings, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle, showNames, nameSize, showWireframe, wireframeSegments, wireframeOpacity, wireframeColor, showNoiseGlobe, audioVolume, analyserRef, noiseColor1, noiseColor2, noiseSpeed, noiseScale, blurNames, onNameClick, namesClickable, bgColor, bgImage }: {
   posts: Post[]
+  studentPosts: Post[]
+  vertexSettings: Record<string, VertexSettings>
   rotateSpeed: number
   scale: number
   scaleX: number
@@ -354,6 +387,11 @@ function Scene({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle,
             <Tile post={post} index={i} total={posts.length} tileSize={tileSize} />
           </Suspense>
         ))}
+        {NAMES.map((name, i) => (
+          <Suspense key={name} fallback={null}>
+            <GlobeFigure studentName={name} index={i} total={NAMES.length} studentPosts={studentPosts} vertexSettings={vertexSettings} />
+          </Suspense>
+        ))}
         {showNames && NAMES.map((name, i) => (
           <NameTag key={name} name={name} index={i} nameSize={nameSize} blur={blurNames} onClick={onNameClick} clickable={namesClickable} />
         ))}
@@ -362,8 +400,10 @@ function Scene({ posts, rotateSpeed, scale, scaleX, scaleY, tileSize, tileStyle,
   )
 }
 
-export default function GlobeCanvas({ posts, rotateSpeed = 0.05, scale = 1.5, scaleX = 1, scaleY = 1, tileSize = 0.4, tileStyle = 'billboard', showNames, nameSize, showWireframe, wireframeSegments, wireframeOpacity, wireframeColor, showNoiseGlobe, audioVolume, analyserRef, noiseColor1, noiseColor2, noiseSpeed, noiseScale, blurNames, onNameClick, namesClickable, bgColor = '#ffffff', bgImage = null }: {
+export default function GlobeCanvas({ posts, studentPosts = [], vertexSettings = {}, rotateSpeed = 0.05, scale = 1.5, scaleX = 1, scaleY = 1, tileSize = 0.4, tileStyle = 'billboard', showNames, nameSize, showWireframe, wireframeSegments, wireframeOpacity, wireframeColor, showNoiseGlobe, audioVolume, analyserRef, noiseColor1, noiseColor2, noiseSpeed, noiseScale, blurNames, onNameClick, namesClickable, bgColor = '#ffffff', bgImage = null }: {
   posts: Post[]
+  studentPosts?: Post[]
+  vertexSettings?: Record<string, VertexSettings>
   rotateSpeed?: number
   scale?: number
   scaleX?: number
@@ -391,7 +431,7 @@ export default function GlobeCanvas({ posts, rotateSpeed = 0.05, scale = 1.5, sc
 }) {
   return (
     <Canvas camera={{ position: [0, 0, 7.5], fov: 50 }} dpr={[1, MAX_DPR]} style={{ width: '100%', height: '100%', touchAction: 'none', background: bgColor }}>
-      <Scene posts={posts} rotateSpeed={rotateSpeed} scale={scale} scaleX={scaleX} scaleY={scaleY} tileSize={tileSize} tileStyle={tileStyle} showNames={showNames} nameSize={nameSize} showWireframe={showWireframe} wireframeSegments={wireframeSegments} wireframeOpacity={wireframeOpacity} wireframeColor={wireframeColor} showNoiseGlobe={showNoiseGlobe} audioVolume={audioVolume} analyserRef={analyserRef} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} blurNames={blurNames} onNameClick={onNameClick} namesClickable={namesClickable} bgColor={bgColor} bgImage={bgImage} />
+      <Scene posts={posts} studentPosts={studentPosts} vertexSettings={vertexSettings} rotateSpeed={rotateSpeed} scale={scale} scaleX={scaleX} scaleY={scaleY} tileSize={tileSize} tileStyle={tileStyle} showNames={showNames} nameSize={nameSize} showWireframe={showWireframe} wireframeSegments={wireframeSegments} wireframeOpacity={wireframeOpacity} wireframeColor={wireframeColor} showNoiseGlobe={showNoiseGlobe} audioVolume={audioVolume} analyserRef={analyserRef} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} blurNames={blurNames} onNameClick={onNameClick} namesClickable={namesClickable} bgColor={bgColor} bgImage={bgImage} />
     </Canvas>
   )
 }
