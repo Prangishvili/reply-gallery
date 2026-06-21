@@ -324,8 +324,16 @@ export function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, a
           _cdir.current.subVectors(mb.position, ma.position)
           _cdir.current.addScaledVector(_cdl.current, -_cdir.current.dot(_cdl.current))
           const dist = _cdir.current.length()
-          if (dist < 0.0001) { vi += 4; continue }
-          _cdir.current.divideScalar(dist)
+          if (dist < 0.0001) {
+            // Pair is camera-depth-aligned; use world-up projected to screen plane as fallback
+            _cdir.current.set(0, 1, 0).transformDirection(_imat.current)
+            _cdir.current.addScaledVector(_cdl.current, -_cdir.current.dot(_cdl.current))
+            const fd = _cdir.current.length()
+            if (fd < 0.0001) { vi += 4; continue }
+            _cdir.current.divideScalar(fd)
+          } else {
+            _cdir.current.divideScalar(dist)
+          }
           _cper.current.crossVectors(_cdl.current, _cdir.current).normalize()
           const urlA = posts[a % posts.length]?.image_url ?? ''
           const urlB = posts[b % posts.length]?.image_url ?? ''
@@ -423,7 +431,13 @@ export function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, a
     connectionsRef.current = pairs
     const buf = new Float32Array(pairs.length * 12)
     posArrRef.current = buf
-    lineGeoRef.current.setPositions(buf)
+    // Dispose old geometry and create a fresh one to avoid WebGL VAO cache issues
+    // when the segment count changes (old attribute objects stay bound to stale VAO).
+    lineGeoRef.current.dispose()
+    const newGeo = new LineSegmentsGeometry()
+    newGeo.setPositions(buf)
+    lineGeoRef.current = newGeo
+    lineSegs2Ref.current.geometry = newGeo
   }, [showConnections, vertices])
 
   useEffect(() => {
@@ -442,9 +456,8 @@ export function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, a
   }, [showConnections, drift, driftSpeed, vertices])
 
   useEffect(() => {
-    const geo = lineGeoRef.current
     const mat = lineMatRef.current
-    return () => { geo.dispose(); mat.dispose() }
+    return () => { lineGeoRef.current.dispose(); mat.dispose() }
   }, [])
 
   if (vertices.length === 0 || spriteData.length === 0) return null
