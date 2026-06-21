@@ -126,7 +126,7 @@ export const ADMIN_DEFAULTS: AdminSettings = {
   circleRadius: 500,
   circleFigureFacing: 4.65,
   circleFigureY: 200,
-  circleCameraMode: 'orthographic',
+  circleCameraMode: 'perspective',
   circleCamX: 150,
   circleCamY: 4000,
   circleCamZ: -1350,

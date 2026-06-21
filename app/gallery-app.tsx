@@ -1120,12 +1120,6 @@ Oto Prangishvili`}</p>
         </a>
       )}
 
-      {/* Open mark */}
-      {!uiHidden && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-20 pointer-events-none select-none">
-          <img src="/OPEN.svg" alt="Open" className="h-8 w-auto" fetchPriority="low" />
-        </div>
-      )}
 
       {/* Student selector — left panel, room view only */}
       {phase === 'gallery' && mountedView === 'room' && !selectedStudent && !uiHidden && (
@@ -1182,7 +1176,7 @@ Oto Prangishvili`}</p>
           <div style={{ display: mountedView === 'circle' ? 'block' : 'none', position: 'absolute', inset: 0 }}>
             {phase === 'gallery' && (
               <SongPlayer
-                style={{ position: 'absolute', bottom: 24, left: 24, zIndex: 10, width: 280 }}
+                style={{ position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 10, width: 400 }}
                 onPlay={(url, onEnded) => replaceBgAudioFromUrl(url, onEnded)}
                 onPause={() => { bgAudioRef.current?.pause() }}
               />
