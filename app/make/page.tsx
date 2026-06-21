@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react'
 import dynamic from 'next/dynamic'
+import { supabase } from '@/lib/supabase'
+import { STUDENTS } from '@/app/lib/gallery-shared'
 
 const Scene = dynamic(() => import('./scene'), { ssr: false })
 
@@ -46,6 +48,17 @@ const [layersOpen, setLayersOpen] = useState(false)
 
   const captureRef = useRef<(() => string) | null>(null)
   const frozenDataUrl = useRef<string | null>(null)
+
+  const [studentOpen, setStudentOpen] = useState(false)
+  const [loadingStudent, setLoadingStudent] = useState<string | null>(null)
+
+  async function loadStudentImages(name: string) {
+    setLoadingStudent(name)
+    setStudentOpen(false)
+    const { data } = await supabase.from('posts').select('image_url').eq('student_name', name)
+    if (data && data.length > 0) setImageUrls(data.map(p => p.image_url))
+    setLoadingStudent(null)
+  }
 
   const toggleCamera = async () => {
     if (cameraStream) {
@@ -188,7 +201,7 @@ const [layersOpen, setLayersOpen] = useState(false)
             <span style={{ ...mono, color: 'rgba(0,0,0,0.4)' }}>layers ({imageUrls.length})</span>
             <button onClick={() => { setImageUrls([]); setLayersOpen(false) }} style={btn}>clear all</button>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 72px)', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 72px)', gap: 8, maxHeight: 312, overflowY: 'auto' }}>
             {imageUrls.map((url, i) => (
               <div key={url} style={{ position: 'relative', aspectRatio: '1', borderRadius: 6, overflow: 'hidden' }}>
                 <img src={url} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
@@ -270,6 +283,29 @@ const [layersOpen, setLayersOpen] = useState(false)
               </label>
               {imageUrls.length > 0 && <button onClick={() => setShuffleSeed(s => s + 1)} style={btn}>shuffle</button>}
               {imageUrls.length > 0 && <button onClick={() => setLayersOpen(o => !o)} style={layersOpen ? btnOn : btn}>layers</button>}
+              <button onClick={() => setStudentOpen(o => !o)} style={studentOpen ? btnOn : btn}>
+                {loadingStudent ? 'loading…' : 'student'}
+              </button>
+              {studentOpen && (
+                <>
+                  <div onClick={() => setStudentOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 8 }} />
+                  <div style={{
+                    position: 'fixed', bottom: toolbarH + 8, left: 16, zIndex: 9,
+                    background: 'rgba(255,255,255,0.92)', border: '1px solid rgba(0,0,0,0.08)',
+                    borderRadius: 8, padding: '8px 0',
+                    backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+                    minWidth: 200,
+                  }}>
+                    {STUDENTS.map(name => (
+                      <button key={name} onClick={() => loadStudentImages(name)} style={{
+                        ...mono, cursor: 'pointer', display: 'block', width: '100%',
+                        textAlign: 'left', padding: '8px 16px',
+                        background: 'none', border: 'none', color: 'rgba(0,0,0,0.75)',
+                      }}>{name}</button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -323,6 +359,43 @@ const [layersOpen, setLayersOpen] = useState(false)
             </label>
             {imageUrls.length > 0 && <button onClick={() => setShuffleSeed(s => s + 1)} style={btn}>shuffle</button>}
             {imageUrls.length > 0 && <button onClick={() => setLayersOpen(o => !o)} style={layersOpen ? btnOn : btn}>layers</button>}
+          </div>
+
+          {/* Student pill */}
+          <div style={{ position: 'relative' }}>
+            <button onClick={() => setStudentOpen(o => !o)} style={{
+              ...mono, cursor: 'pointer',
+              background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.08)',
+              borderRadius: 6, padding: '20px 24px', color: studentOpen ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', whiteSpace: 'nowrap',
+              backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+              fontWeight: studentOpen ? 600 : 400,
+            }}>
+              {loadingStudent ? `loading…` : 'student'}
+            </button>
+            {studentOpen && (
+              <>
+                <div onClick={() => setStudentOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 8 }} />
+                <div style={{
+                  position: 'fixed', bottom: 108, left: '50%', transform: 'translateX(-50%)',
+                  zIndex: 9,
+                  background: 'rgba(255,255,255,0.92)', border: '1px solid rgba(0,0,0,0.08)',
+                  borderRadius: 8, padding: '8px 0',
+                  backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+                  minWidth: 200,
+                }}>
+                  {STUDENTS.map(name => (
+                    <button key={name} onClick={() => loadStudentImages(name)} style={{
+                      ...mono, cursor: 'pointer', display: 'block', width: '100%',
+                      textAlign: 'left', padding: '8px 16px',
+                      background: 'none', border: 'none', color: 'rgba(0,0,0,0.75)',
+                    }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.04)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                    >{name}</button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Save pill */}
