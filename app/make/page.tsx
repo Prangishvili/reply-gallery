@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 
 const Scene = dynamic(() => import('./scene'), { ssr: false })
@@ -18,7 +18,23 @@ export default function MakePage() {
   const [bgImage, setBgImage] = useState<string | null>(null)
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
   const [shuffleSeed, setShuffleSeed] = useState(0)
-  const [orthographic, setOrthographic] = useState(false)
+const [layersOpen, setLayersOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
+  const toolbarRef = useRef<HTMLDivElement>(null)
+  const [toolbarH, setToolbarH] = useState(160)
+  useEffect(() => {
+    if (!isMobile || !toolbarRef.current) return
+    const ro = new ResizeObserver(() => setToolbarH(toolbarRef.current!.offsetHeight))
+    ro.observe(toolbarRef.current)
+    return () => ro.disconnect()
+  }, [isMobile])
 
   // Save modal
   const [modal, setModal] = useState(false)
@@ -133,87 +149,193 @@ export default function MakePage() {
         input[type="color"]::-webkit-color-swatch { border: 1px solid rgba(0,0,0,0.15); border-radius: 2px; }
       `}</style>
 
-      {/* Full-screen canvas */}
-      <div style={{ position: 'fixed', inset: 0 }}>
-        <Scene imageUrls={imageUrls} size={size} repeat={repeat} shuffleSeed={shuffleSeed} bgColor={bgColor} bgImage={bgImage} cameraStream={cameraStream} captureRef={captureRef} orthographic={orthographic} />
+      {/* Canvas — full-screen on desktop, page card on mobile */}
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: isMobile ? toolbarH : 0 }}>
+        <Scene imageUrls={imageUrls} size={size} repeat={repeat} shuffleSeed={shuffleSeed} bgColor={bgColor} bgImage={bgImage} cameraStream={cameraStream} captureRef={captureRef} />
       </div>
 
-      {/* Crop guide */}
-      <div style={{
-        position: 'fixed', inset: 0,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        pointerEvents: 'none', zIndex: 5,
-      }}>
+      {/* Crop guide — desktop only */}
+      {!isMobile && (
         <div style={{
-          aspectRatio: `830 / 1020`,
-          height: '100%', maxWidth: '100%', maxHeight: '100%',
-          border: '1px dashed rgba(0,0,0,0.18)',
-          boxSizing: 'border-box',
-        }} />
-      </div>
+          position: 'fixed', inset: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'none', zIndex: 5,
+        }}>
+          <div style={{
+            aspectRatio: `830 / 1020`,
+            height: '100%', maxWidth: '100%', maxHeight: '100%',
+            border: '1px dashed rgba(0,0,0,0.18)',
+            boxSizing: 'border-box',
+          }} />
+        </div>
+      )}
+
+      {/* Layers panel */}
+      {layersOpen && imageUrls.length > 0 && (
+        <div onClick={() => setLayersOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 8 }} />
+      )}
+      {layersOpen && imageUrls.length > 0 && (
+        <div onClick={e => e.stopPropagation()} style={{
+          ...(isMobile
+            ? { position: 'fixed', bottom: toolbarH + 8, left: '50%', transform: 'translateX(-50%)' }
+            : { position: 'fixed', bottom: 108, left: '50%', transform: 'translateX(-50%)' }),
+          background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+          border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10,
+          padding: '14px 16px', zIndex: 9,
+          maxWidth: 'calc(100vw - 32px)', maxHeight: 'calc(100vh - 40px)', overflowY: 'auto',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 32 }}>
+            <span style={{ ...mono, color: 'rgba(0,0,0,0.4)' }}>layers ({imageUrls.length})</span>
+            <button onClick={() => { setImageUrls([]); setLayersOpen(false) }} style={btn}>clear all</button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 72px)', gap: 8 }}>
+            {imageUrls.map((url, i) => (
+              <div key={url} style={{ position: 'relative', aspectRatio: '1', borderRadius: 6, overflow: 'hidden' }}>
+                <img src={url} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                <button
+                  onClick={() => setImageUrls(prev => prev.filter((_, j) => j !== i))}
+                  style={{
+                    position: 'absolute', top: 4, right: 4,
+                    width: 20, height: 20, borderRadius: '50%',
+                    background: 'rgba(0,0,0,0.65)', border: 'none',
+                    color: '#fff', cursor: 'pointer', fontSize: 14, lineHeight: '20px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+                  }}
+                >×</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Controls */}
-      <div className="toolbar-scroll" style={{ position: 'fixed', bottom: 24, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 10, paddingInline: 16, overflowX: 'auto', scrollbarWidth: 'none' }}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+      {isMobile ? (
+        /* Mobile: vertical bottom panel */
+        <div ref={toolbarRef} style={{ position: 'fixed', left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', padding: '10px 16px', gap: 8, zIndex: 10, borderTop: '1px solid rgba(0,0,0,0.07)' }}>
+          {/* Camera + Save row */}
+          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            <button onClick={toggleCamera} style={{
+              ...mono, cursor: 'pointer', flex: 1,
+              background: 'rgba(255,255,255,0.78)', border: '1px solid rgba(0,0,0,0.08)',
+              borderRadius: 6, padding: '11px 12px',
+              color: cameraStream ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', fontWeight: cameraStream ? 600 : 400,
+              backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+            }}>
+              {cameraStream ? '⏹ camera' : '⏺ camera'}
+            </button>
+            <button onClick={openModal} style={{
+              ...mono, cursor: 'pointer', flex: 1,
+              background: 'rgba(255,255,255,0.78)', border: '1px solid rgba(0,0,0,0.08)',
+              borderRadius: 6, padding: '11px 12px', color: 'rgba(0,0,0,0.55)',
+              backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+            }}>save png</button>
+          </div>
 
-        {/* Camera pill */}
-        <button onClick={toggleCamera} style={{
-          ...mono, cursor: 'pointer',
-          background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.08)',
-          borderRadius: 6, padding: '20px 24px', whiteSpace: 'nowrap',
-          color: cameraStream ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', fontWeight: cameraStream ? 600 : 400,
-          backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-        }}>
-          {cameraStream ? '⏹ camera' : '⏺ camera'}
-        </button>
-
-        {/* Main toolbar */}
-        <div style={{
-          display: 'flex', gap: 20, alignItems: 'center',
-          background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.08)',
-          borderRadius: 6, padding: '20px 24px', whiteSpace: 'nowrap',
-          backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-        }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, ...mono, color: 'rgba(0,0,0,0.4)' }}>
-            Color
-            <input type="color" value={bgColor} onChange={e => { setBgColor(e.target.value); setBgImage(null) }} style={{ width: 24, height: 18 }} />
-          </label>
-          {(imageUrls.length > 0 || cameraStream) && (<>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, ...mono, color: 'rgba(0,0,0,0.4)' }}>
-              size
-              <input type="range" min={0.01} max={0.3} step={0.005} value={size} onChange={e => setSize(Number(e.target.value))} style={{ width: 90 }} />
-              {size.toFixed(3)}
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, ...mono, color: 'rgba(0,0,0,0.4)' }}>
-              repeat
-              <input type="range" min={1} max={99} step={1} value={repeat} onChange={e => setRepeat(Number(e.target.value))} style={{ width: 90 }} />
-              {repeat}
-            </label>
-          </>)}
-          <label className="make-clickable" style={{ ...btn, display: 'inline-block' }}>
-            {bgImage ? 'change bg image' : '+ bg image'}
-            <input type="file" accept="image/*" style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) setBgImage(URL.createObjectURL(f)); e.target.value = '' }} />
-          </label>
-          {bgImage && <button onClick={() => setBgImage(null)} style={btn}>remove bg</button>}
-          <button onClick={() => setOrthographic(o => !o)} style={orthographic ? btnOn : btn}>{orthographic ? 'ortho' : 'persp'}</button>
-          <label style={{ ...btn, display: 'inline-block' }}>
-            + upload images
-            <input type="file" accept="image/*" multiple style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={e => { handleFiles(e.target.files); e.target.value = '' }} />
-          </label>
-          {imageUrls.length > 0 && <button onClick={() => setShuffleSeed(s => s + 1)} style={btn}>shuffle</button>}
-          {imageUrls.length > 0 && <button onClick={() => setImageUrls([])} style={btn}>clear</button>}
+          {/* Main controls pill */}
+          <div style={{
+            background: 'rgba(255,255,255,0.78)', border: '1px solid rgba(0,0,0,0.08)',
+            borderRadius: 6, padding: '14px 16px',
+            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+            display: 'flex', flexDirection: 'column', gap: 13,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, ...mono, color: 'rgba(0,0,0,0.4)', flexShrink: 0, paddingTop: 2 }}>
+                <span>Color</span>
+                <input type="color" value={bgColor} onChange={e => { setBgColor(e.target.value); setBgImage(null) }} style={{ width: 22, height: 16 }} />
+              </label>
+              {(imageUrls.length > 0 || cameraStream) && (<>
+                <label style={{ flex: 1, ...mono, color: 'rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <span style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>size</span><span style={{ opacity: 0.7 }}>{size.toFixed(2)}</span>
+                  </span>
+                  <input type="range" min={0.01} max={0.3} step={0.005} value={size} onChange={e => setSize(Number(e.target.value))} style={{ width: '100%' }} />
+                </label>
+                <label style={{ flex: 1, ...mono, color: 'rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <span style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>repeat</span><span style={{ opacity: 0.7 }}>{repeat}</span>
+                  </span>
+                  <input type="range" min={1} max={99} step={1} value={repeat} onChange={e => setRepeat(Number(e.target.value))} style={{ width: '100%' }} />
+                </label>
+              </>)}
+            </div>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <label className="make-clickable" style={{ ...btn }}>
+                {bgImage ? 'change bg' : '+ bg image'}
+                <input type="file" accept="image/*" style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) setBgImage(URL.createObjectURL(f)); e.target.value = '' }} />
+              </label>
+              {bgImage && <button onClick={() => setBgImage(null)} style={btn}>remove bg</button>}
+                <label style={{ ...btn }}>
+                + upload
+                <input type="file" accept="image/*" multiple style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={e => { handleFiles(e.target.files); e.target.value = '' }} />
+              </label>
+              {imageUrls.length > 0 && <button onClick={() => setShuffleSeed(s => s + 1)} style={btn}>shuffle</button>}
+              {imageUrls.length > 0 && <button onClick={() => setLayersOpen(o => !o)} style={layersOpen ? btnOn : btn}>layers</button>}
+            </div>
+          </div>
         </div>
+      ) : (
+        /* Desktop: horizontal bottom toolbar */
+        <div className="toolbar-scroll" style={{ position: 'fixed', bottom: 24, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 10, paddingInline: 16, overflowX: 'auto', scrollbarWidth: 'none' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
 
-        {/* Save pill */}
-        <button onClick={openModal} style={{
-          ...mono, cursor: 'pointer',
-          background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.08)',
-          borderRadius: 6, padding: '20px 24px', color: 'rgba(0,0,0,0.55)', whiteSpace: 'nowrap',
-          backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-        }}>save png</button>
+          {/* Camera pill */}
+          <button onClick={toggleCamera} style={{
+            ...mono, cursor: 'pointer',
+            background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.08)',
+            borderRadius: 6, padding: '20px 24px', whiteSpace: 'nowrap',
+            color: cameraStream ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', fontWeight: cameraStream ? 600 : 400,
+            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+          }}>
+            {cameraStream ? '⏹ camera' : '⏺ camera'}
+          </button>
 
-      </div>
-      </div>
+          {/* Main toolbar */}
+          <div style={{
+            display: 'flex', gap: 20, alignItems: 'center',
+            background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.08)',
+            borderRadius: 6, padding: '20px 24px', whiteSpace: 'nowrap',
+            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+          }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, ...mono, color: 'rgba(0,0,0,0.4)' }}>
+              Color
+              <input type="color" value={bgColor} onChange={e => { setBgColor(e.target.value); setBgImage(null) }} style={{ width: 24, height: 18 }} />
+            </label>
+            {(imageUrls.length > 0 || cameraStream) && (<>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, ...mono, color: 'rgba(0,0,0,0.4)' }}>
+                size
+                <input type="range" min={0.01} max={0.3} step={0.005} value={size} onChange={e => setSize(Number(e.target.value))} style={{ width: 90 }} />
+                {size.toFixed(3)}
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, ...mono, color: 'rgba(0,0,0,0.4)' }}>
+                repeat
+                <input type="range" min={1} max={99} step={1} value={repeat} onChange={e => setRepeat(Number(e.target.value))} style={{ width: 90 }} />
+                {repeat}
+              </label>
+            </>)}
+            <label className="make-clickable" style={{ ...btn, display: 'inline-block' }}>
+              {bgImage ? 'change bg image' : '+ bg image'}
+              <input type="file" accept="image/*" style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) setBgImage(URL.createObjectURL(f)); e.target.value = '' }} />
+            </label>
+            {bgImage && <button onClick={() => setBgImage(null)} style={btn}>remove bg</button>}
+            <label style={{ ...btn, display: 'inline-block' }}>
+              + upload images
+              <input type="file" accept="image/*" multiple style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={e => { handleFiles(e.target.files); e.target.value = '' }} />
+            </label>
+            {imageUrls.length > 0 && <button onClick={() => setShuffleSeed(s => s + 1)} style={btn}>shuffle</button>}
+            {imageUrls.length > 0 && <button onClick={() => setLayersOpen(o => !o)} style={layersOpen ? btnOn : btn}>layers</button>}
+          </div>
+
+          {/* Save pill */}
+          <button onClick={openModal} style={{
+            ...mono, cursor: 'pointer',
+            background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.08)',
+            borderRadius: 6, padding: '20px 24px', color: 'rgba(0,0,0,0.55)', whiteSpace: 'nowrap',
+            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+          }}>save png</button>
+
+        </div>
+        </div>
+      )}
 
       {/* Save modal */}
       {modal && (
