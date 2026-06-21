@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { ARTIST_NAME, ARTIST_URL, COVER_ART } from '@/app/lib/songs'
 
@@ -32,28 +32,40 @@ export function SongPlayer({
   const [index, setIndex] = useState(0)
   const [playing, setPlaying] = useState(false)
 
+  // Refs avoid stale closures in auto-advance callbacks
+  const songsRef = useRef<Song[]>([])
+  const onPlayRef = useRef(onPlay)
+  onPlayRef.current = onPlay
+
+  function playAt(i: number) {
+    const list = songsRef.current
+    if (list.length === 0) return
+    const next = ((i % list.length) + list.length) % list.length
+    setIndex(next)
+    setPlaying(true)
+    onPlayRef.current(list[next].url, () => playAt(next + 1))
+  }
+
   useEffect(() => {
     supabase.storage.from('audio').list('', { limit: 200, sortBy: { column: 'name', order: 'asc' } })
       .then(({ data }) => {
         if (!data) return
-        setSongs(
-          data
-            .filter(f => /\.(mp3|aac|m4a|ogg|wav)$/i.test(f.name))
-            .map(f => ({
-              title: f.name.replace(/\.[^.]+$/, '').replace(/^Chris Zabriskie\s*[-–]\s*Short Songs \d{6}\s*[-–]\s*\d{6}\s*[-–]\s*/i, ''),
-              url: supabase.storage.from('audio').getPublicUrl(f.name).data.publicUrl,
-            }))
-        )
+        const list = data
+          .filter(f => /\.(mp3|aac|m4a|ogg|wav)$/i.test(f.name))
+          .map(f => ({
+            title: f.name.replace(/\.[^.]+$/, '').replace(/^Chris Zabriskie\s*[-–]\s*Short Songs \d{6}\s*[-–]\s*\d{6}\s*[-–]\s*/i, ''),
+            url: supabase.storage.from('audio').getPublicUrl(f.name).data.publicUrl,
+          }))
+        songsRef.current = list
+        setSongs(list)
+        // Auto-play first track on mount (component only mounts after user enters gallery)
+        if (list.length > 0) {
+          setIndex(0)
+          setPlaying(true)
+          onPlayRef.current(list[0].url, () => playAt(1))
+        }
       })
-  }, [])
-
-  function playAt(i: number) {
-    if (songs.length === 0) return
-    const next = ((i % songs.length) + songs.length) % songs.length
-    setIndex(next)
-    setPlaying(true)
-    onPlay(songs[next].url, () => playAt(next + 1))
-  }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggle() {
     if (playing) { onPause(); setPlaying(false) }

@@ -317,12 +317,11 @@ export function GalleryApp({ initialView = 'circle', showEntry = false }: { init
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Sub-pages (/room, /self) have no entry/sound gate. Start background audio on
-  // mount; browser autoplay policy keeps it suspended until the first interaction,
-  // so resume it on the first pointer/key event.
+  // Sub-pages (/room, /self) have no entry/sound gate. SongPlayer handles audio
+  // start; this effect just ensures the context resumes on first interaction in
+  // case the browser blocked autoplay.
   useEffect(() => {
-    if (showEntry || bgAudioRef.current) return
-    startBgAudio(true)
+    if (showEntry) return
     const resume = () => {
       audioCtxRef.current?.resume().catch(() => {})
       bgAudioRef.current?.play().catch(() => {})
@@ -337,11 +336,11 @@ export function GalleryApp({ initialView = 'circle', showEntry = false }: { init
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync audio volume live via gain node so analyser always sees full signal
+  // Sync audio volume — gain mutes when withSound=false so analyser still sees signal
   useEffect(() => {
-    if (gainNodeRef.current) gainNodeRef.current.gain.value = audioVolume
-    else if (bgAudioRef.current) bgAudioRef.current.volume = audioVolume
-  }, [audioVolume])
+    if (gainNodeRef.current) gainNodeRef.current.gain.value = withSound ? audioVolume : 0
+    else if (bgAudioRef.current) bgAudioRef.current.volume = withSound ? audioVolume : 0
+  }, [audioVolume, withSound])
 
   // Timebomb: hide one random post every 2s, restore all when disarmed
   useEffect(() => {
@@ -358,30 +357,6 @@ export function GalleryApp({ initialView = 'circle', showEntry = false }: { init
   }, [timebombActive, posts])
 
 
-
-  function startBgAudio(sound: boolean) {
-    const audio = new Audio('/fx_bg.mp3')
-    audio.loop = true
-    audio.volume = 1
-    try {
-      const ctx = new AudioContext()
-      audioCtxRef.current = ctx
-      const source = ctx.createMediaElementSource(audio)
-      const analyser = ctx.createAnalyser()
-      analyser.fftSize = 256
-      analyser.smoothingTimeConstant = 0.8
-      const gain = ctx.createGain()
-      gain.gain.value = sound ? audioVolume : 0
-      source.connect(analyser)
-      analyser.connect(gain)
-      gain.connect(ctx.destination)
-      analyserRef.current = analyser
-      gainNodeRef.current = gain
-      ctx.resume().catch(() => {})
-    } catch {}
-    audio.play().catch(() => {})
-    bgAudioRef.current = audio
-  }
 
   function replaceBgAudio(file: File) {
     const old = bgAudioRef.current
@@ -416,32 +391,26 @@ export function GalleryApp({ initialView = 'circle', showEntry = false }: { init
 
   function replaceBgAudioFromUrl(url: string, onEnded?: () => void) {
     const old = bgAudioRef.current
-    bgAudioRef.current = null
-    analyserRef.current = null
-    gainNodeRef.current = null
+    bgAudioRef.current = null; analyserRef.current = null; gainNodeRef.current = null
     if (old) { old.pause(); old.src = '' }
-    audioCtxRef.current?.close().catch(() => {})
-    audioCtxRef.current = null
+    audioCtxRef.current?.close().catch(() => {}); audioCtxRef.current = null
     if (bgAudioBlobRef.current) { URL.revokeObjectURL(bgAudioBlobRef.current); bgAudioBlobRef.current = null }
     const audio = new Audio(url)
-    audio.crossOrigin = 'anonymous'
-    audio.volume = 1
+    audio.crossOrigin = 'anonymous'; audio.volume = 1
     if (onEnded) audio.onended = onEnded
     bgAudioRef.current = audio
     try {
       const ctx = new AudioContext()
       const source = ctx.createMediaElementSource(audio)
       const analyser = ctx.createAnalyser()
-      analyser.fftSize = 256
-      analyser.smoothingTimeConstant = 0.8
-      source.connect(analyser)
-      analyser.connect(ctx.destination)
-      audioCtxRef.current = ctx
-      analyserRef.current = analyser
+      analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.8
+      const gain = ctx.createGain()
+      // Mute output when user chose silent, but keep analyser wired so figures react
+      gain.gain.value = withSound ? audioVolume : 0
+      source.connect(analyser); analyser.connect(gain); gain.connect(ctx.destination)
+      audioCtxRef.current = ctx; analyserRef.current = analyser; gainNodeRef.current = gain
       ctx.resume().then(() => audio.play().catch(() => {})).catch(() => {})
-    } catch {
-      audio.play().catch(() => {})
-    }
+    } catch { audio.play().catch(() => {}) }
   }
 
   function shuffleGlobe() {
@@ -1211,11 +1180,13 @@ Oto Prangishvili`}</p>
         )}
         {!loading && !selectedStudent && (
           <div style={{ display: mountedView === 'circle' ? 'block' : 'none', position: 'absolute', inset: 0 }}>
-            <SongPlayer
-              style={{ position: 'absolute', bottom: 24, left: 24, zIndex: 10, width: 300 }}
-              onPlay={(url, onEnded) => replaceBgAudioFromUrl(url, onEnded)}
-              onPause={() => { bgAudioRef.current?.pause() }}
-            />
+            {phase === 'gallery' && (
+              <SongPlayer
+                style={{ position: 'absolute', bottom: 24, left: 24, zIndex: 10, width: 300 }}
+                onPlay={(url, onEnded) => replaceBgAudioFromUrl(url, onEnded)}
+                onPause={() => { bgAudioRef.current?.pause() }}
+              />
+            )}
             <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={circleFigureY + (isMobileVp ? circleFigureYM : 0)} figureFacing={circleFigureFacing} drift={figureDrift} showVertexImages={circleShowImages && introImagesReady} vertexSettings={studentVertexSettings} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotSizeMobile : circleDotSize} dotColor={dotColor} dotCount={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotCountMobile : dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX + (isMobileVp ? circleCamXM : 0)} camY={circleCamY + (isMobileVp ? circleCamYM : 0)} camZ={circleCamZ + (isMobileVp ? circleCamZM : 0)} camFov={circleCamFov} camZoom={circleCamZoom + (isMobileVp ? circleCamZoomM : 0)} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} cameraInfoRef={isAdmin ? circleCameraInfoRef : undefined} soloReact={false} isAdmin={isAdmin} frameloop={mountedView === 'circle' && phase !== 'entry' ? 'always' : 'demand'} lockPolar={introImagesReady} />
           </div>
         )}
@@ -1417,19 +1388,11 @@ Oto Prangishvili`}</p>
               {/* buttons */}
               <div style={{ paddingBottom: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
                 <button
-                  onClick={() => {
-                    setWithSound(true)
-                    startBgAudio(true)
-                    goToGallery()
-                  }}
+                  onClick={() => { setWithSound(true); goToGallery() }}
                   style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.75)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                 >ENTER WITH SOUND</button>
                 <button
-                  onClick={() => {
-                    setWithSound(false)
-                    startBgAudio(false)
-                    goToGallery()
-                  }}
+                  onClick={() => { setWithSound(false); goToGallery() }}
                   style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.35)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                 >ENTER WITHOUT SOUND</button>
               </div>
