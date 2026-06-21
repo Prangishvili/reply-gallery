@@ -2,7 +2,7 @@
 
 import { Suspense, useMemo, useEffect, useState } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
-import { PerspectiveCamera, OrbitControls, useGLTF } from '@react-three/drei'
+import { PerspectiveCamera, OrthographicCamera, OrbitControls, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 
 // ── Capture ───────────────────────────────────────────────────────────────────
@@ -113,8 +113,10 @@ function sampleTriangleData({ tris, cum, totalArea }: TriangleData, count: numbe
 type TexEntry = { tex: THREE.Texture; aspect: number }
 const texCache = new Map<string, Promise<TexEntry>>()
 
-function loadTex(url: string): Promise<TexEntry> {
-  let p = texCache.get(url)
+// Cache key includes bgColor so transparency is composited correctly per background
+function loadTex(url: string, bgColor: string): Promise<TexEntry> {
+  const key = `${url}|${bgColor}`
+  let p = texCache.get(key)
   if (p) return p
   p = new Promise<TexEntry>(resolve => {
     const img = new window.Image()
@@ -127,7 +129,10 @@ function loadTex(url: string): Promise<TexEntry> {
       const canvas = document.createElement('canvas')
       canvas.width  = Math.max(1, Math.round(w * scale))
       canvas.height = Math.max(1, Math.round(h * scale))
-      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+      const ctx = canvas.getContext('2d')!
+      ctx.fillStyle = bgColor
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
       const tex = new THREE.CanvasTexture(canvas)
       tex.colorSpace = THREE.SRGBColorSpace
       resolve({ tex, aspect: w / h })
@@ -135,7 +140,7 @@ function loadTex(url: string): Promise<TexEntry> {
     img.onerror = () => resolve({ tex: new THREE.Texture(), aspect: 1 })
     img.src = url
   })
-  texCache.set(url, p)
+  texCache.set(key, p)
   return p
 }
 
@@ -143,13 +148,14 @@ function loadTex(url: string): Promise<TexEntry> {
 // Images and camera are managed by SEPARATE effects so that uploading images never
 // tears down a running camera, and toggling the camera never reloads images. This
 // makes the two orderings (camera-first vs images-first) behave identically.
-function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed }: {
+function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed, bgColor }: {
   scene: THREE.Object3D
   imageUrls: string[]
   cameraStream: MediaStream | null
   size: number
   repeat: number
   shuffleSeed: number
+  bgColor: string
 }) {
   const imgSrcCount = imageUrls.length
   const imgCount = imgSrcCount * repeat
@@ -165,7 +171,7 @@ function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed
     let cancelled = false
     // Empty imageUrls → Promise.all([]) resolves to [] and clears entries, without a
     // synchronous setState in the effect body.
-    Promise.all(imageUrls.map(url => loadTex(url))).then(entries => {
+    Promise.all(imageUrls.map(url => loadTex(url, bgColor))).then(entries => {
       if (!cancelled) setImgEntries(entries)
     })
     return () => { cancelled = true }
@@ -261,7 +267,9 @@ function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed
         let mat: THREE.SpriteMaterial
         let aspect: number
         if (src >= 0 && imgMats.length > 0) {
-          mat = imgMats[src]; aspect = imgEntries[src].aspect
+          const m = imgMats[src], e = imgEntries[src]
+          if (!m || !e) return null  // texture still loading
+          mat = m; aspect = e.aspect
         } else if (camMat) {
           mat = camMat; aspect = camAspect
         } else {
@@ -315,7 +323,7 @@ function FigureDots({ scene }: { scene: THREE.Object3D }) {
 }
 
 // ── Figure ─────────────────────────────────────────────────────────────────────
-function Figure({ imageUrls, size, repeat, cameraStream, shuffleSeed }: { imageUrls: string[]; size: number; repeat: number; cameraStream: MediaStream | null; shuffleSeed: number }) {
+function Figure({ imageUrls, size, repeat, cameraStream, shuffleSeed, bgColor }: { imageUrls: string[]; size: number; repeat: number; cameraStream: MediaStream | null; shuffleSeed: number; bgColor: string }) {
   const { scene } = useGLTF('/figure.glb')
   const clone = useMemo(() => scene.clone(true), [scene])
 
@@ -323,22 +331,25 @@ function Figure({ imageUrls, size, repeat, cameraStream, shuffleSeed }: { imageU
     <group scale={200} rotation={[0, 0, 0]}>
       <FigureDots scene={clone} />
       {(imageUrls.length > 0 || !!cameraStream) && (
-        <MixedImages scene={clone} imageUrls={imageUrls} cameraStream={cameraStream} size={size} repeat={repeat} shuffleSeed={shuffleSeed} />
+        <MixedImages scene={clone} imageUrls={imageUrls} cameraStream={cameraStream} size={size} repeat={repeat} shuffleSeed={shuffleSeed} bgColor={bgColor} />
       )}
     </group>
   )
 }
 
 // ── Canvas ─────────────────────────────────────────────────────────────────────
-export default function Scene({ imageUrls, size, repeat, shuffleSeed, bgColor, bgImage, cameraStream, captureRef }: { imageUrls: string[]; size: number; repeat: number; shuffleSeed: number; bgColor: string; bgImage: string | null; cameraStream: MediaStream | null; captureRef: React.MutableRefObject<(() => string) | null> }) {
+export default function Scene({ imageUrls, size, repeat, shuffleSeed, bgColor, bgImage, cameraStream, captureRef, orthographic }: { imageUrls: string[]; size: number; repeat: number; shuffleSeed: number; bgColor: string; bgImage: string | null; cameraStream: MediaStream | null; captureRef: React.MutableRefObject<(() => string) | null>; orthographic: boolean }) {
   return (
     <Canvas style={{ width: '100%', height: '100%', cursor: 'default', background: bgColor }} gl={{ preserveDrawingBuffer: true }} onPointerMissed={undefined}>
       <CaptureSetup captureRef={captureRef} />
       <BackgroundSetter color={bgColor} image={bgImage} />
-      <PerspectiveCamera makeDefault position={[0, 150, 600]} fov={40} near={0.1} far={5000} />
+      {orthographic
+        ? <OrthographicCamera makeDefault position={[0, 150, 600]} zoom={2} near={0.1} far={5000} />
+        : <PerspectiveCamera makeDefault position={[0, 150, 600]} fov={40} near={0.1} far={5000} />
+      }
       <OrbitControls
         target={[0, 260, 0]}
-        enableZoom={false}
+        enableZoom={true}
         enablePan={false}
         minPolarAngle={Math.PI / 2 - Math.PI / 8}
         maxPolarAngle={Math.PI / 2 + Math.PI / 8}
@@ -346,7 +357,7 @@ export default function Scene({ imageUrls, size, repeat, shuffleSeed, bgColor, b
         maxAzimuthAngle={Math.PI / 4}
       />
       <Suspense fallback={null}>
-        <Figure imageUrls={imageUrls} size={size} repeat={repeat} cameraStream={cameraStream} shuffleSeed={shuffleSeed} />
+        <Figure imageUrls={imageUrls} size={size} repeat={repeat} cameraStream={cameraStream} shuffleSeed={shuffleSeed} bgColor={bgColor} />
       </Suspense>
     </Canvas>
   )
