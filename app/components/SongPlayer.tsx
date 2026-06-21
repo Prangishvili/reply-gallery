@@ -78,7 +78,7 @@ export function SongPlayer({
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14,
-      background: '#fff',
+      background: 'transparent',
       padding: '12px 20px 12px 12px',
       userSelect: 'none',
       ...style,

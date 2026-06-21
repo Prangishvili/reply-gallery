@@ -575,8 +575,10 @@ export function GalleryApp({ initialView = 'circle', showEntry = false }: { init
     <div suppressHydrationWarning className="w-screen h-dvh overflow-hidden relative" style={{ background: bgImage ? `url(${bgImage}) center/cover no-repeat` : bgColor }}>
       {/* Logo */}
       {!uiHidden && (
-        <div className="fixed top-9 left-1/2 -translate-x-1/2 z-20 pointer-events-none select-none">
-          <img src="/logo.svg" alt="Reply" className="h-16 w-auto" fetchPriority="low" />
+        <div className="fixed top-9 left-1/2 -translate-x-1/2 z-20 select-none">
+          <Link href="/make">
+            <img src="/logo.svg" alt="Reply" className="h-16 w-auto" fetchPriority="low" />
+          </Link>
         </div>
       )}
 
@@ -1420,15 +1422,18 @@ Oto Prangishvili`}</p>
                 <img src={['/reply.svg', '/reply1.svg', '/reply2.svg'][replyFrame]} alt="REPLY" style={{ width: '88%', height: 'auto', position: 'relative' }} />
               </div>
               {/* buttons */}
-              <div style={{ paddingBottom: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
+              <div style={{ paddingBottom: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32, textAlign: 'center', paddingLeft: 24, paddingRight: 24 }}>
+                <p style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: '0.12em', lineHeight: 1.8, color: 'rgba(0,0,0,0.55)', maxWidth: 420, margin: 0, textTransform: 'uppercase' }}>
+                  This is an interactive audio and visual experience, so we recommend keeping your sound on
+                </p>
                 <button
                   onClick={() => { setWithSound(true); unlockAudioContext(true); goToGallery() }}
                   style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.75)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                >ENTER WITH SOUND</button>
+                >START YOUR EXPERIENCE</button>
                 <button
                   onClick={() => { setWithSound(false); unlockAudioContext(false); goToGallery() }}
                   style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.35)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                >ENTER WITHOUT SOUND</button>
+                >SOUND OFF</button>
               </div>
             </div>
           )}
