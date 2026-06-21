@@ -52,6 +52,80 @@ const [layersOpen, setLayersOpen] = useState(false)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const micStreamRef = useRef<MediaStream | null>(null)
 
+  // Music player
+  const [musicOpen, setMusicOpen] = useState(false)
+  const [musicSongs, setMusicSongs] = useState<{ title: string; url: string }[]>([])
+  const [musicSongsLoaded, setMusicSongsLoaded] = useState(false)
+  const [musicIndex, setMusicIndex] = useState(-1)
+  const [musicPlaying, setMusicPlaying] = useState(false)
+  const [musicUploading, setMusicUploading] = useState(false)
+  const [musicUploadMsg, setMusicUploadMsg] = useState<string | null>(null)
+  const makeMusicRef = useRef<HTMLAudioElement | null>(null)
+  const musicSongsRef = useRef<{ title: string; url: string }[]>([])
+  const musicIdxRef = useRef(-1)
+  const musicPlayingRef = useRef(false)
+  musicSongsRef.current = musicSongs
+  musicIdxRef.current = musicIndex
+  musicPlayingRef.current = musicPlaying
+
+  const loadMusicSongs = async () => {
+    const { data } = await supabase.storage.from('audio').list('', { limit: 200, sortBy: { column: 'name', order: 'asc' } })
+    if (!data) return
+    const list = data
+      .filter(f => /\.(mp3|aac|m4a|ogg|wav)$/i.test(f.name))
+      .map(f => ({
+        title: f.name.replace(/\.[^.]+$/, '').replace(/^Chris Zabriskie\s*[-–]\s*Short Songs \d{6}\s*[-–]\s*\d{6}\s*[-–]\s*/i, ''),
+        url: supabase.storage.from('audio').getPublicUrl(f.name).data.publicUrl,
+      }))
+    musicSongsRef.current = list
+    setMusicSongs(list)
+    setMusicSongsLoaded(true)
+  }
+
+  const playMusicAt = (i: number) => {
+    const songs = musicSongsRef.current
+    if (songs.length === 0) return
+    const next = ((i % songs.length) + songs.length) % songs.length
+    if (!makeMusicRef.current) {
+      makeMusicRef.current = new Audio()
+      makeMusicRef.current.volume = 0.7
+    }
+    const audio = makeMusicRef.current
+    audio.onended = () => playMusicAt(next + 1)
+    if (musicIdxRef.current === next) {
+      if (musicPlayingRef.current) { audio.pause(); setMusicPlaying(false) }
+      else { audio.play().catch(() => {}); setMusicPlaying(true) }
+    } else {
+      audio.src = songs[next].url
+      audio.play().catch(() => {})
+      setMusicIndex(next)
+      setMusicPlaying(true)
+    }
+  }
+
+  const handleMusicUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const file = files[0]
+    setMusicUploading(true)
+    setMusicUploadMsg('uploading...')
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const uploadName = `${Date.now()}_${safeName}`
+    const { error } = await supabase.storage.from('audio').upload(uploadName, file)
+    if (error) {
+      setMusicUploadMsg(`error: ${error.message}`)
+    } else {
+      setMusicSongsLoaded(false)
+      await loadMusicSongs()
+      setMusicUploadMsg('✓ uploaded')
+      setTimeout(() => setMusicUploadMsg(null), 3000)
+    }
+    setMusicUploading(false)
+  }
+
+  useEffect(() => {
+    return () => { makeMusicRef.current?.pause() }
+  }, [])
+
   const [studentOpen, setStudentOpen] = useState(false)
   const [loadingStudent, setLoadingStudent] = useState<string | null>(null)
 
@@ -242,11 +316,65 @@ const [layersOpen, setLayersOpen] = useState(false)
         </div>
       )}
 
+      {/* Music panel */}
+      {musicOpen && (
+        <div onClick={() => setMusicOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 8 }} />
+      )}
+      {musicOpen && (
+        <div onClick={e => e.stopPropagation()} style={{
+          ...(isMobile
+            ? { position: 'fixed', bottom: toolbarH + 8, left: '50%', transform: 'translateX(-50%)' }
+            : { position: 'fixed', bottom: 108, left: '50%', transform: 'translateX(-50%)' }),
+          background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+          border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10,
+          width: 320, maxWidth: 'calc(100vw - 32px)',
+          maxHeight: 360, display: 'flex', flexDirection: 'column', zIndex: 9,
+        }}>
+          <div style={{ ...mono, padding: '12px 16px 8px', color: 'rgba(0,0,0,0.35)', fontSize: 10, letterSpacing: '0.1em', flexShrink: 0 }}>MUSIC</div>
+          <div style={{ overflowY: 'auto', flex: 1 }}>
+            {!musicSongsLoaded && <div style={{ ...mono, padding: '8px 16px', color: 'rgba(0,0,0,0.3)' }}>loading…</div>}
+            {musicSongsLoaded && musicSongs.length === 0 && <div style={{ ...mono, padding: '8px 16px', color: 'rgba(0,0,0,0.3)' }}>no songs yet</div>}
+            {musicSongs.map((song, i) => (
+              <div
+                key={song.url}
+                onClick={() => playMusicAt(i)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '7px 16px', cursor: 'pointer',
+                  background: musicIndex === i ? 'rgba(0,0,0,0.04)' : 'none',
+                }}
+                onMouseEnter={e => { if (musicIndex !== i) e.currentTarget.style.background = 'rgba(0,0,0,0.02)' }}
+                onMouseLeave={e => { if (musicIndex !== i) e.currentTarget.style.background = 'none' }}
+              >
+                <span style={{ ...mono, fontSize: 9, color: 'rgba(0,0,0,0.35)', flexShrink: 0, width: 10, textAlign: 'center' }}>
+                  {musicIndex === i && musicPlaying ? '■' : '▶'}
+                </span>
+                <span style={{ ...mono, fontSize: 10, color: 'rgba(0,0,0,0.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {song.title}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+            <label className="make-clickable" style={{ ...btn, color: musicUploading ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.55)', pointerEvents: musicUploading ? 'none' : 'auto' }}>
+              + upload song
+              <input
+                type="file"
+                accept=".mp3,.aac,.m4a,.ogg,.wav,audio/*"
+                disabled={musicUploading}
+                style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }}
+                onChange={e => { handleMusicUpload(e.target.files); e.target.value = '' }}
+              />
+            </label>
+            {musicUploadMsg && <span style={{ ...mono, fontSize: 10, color: 'rgba(0,0,0,0.4)' }}>{musicUploadMsg}</span>}
+          </div>
+        </div>
+      )}
+
       {/* Controls */}
       {isMobile ? (
         /* Mobile: vertical bottom panel */
         <div ref={toolbarRef} style={{ position: 'fixed', left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', padding: '10px 16px', gap: 8, zIndex: 10, borderTop: '1px solid rgba(0,0,0,0.07)' }}>
-          {/* Camera + Save row */}
+          {/* Camera + Music + Save row */}
           <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
             <button onClick={toggleCamera} style={{
               ...mono, cursor: 'pointer', flex: 1,
@@ -257,6 +385,13 @@ const [layersOpen, setLayersOpen] = useState(false)
             }}>
               {cameraStream ? '⏹ camera' : '⏺ camera'}
             </button>
+            <button onClick={() => { setMusicOpen(o => !o); if (!musicSongsLoaded) loadMusicSongs() }} style={{
+              ...mono, cursor: 'pointer', flex: 1,
+              background: 'rgba(255,255,255,0.78)', border: '1px solid rgba(0,0,0,0.08)',
+              borderRadius: 6, padding: '11px 12px',
+              color: musicOpen ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', fontWeight: musicOpen ? 600 : 400,
+              backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+            }}>music</button>
             <button onClick={openModal} style={{
               ...mono, cursor: 'pointer', flex: 1,
               background: 'rgba(255,255,255,0.78)', border: '1px solid rgba(0,0,0,0.08)',
@@ -305,7 +440,7 @@ const [layersOpen, setLayersOpen] = useState(false)
               {imageUrls.length > 0 && <button onClick={() => setShuffleSeed(s => s + 1)} style={btn}>shuffle</button>}
               {imageUrls.length > 0 && <button onClick={() => setLayersOpen(o => !o)} style={layersOpen ? btnOn : btn}>layers</button>}
               <button onClick={() => setStudentOpen(o => !o)} style={studentOpen ? btnOn : btn}>
-                {loadingStudent ? 'loading…' : 'student'}
+                {loadingStudent ? 'loading…' : 'artist'}
               </button>
               {studentOpen && (
                 <>
@@ -382,6 +517,15 @@ const [layersOpen, setLayersOpen] = useState(false)
             {imageUrls.length > 0 && <button onClick={() => setLayersOpen(o => !o)} style={layersOpen ? btnOn : btn}>layers</button>}
           </div>
 
+          {/* Music pill */}
+          <button onClick={() => { setMusicOpen(o => !o); if (!musicSongsLoaded) loadMusicSongs() }} style={{
+            ...mono, cursor: 'pointer',
+            background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.08)',
+            borderRadius: 6, padding: '20px 24px', whiteSpace: 'nowrap',
+            color: musicOpen ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', fontWeight: musicOpen ? 600 : 400,
+            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+          }}>music</button>
+
           {/* Student pill */}
           <div style={{ position: 'relative' }}>
             <button onClick={() => setStudentOpen(o => !o)} style={{
@@ -391,7 +535,7 @@ const [layersOpen, setLayersOpen] = useState(false)
               backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
               fontWeight: studentOpen ? 600 : 400,
             }}>
-              {loadingStudent ? `loading…` : 'student'}
+              {loadingStudent ? `loading…` : 'artist'}
             </button>
             {studentOpen && (
               <>
