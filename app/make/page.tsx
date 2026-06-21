@@ -121,6 +121,7 @@ export default function MakePage() {
     <>
       <style>{`
         *, *::before, *::after, canvas { cursor: default !important; }
+        .toolbar-scroll::-webkit-scrollbar { display: none; }
         button, input[type="color"], input[type="range"], .make-clickable { cursor: pointer !important; }
         input[type="range"] { -webkit-appearance: none; appearance: none; background: transparent; height: 14px; }
         input[type="range"]::-webkit-slider-runnable-track { background: #d4d4d4; height: 2px; border-radius: 1px; }
@@ -152,7 +153,8 @@ export default function MakePage() {
       </div>
 
       {/* Controls */}
-      <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 8, alignItems: 'center', zIndex: 10 }}>
+      <div className="toolbar-scroll" style={{ position: 'fixed', bottom: 24, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 10, paddingInline: 16, overflowX: 'auto', scrollbarWidth: 'none' }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
 
         {/* Camera pill */}
         <button onClick={toggleCamera} style={{
@@ -210,6 +212,7 @@ export default function MakePage() {
           backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
         }}>save png</button>
 
+      </div>
       </div>
 
       {/* Save modal */}
