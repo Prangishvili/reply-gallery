@@ -336,7 +336,7 @@ function Figure({ imageUrls, size, repeat, cameraStream, shuffleSeed, bgColor }:
 // ── Canvas ─────────────────────────────────────────────────────────────────────
 export default function Scene({ imageUrls, size, repeat, shuffleSeed, bgColor, bgImage, cameraStream, captureRef }: { imageUrls: string[]; size: number; repeat: number; shuffleSeed: number; bgColor: string; bgImage: string | null; cameraStream: MediaStream | null; captureRef: React.MutableRefObject<(() => string) | null> }) {
   return (
-    <Canvas style={{ width: '100%', height: '100%', cursor: 'default', background: bgColor }} gl={{ preserveDrawingBuffer: true }} onPointerMissed={undefined}>
+    <Canvas style={{ width: '100%', height: '100%', cursor: 'default', background: bgColor }} gl={{ preserveDrawingBuffer: true }} dpr={[1, 3]} onPointerMissed={undefined}>
       <CaptureSetup captureRef={captureRef} />
       <BackgroundSetter color={bgColor} image={bgImage} />
       <PerspectiveCamera makeDefault position={[0, 150, 600]} fov={40} near={0.1} far={5000} />

@@ -82,13 +82,13 @@ const [layersOpen, setLayersOpen] = useState(false)
         let cropW = ch * CANVAS_RATIO, cropH = ch
         if (cropW > cw) { cropW = cw; cropH = cw / CANVAS_RATIO }
         const x = (cw - cropW) / 2, y = (ch - cropH) / 2
+        const OUT_W = 830 * 2, OUT_H = 1020 * 2
         const out = document.createElement('canvas')
-        out.width = Math.round(cropW)
-        out.height = Math.round(cropH)
+        out.width = OUT_W; out.height = OUT_H
         const ctx = out.getContext('2d')!
         ctx.fillStyle = bgColor
-        ctx.fillRect(0, 0, out.width, out.height)
-        ctx.drawImage(img, x, y, cropW, cropH, 0, 0, out.width, out.height)
+        ctx.fillRect(0, 0, OUT_W, OUT_H)
+        ctx.drawImage(img, x, y, cropW, cropH, 0, 0, OUT_W, OUT_H)
         resolve(out.toDataURL('image/png'))
       }
       img.src = rawDataUrl
