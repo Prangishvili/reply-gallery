@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { setSharedAudioCtx } from '@/app/lib/shared-audio-ctx'
+import { markAudioGatePassed } from '@/app/lib/audio-gate'
 
 export default function IntroPage() {
   const router = useRouter()
@@ -42,8 +43,7 @@ export default function IntroPage() {
 
   function handleChoice(withSound: boolean) {
     try { sessionStorage.setItem('reply_sound', withSound ? 'true' : 'false') } catch {}
-    try { localStorage.setItem('reply_visited', 'true') } catch {}
-    document.cookie = `reply_visited_at=${Date.now()}; path=/; max-age=31536000`
+    markAudioGatePassed()
     unlockAudioContext(withSound)
     router.push('/')
   }
