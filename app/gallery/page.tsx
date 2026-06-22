@@ -36,8 +36,8 @@ export default function GalleryPage() {
   }
 
   return (
-    <div style={{ height: '100vh', overflowY: 'auto', background: '#fff', padding: '60px 20px 120px', fontFamily: 'var(--font-dm-mono)', cursor: 'default' }}>
-      <style>{`*, *::before, *::after { cursor: default !important; } button, a, .clickable { cursor: pointer !important; }`}</style>
+    <div style={{ height: '100vh', overflowY: 'auto', background: '#fff', padding: '70px 20px 120px', fontFamily: 'var(--font-dm-mono)', cursor: 'default', scrollbarWidth: 'none' }}>
+      <style>{`*, *::before, *::after { cursor: default !important; } button, a, .clickable { cursor: pointer !important; } ::-webkit-scrollbar { display: none; }`}</style>
 
       {/* Logo — bottom center */}
       <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 20, pointerEvents: 'none', userSelect: 'none' }}>
@@ -58,23 +58,19 @@ export default function GalleryPage() {
       {/* Top right — ABOUT */}
       <button
         onClick={() => setShowAbout(v => !v)}
-        style={{ position: 'fixed', top: 24, right: 24, zIndex: 60, fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5, padding: 0, border: 'none', background: 'transparent', textTransform: 'uppercase', cursor: 'pointer', color: 'rgb(0,0,0)', transition: 'color 0.15s' }}
+        style={{ position: 'fixed', top: 24, right: 20, zIndex: 60, fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5, padding: 0, border: 'none', background: 'transparent', textTransform: 'uppercase', cursor: 'pointer', color: 'rgb(0,0,0)', transition: 'color 0.15s' }}
       >
         {showAbout ? 'close' : 'about'}
       </button>
 
       {/* Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }}>
         {posts.map(post => (
           <div key={post.id}>
 
             {/* Image card */}
             <div onClick={() => setPreview(post)} style={{ aspectRatio: `${IMAGE_W} / ${IMAGE_H}`, background: '#fff', border: '1px solid rgba(0,0,0,0.08)', position: 'relative', overflow: 'hidden', cursor: 'pointer' }}>
-              {/* Watermark */}
-              <div style={{ position: 'absolute', top: 20, left: 0, right: 0, textAlign: 'center', letterSpacing: '0.35em', fontSize: 11, color: 'rgba(0,0,0,0.12)', fontWeight: 400, pointerEvents: 'none', zIndex: 1 }}>
-                R E P L Y &nbsp; G A L L E R Y
-              </div>
-              {post.image_url
+{post.image_url
                 ? <img src={post.image_url} alt={post.visitor_name ?? ''} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
                 : <div style={{ position: 'absolute', inset: 0, background: '#f9f9f9' }} />
               }
@@ -115,28 +111,33 @@ export default function GalleryPage() {
       {showAbout && (
         <div
           onClick={() => setShowAbout(false)}
-          style={{ position: 'fixed', inset: 0, zIndex: 55, background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '64px 24px 40px' }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 55,
+            background: 'rgba(255,255,255,0.55)',
+            backdropFilter: 'blur(40px)',
+            WebkitBackdropFilter: 'blur(40px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '24px',
+          }}
         >
-          <div onClick={e => e.stopPropagation()} className="about-scroll" style={{ maxWidth: 720, width: '100%', maxHeight: '100%', overflowY: 'auto', paddingRight: 28 }}>
-            <p style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2, color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em', whiteSpace: 'pre-line' }}>{`"The action of being is so revolutionary that society rejects it and concerns itself exclusively with the action of becoming."
+          <div onClick={e => e.stopPropagation()} className="about-scroll" style={{ maxWidth: 800, width: '100%', maxHeight: '100%', overflowY: 'auto', paddingRight: 28 }}>
+            <p style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2, color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em', whiteSpace: 'pre-line', textTransform: 'uppercase' }}>{`REPLY is a collaborative work by 12 artists, a meditation on digital identity, the selves we perform, and what gets lost along the way.
 
-— Jiddu Krishnamurti
+There are no words here. Instead, each person is shown through a visual code, each shaped from the artist's own understanding of language, not to be read, but to be seen and be felt.
 
-REPLY is a collaborative work by students of the Free University of Georgia, a meditation on digital identity, performed selfhood, and what gets lost in translation.
+Visitors are invited to make their own version, to REPLY and to explore the idea of visual dialogue, testing the limits of natural language, and watching the concept through the act itself.
 
-Every platform demands a different version of us. The visual self. The political self. The one who informs, the one who entertains. Collectively, they account for everything except the self that simply exists.
+Artists
+Mariam Wulaia, Nodar Gogichaishvili, Dominika Davrishovi, Salome Shalvashvili, Nutsa Kavtelishvili, Ketevan Lomiashvili, Mariam Qsovreli, Ana Mamniashvili, Bako Shengelia, Sergi Sarajevi, and Natali Chixelidze`}</p>
+            <p style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2, color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em', whiteSpace: 'pre-line', textTransform: 'uppercase', marginTop: 24 }}>{`VA[A]DS — Visual Art, Architecture, and Design School
 
-In search of the self, each student developed their own writing system, a personal visual language designed not for legibility, but for honesty. Something to be felt rather than decoded.
+Free University of Georgia
 
-REPLY is a virtual art exhibition that abandons natural language as its framework, presenting each participant through a visual representation that resists performance and asks, instead, for presence.
+Music by Chris Zabriskie
 
-Visitors are also invited to construct their own version, to reply, and in that act, to consider what genuine dialogue between selves might actually look like, to say what they truly feel, without being observed, evaluated, or judged. Only felt.`}</p>
-            <img src="/credits.png" alt="Student signatures" style={{ width: '100%', maxWidth: 560, display: 'block', margin: '32px auto', mixBlendMode: 'multiply' }} />
-            <p style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2, color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em', whiteSpace: 'pre-line' }}>{`Students\nMariam Wulaia, Nodar Gogichaishvili, Dominika Davrishovi, Salome Shalvashvili, Nutsa Kavtelishvili, Ketevan Lomiashvili, Mariam Qsovreli, Ana Mamniashvili, Bako Shengelia, Sergi Sarajevi, Natali Chixelidze\n\nLecturer\nOto Prangishvili`}</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, margin: '24px 0 8px' }}>
-              <img src="/FREEUNI.svg" alt="Free University of Georgia" style={{ height: 48, width: 'auto', display: 'block' }} />
-              <span style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2, color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em' }}>Free University of Georgia</span>
-            </div>
+Project Lead by Oto Prangishvili`}</p>
+            <img src="/credits.png" alt="Artist signatures" style={{ width: '100%', maxWidth: 560, display: 'block', margin: '32px 0', mixBlendMode: 'multiply' }} />
+            <p style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2, color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em', whiteSpace: 'pre-line', textTransform: 'uppercase', marginTop: 8 }}><a href="mailto:o.prangishvili@freeuni.edu.ge" style={{ color: 'rgba(0,0,0,0.75)', textDecoration: 'underline' }}>CONTACT US</a></p>
           </div>
         </div>
       )}

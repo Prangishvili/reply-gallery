@@ -1084,7 +1084,7 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
         <button
           onClick={() => setShowAbout(v => !v)}
           style={{
-            position: 'fixed', top: 24, right: 24, zIndex: 60,
+            position: 'fixed', top: 24, right: 20, zIndex: 60,
             fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5,
             textTransform: 'uppercase', background: 'transparent', border: 'none',
             cursor: 'pointer', padding: 0, color: 'rgb(0,0,0)',
@@ -1114,7 +1114,7 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
             style={{ maxWidth: 800, width: '100%', maxHeight: '100%', overflowY: 'auto', paddingRight: 28 }}
           >
             <p style={{
-              fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 16, lineHeight: 2,
+              fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2,
               color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em',
               whiteSpace: 'pre-line', textTransform: 'uppercase',
             }}>{`REPLY is a collaborative work by 12 artists, a meditation on digital identity, the selves we perform, and what gets lost along the way.
@@ -1126,7 +1126,7 @@ Visitors are invited to make their own version, to REPLY and to explore the idea
 Artists
 Mariam Wulaia, Nodar Gogichaishvili, Dominika Davrishovi, Salome Shalvashvili, Nutsa Kavtelishvili, Ketevan Lomiashvili, Mariam Qsovreli, Ana Mamniashvili, Bako Shengelia, Sergi Sarajevi, and Natali Chixelidze`}</p>
             <p style={{
-              fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 16, lineHeight: 2,
+              fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2,
               color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em',
               whiteSpace: 'pre-line', textTransform: 'uppercase',
               marginTop: 24,
@@ -1143,7 +1143,7 @@ Project Lead by Oto Prangishvili`}</p>
               style={{ width: '100%', maxWidth: 560, display: 'block', margin: '32px 0', mixBlendMode: 'multiply' }}
             />
             <p style={{
-              fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 16, lineHeight: 2,
+              fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2,
               color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em',
               whiteSpace: 'pre-line', textTransform: 'uppercase',
               marginTop: 8,

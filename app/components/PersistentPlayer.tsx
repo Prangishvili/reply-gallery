@@ -25,7 +25,7 @@ export function PersistentPlayer() {
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 30,
-        width: isMobile ? '90vw' : 380,
+        width: isMobile ? '90vw' : 400,
       }}
       autoPlay={autoPlay}
       onPlay={playAudio}
