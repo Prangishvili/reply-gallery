@@ -6,7 +6,7 @@ import { GalleryApp } from '@/app/gallery-app'
 export default function GlobePage() {
   return (
     <Suspense>
-      <GalleryApp initialView="globe" showEntry={false} />
+      <GalleryApp initialView="globe" />
     </Suspense>
   )
 }
