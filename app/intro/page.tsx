@@ -41,7 +41,7 @@ export default function IntroPage() {
   function handleChoice(withSound: boolean) {
     try { sessionStorage.setItem('reply_sound', withSound ? 'true' : 'false') } catch {}
     try { localStorage.setItem('reply_visited', 'true') } catch {}
-    document.cookie = 'reply_visited=true; path=/; max-age=31536000'
+    document.cookie = `reply_visited_at=${Date.now()}; path=/; max-age=31536000`
     unlockAudioContext(withSound)
     router.push('/')
   }
