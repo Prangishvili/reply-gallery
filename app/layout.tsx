@@ -19,8 +19,22 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Reply.",
-  description: "A shared space for university students",
+  title: "REPLY GALLERY",
+  description: "Interactive Audio and Visual Experience.",
+  openGraph: {
+    title: "REPLY GALLERY",
+    description: "Interactive Audio and Visual Experience.",
+    url: "https://reply.gallery",
+    siteName: "REPLY GALLERY",
+    images: [{ url: "/og-image.jpg", width: 1200, height: 630 }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "REPLY GALLERY",
+    description: "Interactive Audio and Visual Experience.",
+    images: ["/og-image.jpg"],
+  },
 };
 
 export default function RootLayout({
