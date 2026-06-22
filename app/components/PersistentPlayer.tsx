@@ -21,9 +21,9 @@ export function PersistentPlayer() {
     <SongPlayer
       style={{
         position: 'fixed',
-        top: isMobile ? 52 : 14,
+        top: isMobile ? 52 : 31,
         left: '50%',
-        transform: 'translateX(-50%)',
+        transform: isMobile ? 'translateX(-50%)' : 'translateX(-50%) translateY(-50%)',
         zIndex: 30,
         width: isMobile ? '90vw' : 400,
       }}

@@ -21,6 +21,9 @@ import { getSharedAudioCtx } from './lib/shared-audio-ctx'
 import { getAudioAnalyser } from './lib/audio-manager'
 
 
+// Persists circle animation state across client-side navigations (module survives remounts)
+let _circleAnimPlayed = false
+
 // ─── Main app ─────────────────────────────────────────────────────────────────
 
 export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode }) {
@@ -143,15 +146,19 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
   const circleAnimPlayedRef = useRef(false)
   useEffect(() => {
     if (viewMode !== 'circle' || phase !== 'gallery') { setShowQuote(false); return }
-    // Animation already ran (or was cancelled mid-way / StrictMode remount):
-    // don't replay it, but make sure images aren't gated forever
-    if (circleAnimPlayedRef.current) { setIntroImagesReady(true); return }
-    circleAnimPlayedRef.current = true
 
     const targetZoom = window.innerWidth < 1000 ? 0.6 : 1.4
 
-    // The fly-in animation always plays (it frames the scene and gates the images so
-    // they appear jank-free after it ends); only the quote is limited to once per day.
+    // Already played this session (cross-navigation): restore final state immediately
+    if (_circleAnimPlayed) {
+      setAdmin(prev => ({ ...prev, circleCamY: 400, circleCamZoom: targetZoom, circleFigureY: 160, circleCamXLoop: true, circleCamXLoopSpeed: 0.1 }))
+      setIntroImagesReady(true)
+      return
+    }
+    // StrictMode double-invoke guard
+    if (circleAnimPlayedRef.current) { setIntroImagesReady(true); return }
+    circleAnimPlayedRef.current = true
+
     const INTRO_KEY = 'reply_circle_intro_seen'
     const INTRO_TTL_MS = 24 * 60 * 60 * 1000
     let showQuoteThisTime = true
@@ -177,7 +184,7 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
         circleFigureY: fromFigY + (160 - fromFigY) * e,
       }))
       if (t < 1) circleAnimRef.current = requestAnimationFrame(tick)
-      else { setAdmin(prev => ({ ...prev, circleCamXLoop: true, circleCamXLoopSpeed: 0.1 })); setIntroImagesReady(true); setShowQuote(false) }
+      else { _circleAnimPlayed = true; setAdmin(prev => ({ ...prev, circleCamXLoop: true, circleCamXLoopSpeed: 0.1 })); setIntroImagesReady(true); setShowQuote(false) }
     }
     if (showQuoteThisTime) setShowQuote(true)
     circleAnimRef.current = requestAnimationFrame(tick)
