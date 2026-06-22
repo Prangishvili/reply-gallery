@@ -18,6 +18,7 @@ import type { TextureMapping } from './room'
 import { STUDENTS, ROOM_STUDENTS, STUDENT_VERTEX_DEFAULTS, fileToCaption, ADMIN_DEFAULTS, AdminPanel } from './lib/gallery-shared'
 import type { VertexSettings, AdminSettings, ImageItem, Phase } from './lib/gallery-shared'
 import { SongPlayer } from './components/SongPlayer'
+import { getSharedAudioCtx } from './lib/shared-audio-ctx'
 
 
 // ─── Main app ─────────────────────────────────────────────────────────────────
@@ -436,15 +437,16 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
       if (onEnded) audio.onended = onEnded
       bgAudioRef.current = audio
       try {
-        const newCtx = new AudioContext()
-        const source = newCtx.createMediaElementSource(audio)
-        const analyser = newCtx.createAnalyser()
+        // Reuse the AudioContext unlocked on /intro (critical for iOS gesture policy)
+        const ctx = getSharedAudioCtx() ?? new AudioContext()
+        const source = ctx.createMediaElementSource(audio)
+        const analyser = ctx.createAnalyser()
         analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.8
-        const gain = newCtx.createGain()
+        const gain = ctx.createGain()
         gain.gain.value = withSound ? audioVolume : 0
-        source.connect(analyser); analyser.connect(gain); gain.connect(newCtx.destination)
-        audioCtxRef.current = newCtx; analyserRef.current = analyser; gainNodeRef.current = gain
-        newCtx.resume().then(() => audio.play().catch(() => {})).catch(() => {})
+        source.connect(analyser); analyser.connect(gain); gain.connect(ctx.destination)
+        audioCtxRef.current = ctx; analyserRef.current = analyser; gainNodeRef.current = gain
+        ctx.resume().then(() => audio.play().catch(() => {})).catch(() => {})
       } catch { audio.play().catch(() => {}) }
     }
   }

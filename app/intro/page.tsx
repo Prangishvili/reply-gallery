@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { setSharedAudioCtx } from '@/app/lib/shared-audio-ctx'
 
 export default function IntroPage() {
   const router = useRouter()
@@ -34,6 +35,7 @@ export default function IntroPage() {
       analyser.connect(gain)
       gain.connect(ctx.destination)
       audioCtxRef.current = ctx
+      setSharedAudioCtx(ctx)
       ctx.resume().catch(() => {})
     } catch {}
   }
