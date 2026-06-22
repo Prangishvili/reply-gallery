@@ -35,29 +35,32 @@ export default function GalleryPage() {
   }
 
   return (
-    <div style={{ height: '100vh', overflowY: 'auto', background: '#fff', padding: '140px 20px 80px', fontFamily: 'var(--font-dm-mono)', cursor: 'default' }}>
+    <div style={{ height: '100vh', overflowY: 'auto', background: '#fff', padding: '60px 20px 120px', fontFamily: 'var(--font-dm-mono)', cursor: 'default' }}>
       <style>{`*, *::before, *::after { cursor: default !important; } button, a, .clickable { cursor: pointer !important; }`}</style>
 
-      {/* Logo — centered, same as CIRCLE */}
-      <div style={{ position: 'fixed', top: 36, left: '50%', transform: 'translateX(-50%)', zIndex: 20, pointerEvents: 'none', userSelect: 'none' }}>
-        <img src="/logo.svg" alt="Reply" style={{ height: 48, width: 'auto' }} />
+      {/* Logo — bottom center */}
+      <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 20, pointerEvents: 'none', userSelect: 'none' }}>
+        <img src="/logo.svg" alt="Reply" style={{ height: 64, width: 'auto' }} />
       </div>
 
-      {/* Left nav — ABOUT */}
+      {/* Top left nav — REPLY, GALLERY, ARTISTS */}
+      <div style={{ position: 'fixed', top: 24, left: 24, zIndex: 60, display: 'flex', gap: 24 }}>
+        {([['REPLY', '/circle'], ['GALLERY', '/gallery'], ['ARTISTS', '/room']] as const).map(([label, href]) => (
+          <a
+            key={label}
+            href={href}
+            style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', textDecoration: 'none', color: 'rgba(0,0,0,0.75)', transition: 'color 0.15s' }}
+          >{label}</a>
+        ))}
+      </div>
+
+      {/* Top right — ABOUT */}
       <button
         onClick={() => setShowAbout(v => !v)}
-        style={{ position: 'fixed', top: 24, left: 24, zIndex: 60, fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5, padding: 0, border: 'none', background: 'transparent', textTransform: 'uppercase', cursor: 'pointer', color: 'rgb(0,0,0)', transition: 'color 0.15s' }}
+        style={{ position: 'fixed', top: 24, right: 24, zIndex: 60, fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5, padding: 0, border: 'none', background: 'transparent', textTransform: 'uppercase', cursor: 'pointer', color: 'rgb(0,0,0)', transition: 'color 0.15s' }}
       >
         {showAbout ? 'close' : 'about'}
       </button>
-
-      {/* Right nav — MAKE */}
-      <a
-        href="/make"
-        style={{ position: 'fixed', top: 24, right: 16, zIndex: 20, fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5, padding: 0, border: 'none', background: 'transparent', textTransform: 'uppercase', textDecoration: 'none', color: 'rgba(0,0,0,0.3)', transition: 'color 0.15s' }}
-      >
-        make
-      </a>
 
       {/* Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
@@ -90,7 +93,7 @@ export default function GalleryPage() {
                 SHARE
               </button>
               <a
-                href="/"
+                href="/circle"
                 style={{ fontSize: 11, letterSpacing: '0.15em', color: '#555', textDecoration: 'none', textTransform: 'uppercase' }}
               >
                 REPLY
@@ -128,7 +131,7 @@ REPLY is a virtual art exhibition that abandons natural language as its framewor
 
 Visitors are also invited to construct their own version, to reply, and in that act, to consider what genuine dialogue between selves might actually look like, to say what they truly feel, without being observed, evaluated, or judged. Only felt.`}</p>
             <img src="/credits.png" alt="Student signatures" style={{ width: '100%', maxWidth: 560, display: 'block', margin: '32px auto', mixBlendMode: 'multiply' }} />
-            <p style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2, color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em', whiteSpace: 'pre-line' }}>{`Students\nMariam Wulaia, Nodar Gogichaishvili, Dominika Davshrishovi, Salome Shalvashvili, Nutsa Kavtelishvili, Ketevan Lomiashvili, Mariam Qsovreli, Ana Mamniashvili, Bako Shengelia, Sergi Sarajevi, Natali Chixelidze\n\nLecturer\nOto Prangishvili`}</p>
+            <p style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2, color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em', whiteSpace: 'pre-line' }}>{`Students\nMariam Wulaia, Nodar Gogichaishvili, Dominika Davrishovi, Salome Shalvashvili, Nutsa Kavtelishvili, Ketevan Lomiashvili, Mariam Qsovreli, Ana Mamniashvili, Bako Shengelia, Sergi Sarajevi, Natali Chixelidze\n\nLecturer\nOto Prangishvili`}</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, margin: '24px 0 8px' }}>
               <img src="/FREEUNI.svg" alt="Free University of Georgia" style={{ height: 48, width: 'auto', display: 'block' }} />
               <span style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2, color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em' }}>Free University of Georgia</span>

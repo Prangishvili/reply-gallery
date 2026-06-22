@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Mono } from "next/font/google";
+import { Suspense } from "react";
+import { PersistentPlayer } from "./components/PersistentPlayer";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -34,7 +36,10 @@ export default function RootLayout({
       <head>
         <link rel="preload" href="/figure.glb" as="fetch" crossOrigin="anonymous" />
       </head>
-      <body className="h-full overflow-hidden">{children}</body>
+      <body className="h-full overflow-hidden">
+        {children}
+        <Suspense><PersistentPlayer /></Suspense>
+      </body>
     </html>
   );
 }

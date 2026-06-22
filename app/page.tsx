@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { setSharedAudioCtx } from './lib/shared-audio-ctx'
 import { markAudioGatePassed } from './lib/audio-gate'
+import { initAudioManager } from './lib/audio-manager'
 
 export default function IntroPage() {
   const router = useRouter()
@@ -37,6 +38,7 @@ export default function IntroPage() {
       gain.connect(ctx.destination)
       audioCtxRef.current = ctx
       setSharedAudioCtx(ctx)
+      initAudioManager(ctx)
       ctx.resume().catch(() => {})
     } catch {}
   }

@@ -17,18 +17,14 @@ const SelfCanvas   = dynamic(() => import('./self'),  { ssr: false })
 import type { TextureMapping } from './room'
 import { STUDENTS, ROOM_STUDENTS, STUDENT_VERTEX_DEFAULTS, fileToCaption, ADMIN_DEFAULTS, AdminPanel } from './lib/gallery-shared'
 import type { VertexSettings, AdminSettings, ImageItem, Phase } from './lib/gallery-shared'
-import { SongPlayer } from './components/SongPlayer'
 import { getSharedAudioCtx } from './lib/shared-audio-ctx'
+import { getAudioAnalyser } from './lib/audio-manager'
 
 
 // ─── Main app ─────────────────────────────────────────────────────────────────
 
 export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode }) {
   const [phase, setPhase] = useState<Phase>('gallery')
-  const [withSound, setWithSound] = useState(() => {
-    try { const s = sessionStorage.getItem('reply_sound'); if (s !== null) return s === 'true' } catch {}
-    return true
-  })
   const [showQuote, setShowQuote] = useState(false)
   // Native cursor — custom orange cursor removed
 
@@ -315,9 +311,8 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Sub-pages (/room, /self) have no sound gate. SongPlayer handles audio
-  // start; this effect just ensures the context resumes on first interaction in
-  // case the browser blocked autoplay.
+  // Ensures the local audio context resumes on first interaction in
+  // case the browser blocked autoplay (used by admin replaceBgAudio).
   useEffect(() => {
     const resume = () => {
       audioCtxRef.current?.resume().catch(() => {})
@@ -338,6 +333,12 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
     if (gainNodeRef.current) gainNodeRef.current.gain.value = audioVolume
     else if (bgAudioRef.current) bgAudioRef.current.volume = audioVolume
   }, [audioVolume])
+
+  // Connect analyserRef to the shared audio pipeline so CircleCanvas can react to music
+  useEffect(() => {
+    const analyser = getAudioAnalyser()
+    if (analyser && !analyserRef.current) analyserRef.current = analyser
+  }, [])
 
   // Timebomb: hide one random post every 2s, restore all when disarmed
   useEffect(() => {
@@ -566,20 +567,37 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
 
   return (
     <div suppressHydrationWarning className="w-screen h-dvh overflow-hidden relative" style={{ background: bgImage ? `url(${bgImage}) center/cover no-repeat` : bgColor }}>
-      {/* Logo */}
+      {/* Logo — bottom center */}
       {!uiHidden && (
-        <div className="fixed top-9 left-1/2 -translate-x-1/2 z-20 select-none">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 select-none">
           <Link href="/make">
             <img src="/logo.svg" alt="Reply" className="h-16 w-auto" fetchPriority="low" />
           </Link>
         </div>
       )}
 
+      {/* Top-left nav — REPLY, GALLERY, ARTISTS */}
+      {phase === 'gallery' && !selectedStudent && !uiHidden && (
+        <div style={{ position: 'fixed', top: 24, left: 24, zIndex: 60, display: 'flex', gap: 24 }}>
+          {([['REPLY', '/circle'], ['GALLERY', '/gallery'], ['ARTISTS', '/room']] as const).map(([label, href]) => (
+            <Link
+              key={label}
+              href={href}
+              style={{
+                fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5,
+                textTransform: 'uppercase', textDecoration: 'none', color: 'rgba(0,0,0,0.75)',
+                transition: 'color 0.15s',
+              }}
+            >{label}</Link>
+          ))}
+        </div>
+      )}
+
       {/* View toggle — admin only; hidden from the public for now */}
       {phase === 'gallery' && !loading && !selectedStudent && !uiHidden && isAdmin && (
         <div
-          className="fixed top-6 z-20"
-          style={{ right: isAdmin && !panelHidden ? 296 : 16 }}
+          className="fixed z-20"
+          style={{ top: 48, right: isAdmin && !panelHidden ? 296 : 24 }}
         >
           <div style={{ display: 'flex', gap: 14 }}>
             {(['room', 'circle', 'self'] as const).map(mode => (
@@ -1061,16 +1079,15 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
         </div>
       )}
 
-      {/* About button */}
+      {/* About button — top right */}
       {phase === 'gallery' && !selectedStudent && !uiHidden && (
         <button
           onClick={() => setShowAbout(v => !v)}
           style={{
-            position: 'fixed', top: 24, left: 24, zIndex: 60,
+            position: 'fixed', top: 24, right: 24, zIndex: 60,
             fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5,
             textTransform: 'uppercase', background: 'transparent', border: 'none',
-            cursor: 'pointer', padding: 0,
-            color: showAbout ? 'rgb(0, 0, 0)' : 'rgb(0, 0, 0)',
+            cursor: 'pointer', padding: 0, color: 'rgb(0,0,0)',
             transition: 'color 0.15s',
           }}
         >
@@ -1202,14 +1219,6 @@ Project Lead by Oto Prangishvili`}</p>
         )}
         {!loading && !selectedStudent && (
           <div style={{ display: mountedView === 'circle' ? 'block' : 'none', position: 'absolute', inset: 0 }}>
-            {phase === 'gallery' && (
-              <SongPlayer
-                style={{ position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 10, width: 400 }}
-                autoPlay={withSound}
-                onPlay={(url, onEnded) => replaceBgAudioFromUrl(url, onEnded)}
-                onPause={() => { bgAudioRef.current?.pause() }}
-              />
-            )}
             <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={circleFigureY + (isMobileVp ? circleFigureYM : 0)} figureFacing={circleFigureFacing} drift={figureDrift} showVertexImages={circleShowImages && introImagesReady} vertexSettings={studentVertexSettings} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotSizeMobile : circleDotSize} dotColor={dotColor} dotCount={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotCountMobile : dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX + (isMobileVp ? circleCamXM : 0)} camY={circleCamY + (isMobileVp ? circleCamYM : 0)} camZ={circleCamZ + (isMobileVp ? circleCamZM : 0)} camFov={circleCamFov} camZoom={circleCamZoom + (isMobileVp ? circleCamZoomM : 0)} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} cameraInfoRef={isAdmin ? circleCameraInfoRef : undefined} soloReact={false} isAdmin={isAdmin} frameloop={mountedView === 'circle' && phase !== 'entry' ? 'always' : 'demand'} lockPolar={introImagesReady} />
           </div>
         )}
