@@ -278,9 +278,10 @@ const [layersOpen, setLayersOpen] = useState(false)
     <>
       <Link href="/circle" style={{
         position: 'fixed', top: 24, left: 24, zIndex: 20,
-        fontFamily: 'var(--font-dm-mono)', fontSize: 18,
-        color: 'rgba(0,0,0,0.45)', textDecoration: 'none', lineHeight: 1,
-      }}>←</Link>
+        textDecoration: 'none', lineHeight: 1,
+      }}>
+        <img src="/arrow.svg" alt="back" style={{ height: 20, width: 'auto', opacity: 0.45 }} />
+      </Link>
 
       <style>{`
         *, *::before, *::after, canvas { cursor: default !important; }
