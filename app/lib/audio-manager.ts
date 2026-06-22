@@ -5,6 +5,7 @@ let _ctx: AudioContext | null = null
 let _audio: HTMLAudioElement | null = null
 let _analyser: AnalyserNode | null = null
 let _gain: GainNode | null = null
+let _readyCallbacks: Array<(analyser: AnalyserNode) => void> = []
 
 export function initAudioManager(ctx: AudioContext) {
   if (_ctx && _ctx.state !== 'closed') return
@@ -21,7 +22,17 @@ export function initAudioManager(ctx: AudioContext) {
     source.connect(_analyser)
     _analyser.connect(_gain)
     _gain.connect(ctx.destination)
+    const a = _analyser
+    _readyCallbacks.forEach(cb => cb(a))
+    _readyCallbacks = []
   } catch {}
+}
+
+// Calls cb immediately if analyser exists, otherwise queues it for when it's ready
+export function onAudioReady(cb: (analyser: AnalyserNode) => void): () => void {
+  if (_analyser) { cb(_analyser); return () => {} }
+  _readyCallbacks.push(cb)
+  return () => { _readyCallbacks = _readyCallbacks.filter(c => c !== cb) }
 }
 
 function lazyInit() {

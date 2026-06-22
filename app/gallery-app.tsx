@@ -18,7 +18,7 @@ import type { TextureMapping } from './room'
 import { STUDENTS, ROOM_STUDENTS, STUDENT_VERTEX_DEFAULTS, fileToCaption, ADMIN_DEFAULTS, AdminPanel } from './lib/gallery-shared'
 import type { VertexSettings, AdminSettings, ImageItem, Phase } from './lib/gallery-shared'
 import { getSharedAudioCtx } from './lib/shared-audio-ctx'
-import { getAudioAnalyser } from './lib/audio-manager'
+import { onAudioReady } from './lib/audio-manager'
 
 // Persists across navigations (module lifetime) and page refreshes (sessionStorage)
 let _circleAnimPlayed = (() => {
@@ -358,11 +358,9 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
     else if (bgAudioRef.current) bgAudioRef.current.volume = audioVolume
   }, [audioVolume])
 
-  // Connect analyserRef to the shared audio pipeline so CircleCanvas can react to music
-  useEffect(() => {
-    const analyser = getAudioAnalyser()
-    if (analyser && !analyserRef.current) analyserRef.current = analyser
-  }, [])
+  // Connect analyserRef to the shared audio pipeline so CircleCanvas can react to music.
+  // onAudioReady fires immediately if already init'd, or defers until first play click.
+  useEffect(() => onAudioReady(analyser => { analyserRef.current = analyser }), [])
 
   // Timebomb: hide one random post every 2s, restore all when disarmed
   useEffect(() => {
