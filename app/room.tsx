@@ -1172,8 +1172,8 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, figu
         ? <OrthographicCamera makeDefault near={-10000} far={10000} />
         : <PerspectiveCamera makeDefault fov={camFov} near={0.1} far={10000} />
       }
-      <CircleCamSaver />
       <CircleCamDriver key={cameraMode} x={camX} y={camY} z={camZ} zoom={camZoom} mode={cameraMode} initCam={initCam} />
+      <CircleCamSaver />
       <OrbitControls target={[0, 150, 0]} enableDamping dampingFactor={0.08} autoRotate={camXLoop} autoRotateSpeed={camXLoopSpeed} enablePan={false} minZoom={0.5} maxZoom={4} minDistance={500} maxDistance={3500} />
       {showNoiseGlobe && analyserRef && (
         <group scale={circleRadius * 0.6}>
