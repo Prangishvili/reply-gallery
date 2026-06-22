@@ -6,7 +6,7 @@ import { GalleryApp } from './gallery-app'
 export default function Home() {
   return (
     <Suspense>
-      <GalleryApp initialView="circle" showEntry />
+      <GalleryApp initialView="circle" />
     </Suspense>
   )
 }

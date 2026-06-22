@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import dynamic from 'next/dynamic'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { STUDENTS } from '@/app/lib/gallery-shared'
 
@@ -58,9 +59,12 @@ const [layersOpen, setLayersOpen] = useState(false)
   const [musicSongsLoaded, setMusicSongsLoaded] = useState(false)
   const [musicIndex, setMusicIndex] = useState(-1)
   const [musicPlaying, setMusicPlaying] = useState(false)
-  const [musicUploading, setMusicUploading] = useState(false)
-  const [musicUploadMsg, setMusicUploadMsg] = useState<string | null>(null)
+  const [audioSrcModal, setAudioSrcModal] = useState(false)
+  const micAnalyserRef = useRef<AnalyserNode | null>(null)
+  const musicAnalyserRef = useRef<AnalyserNode | null>(null)
   const makeMusicRef = useRef<HTMLAudioElement | null>(null)
+  const musicAudioCtxRef = useRef<AudioContext | null>(null)
+  const musicBlobUrlsRef = useRef<string[]>([])
   const musicSongsRef = useRef<{ title: string; url: string }[]>([])
   const musicIdxRef = useRef(-1)
   const musicPlayingRef = useRef(false)
@@ -87,9 +91,30 @@ const [layersOpen, setLayersOpen] = useState(false)
     if (songs.length === 0) return
     const next = ((i % songs.length) + songs.length) % songs.length
     if (!makeMusicRef.current) {
-      makeMusicRef.current = new Audio()
-      makeMusicRef.current.volume = 0.7
+      // Create audio element and wire into Web Audio so analyserRef picks up the signal
+      const audio = new Audio()
+      audio.crossOrigin = 'anonymous'
+      audio.volume = 0.7
+      makeMusicRef.current = audio
+      try {
+        const ctx = new AudioContext()
+        const source = ctx.createMediaElementSource(audio)
+        const analyser = ctx.createAnalyser()
+        analyser.fftSize = 256
+        analyser.smoothingTimeConstant = 0.8
+        source.connect(analyser)
+        analyser.connect(ctx.destination)
+        musicAudioCtxRef.current = ctx
+        musicAnalyserRef.current = analyser
+        if (micAnalyserRef.current) {
+          setAudioSrcModal(true)
+        } else {
+          analyserRef.current = analyser
+        }
+        ctx.resume().catch(() => {})
+      } catch {}
     }
+    musicAudioCtxRef.current?.resume().catch(() => {})
     const audio = makeMusicRef.current
     audio.onended = () => playMusicAt(next + 1)
     if (musicIdxRef.current === next) {
@@ -103,27 +128,24 @@ const [layersOpen, setLayersOpen] = useState(false)
     }
   }
 
-  const handleMusicUpload = async (files: FileList | null) => {
+  const handleMusicUpload = (files: FileList | null) => {
     if (!files || files.length === 0) return
     const file = files[0]
-    setMusicUploading(true)
-    setMusicUploadMsg('uploading...')
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-    const uploadName = `${Date.now()}_${safeName}`
-    const { error } = await supabase.storage.from('audio').upload(uploadName, file)
-    if (error) {
-      setMusicUploadMsg(`error: ${error.message}`)
-    } else {
-      setMusicSongsLoaded(false)
-      await loadMusicSongs()
-      setMusicUploadMsg('✓ uploaded')
-      setTimeout(() => setMusicUploadMsg(null), 3000)
-    }
-    setMusicUploading(false)
+    const url = URL.createObjectURL(file)
+    musicBlobUrlsRef.current.push(url)
+    const title = file.name.replace(/\.[^.]+$/, '')
+    const newList = [...musicSongsRef.current, { title, url }]
+    musicSongsRef.current = newList
+    setMusicSongs(newList)
+    playMusicAt(newList.length - 1)
   }
 
   useEffect(() => {
-    return () => { makeMusicRef.current?.pause() }
+    return () => {
+      makeMusicRef.current?.pause()
+      musicAudioCtxRef.current?.close().catch(() => {})
+      musicBlobUrlsRef.current.forEach(u => URL.revokeObjectURL(u))
+    }
   }, [])
 
   const [studentOpen, setStudentOpen] = useState(false)
@@ -145,7 +167,8 @@ const [layersOpen, setLayersOpen] = useState(false)
       micStreamRef.current = null
       audioCtxRef.current?.close().catch(() => {})
       audioCtxRef.current = null
-      analyserRef.current = null
+      micAnalyserRef.current = null
+      analyserRef.current = musicAnalyserRef.current
     } else {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true })
@@ -160,7 +183,12 @@ const [layersOpen, setLayersOpen] = useState(false)
           analyser.smoothingTimeConstant = 0.8
           source.connect(analyser)
           audioCtxRef.current = ctx
-          analyserRef.current = analyser
+          micAnalyserRef.current = analyser
+          if (musicAnalyserRef.current) {
+            setAudioSrcModal(true)
+          } else {
+            analyserRef.current = analyser
+          }
           ctx.resume().catch(() => {})
         } catch { /* mic denied — camera still works */ }
       } catch { /* camera denied */ }
@@ -243,6 +271,12 @@ const [layersOpen, setLayersOpen] = useState(false)
 
   return (
     <>
+      <Link href="/" style={{
+        position: 'fixed', top: 24, left: 24, zIndex: 20,
+        fontFamily: 'var(--font-dm-mono)', fontSize: 18,
+        color: 'rgba(0,0,0,0.45)', textDecoration: 'none', lineHeight: 1,
+      }}>←</Link>
+
       <style>{`
         *, *::before, *::after, canvas { cursor: default !important; }
         .toolbar-scroll::-webkit-scrollbar { display: none; }
@@ -355,17 +389,15 @@ const [layersOpen, setLayersOpen] = useState(false)
             ))}
           </div>
           <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-            <label className="make-clickable" style={{ ...btn, color: musicUploading ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.55)', pointerEvents: musicUploading ? 'none' : 'auto' }}>
-              + upload song
+            <label className="make-clickable" style={{ ...btn, color: 'rgba(0,0,0,0.55)' }}>
+              + add song
               <input
                 type="file"
                 accept=".mp3,.aac,.m4a,.ogg,.wav,audio/*"
-                disabled={musicUploading}
                 style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }}
                 onChange={e => { handleMusicUpload(e.target.files); e.target.value = '' }}
               />
             </label>
-            {musicUploadMsg && <span style={{ ...mono, fontSize: 10, color: 'rgba(0,0,0,0.4)' }}>{musicUploadMsg}</span>}
           </div>
         </div>
       )}
@@ -620,6 +652,24 @@ const [layersOpen, setLayersOpen] = useState(false)
             <button onClick={closeModal} style={{ background: 'none', border: 'none', fontSize: 10, color: 'rgba(0,0,0,0.3)', letterSpacing: '0.15em', padding: 0, alignSelf: 'center' }}>
               CLOSE
             </button>
+          </div>
+        </div>
+      )}
+      {/* Audio source picker */}
+      {audioSrcModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
+          <div style={{ background: '#fff', borderRadius: 10, padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 20, fontFamily: 'var(--font-dm-mono)', width: 300 }}>
+            <p style={{ margin: 0, fontSize: 11, letterSpacing: '0.12em', color: 'rgba(0,0,0,0.5)', textAlign: 'center' }}>WHAT SHOULD IMAGES REACT TO?</p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => { analyserRef.current = micAnalyserRef.current; setAudioSrcModal(false) }}
+                style={{ flex: 1, ...mono, cursor: 'pointer', padding: '12px 0', borderRadius: 6, border: '1px solid rgba(0,0,0,0.12)', background: 'none', color: 'rgba(0,0,0,0.75)', fontSize: 11 }}
+              >Mic</button>
+              <button
+                onClick={() => { analyserRef.current = musicAnalyserRef.current; setAudioSrcModal(false) }}
+                style={{ flex: 1, ...mono, cursor: 'pointer', padding: '12px 0', borderRadius: 6, border: '1px solid rgba(0,0,0,0.12)', background: 'none', color: 'rgba(0,0,0,0.75)', fontSize: 11 }}
+              >Music</button>
+            </div>
           </div>
         </div>
       )}

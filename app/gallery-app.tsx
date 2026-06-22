@@ -22,16 +22,13 @@ import { SongPlayer } from './components/SongPlayer'
 
 // ─── Main app ─────────────────────────────────────────────────────────────────
 
-export function GalleryApp({ initialView = 'circle', showEntry = false }: { initialView?: ViewMode; showEntry?: boolean }) {
-  const [phase, setPhase] = useState<Phase>(showEntry ? 'entry' : 'gallery')
-  const [withSound, setWithSound] = useState(true)
+export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode }) {
+  const [phase, setPhase] = useState<Phase>('gallery')
+  const [withSound, setWithSound] = useState(() => {
+    try { const s = sessionStorage.getItem('reply_sound'); if (s !== null) return s === 'true' } catch {}
+    return true
+  })
   const [showQuote, setShowQuote] = useState(false)
-  const [replyFrame, setReplyFrame] = useState(0)
-  useEffect(() => {
-    if (phase !== 'entry') return
-    const id = setInterval(() => setReplyFrame(f => (f + 1) % 3), 250)
-    return () => clearInterval(id)
-  }, [phase])
   // Native cursor — custom orange cursor removed
 
   // Block iOS Safari's native page pinch-zoom (it ignores the viewport flag
@@ -317,11 +314,10 @@ export function GalleryApp({ initialView = 'circle', showEntry = false }: { init
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Sub-pages (/room, /self) have no entry/sound gate. SongPlayer handles audio
+  // Sub-pages (/room, /self) have no sound gate. SongPlayer handles audio
   // start; this effect just ensures the context resumes on first interaction in
   // case the browser blocked autoplay.
   useEffect(() => {
-    if (showEntry) return
     const resume = () => {
       audioCtxRef.current?.resume().catch(() => {})
       bgAudioRef.current?.play().catch(() => {})
@@ -465,12 +461,7 @@ export function GalleryApp({ initialView = 'circle', showEntry = false }: { init
     setRoomShuffleSeeds(prev => ({ ...prev, [name]: (prev[name] ?? 0) + 1 }))
   }
 
-  function goToGallery() {
-    localStorage.setItem('reply_visited', 'true')
-    setPhase('gallery')
-  }
-
-  // Preload the 3D chunks + figure GLB during the entry screen so the gallery
+  // Preload the 3D chunks + figure GLB during initial load so the gallery
   // appears instantly when a sound option is clicked (images still load lazily)
   useEffect(() => {
     import('./room')
@@ -1092,59 +1083,50 @@ export function GalleryApp({ initialView = 'circle', showEntry = false }: { init
           style={{
             position: 'fixed', inset: 0, zIndex: 55,
             background: 'rgba(255,255,255,0.55)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-            padding: '64px 24px 40px',
+            backdropFilter: 'blur(40px)',
+            WebkitBackdropFilter: 'blur(40px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '24px',
           }}
         >
           <div
             onClick={e => e.stopPropagation()}
             className="about-scroll"
-            style={{ maxWidth: 720, width: '100%', maxHeight: '100%', overflowY: 'auto', paddingRight: 28 }}
+            style={{ maxWidth: 800, width: '100%', maxHeight: '100%', overflowY: 'auto', paddingRight: 28 }}
           >
             <p style={{
-              fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2,
+              fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 16, lineHeight: 2,
               color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em',
-              whiteSpace: 'pre-line',
-            }}>{`"The action of being is so revolutionary that society rejects it and concerns itself exclusively with the action of becoming."
+              whiteSpace: 'pre-line', textTransform: 'uppercase',
+            }}>{`REPLY is a collaborative work by 12 artists, a meditation on digital identity, the selves we perform, and what gets lost along the way.
 
-— Jiddu Krishnamurti
+There are no words here. Instead, each person is shown through a visual code, each shaped from the artist's own understanding of language, not to be read, but to be seen and be felt.
 
-REPLY is a collaborative work by students of the Free University of Georgia, a meditation on digital identity, performed selfhood, and what gets lost in translation.
+Visitors are invited to make their own version, to REPLY and to explore the idea of visual dialogue, testing the limits of natural language, and watching the concept through the act itself.
 
-Every platform demands a different version of us. The visual self. The political self. The one who informs, the one who entertains. Collectively, they account for everything except the self that simply exists.
+Artists
+Mariam Wulaia, Nodar Gogichaishvili, Dominika Davshrishovi, Salome Shalvashvili, Nutsa Kavtelishvili, Ketevan Lomiashvili, Mariam Qsovreli, Ana Mamniashvili, Bako Shengelia, Sergi Sarajevi, and Natali Chixelidze`}</p>
+            <p style={{
+              fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 16, lineHeight: 2,
+              color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em',
+              whiteSpace: 'pre-line', textTransform: 'uppercase',
+              marginTop: 24,
+            }}>{`VA[A]DS — Visual Art, Architecture, and Design School
+Free University of Georgia
+Music by Chris Zabriskie
 
-In search of the self, each student developed their own writing system, a personal visual language designed not for legibility, but for honesty. Something to be felt rather than decoded.
-
-REPLY is a virtual art exhibition that abandons natural language as its framework, presenting each participant through a visual representation that resists performance and asks, instead, for presence.
-
-Visitors are also invited to construct their own version, to reply, and in that act, to consider what genuine dialogue between selves might actually look like, to say what they truly feel, without being observed, evaluated, or judged. Only felt.`}</p>
+Project Lead by Oto Prangishvili`}</p>
             <img
               src="/credits.png"
-              alt="Student signatures"
-              style={{ width: '100%', maxWidth: 560, display: 'block', margin: '32px auto', mixBlendMode: 'multiply' }}
+              alt="Artist signatures"
+              style={{ width: '100%', maxWidth: 560, display: 'block', margin: '32px 0', mixBlendMode: 'multiply' }}
             />
             <p style={{
-              fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2,
+              fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 16, lineHeight: 2,
               color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em',
-              whiteSpace: 'pre-line',
-            }}>{`Students
-Mariam Wulaia, Nodar Gogichaishvili,  Dominika Davshrishovi, Salome Shalvashvili, Nutsa Kavtelishvili, Ketevan Lomiashvili, Mariam Qsovreli, Ana Mamniashvili, Bako Shengelia, Sergi Sarajevi, Natali Chixelidze
-
-Teacher
-Oto Prangishvili`}</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, margin: '24px 0 8px' }}>
-              <img
-                src="/FREEUNI.svg"
-                alt="Free University of Georgia"
-                style={{ height: 48, width: 'auto', display: 'block' }}
-              />
-              <span style={{
-                fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 14, lineHeight: 2,
-                color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em',
-              }}>Free University of Georgia</span>
-            </div>
+              whiteSpace: 'pre-line', textTransform: 'uppercase',
+              marginTop: 8,
+            }}><a href="mailto:o.prangishvili@freeuni.edu.ge" style={{ color: 'rgba(0,0,0,0.75)', textDecoration: 'underline' }}>CONTACT US</a></p>
           </div>
         </div>
       )}
@@ -1400,47 +1382,6 @@ Oto Prangishvili`}</p>
         />
       )}
 
-      {/* Intro overlay */}
-      {phase !== 'gallery' && (
-        <div
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center"
-          style={{ right: isAdmin && !panelHidden ? 280 : 0 }}
-        >
-
-          {phase === 'entry' && (
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#ffffff' }}>
-              {/* full-screen gradient blob */}
-              <div style={{
-                position: 'absolute', right: '2%', bottom: '10%',
-                width: '50%', height: '70%',
-                background: 'radial-gradient(ellipse at 60% 60%, rgba(210,155,165,0.45) 0%, rgba(185,145,175,0.25) 35%, transparent 68%)',
-                filter: 'blur(55px)',
-                pointerEvents: 'none',
-              }} />
-              {/* REPLY svg */}
-              <div style={{ flex: 1, width: '80%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <img src={['/reply.svg', '/reply1.svg', '/reply2.svg'][replyFrame]} alt="REPLY" style={{ width: '88%', height: 'auto', position: 'relative' }} />
-              </div>
-              {/* buttons */}
-              <div style={{ paddingBottom: 80, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32, textAlign: 'center', paddingLeft: 24, paddingRight: 24 }}>
-                <p style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: '0.12em', lineHeight: 1.8, color: 'rgba(0,0,0,0.55)', maxWidth: 420, margin: 0, textTransform: 'uppercase' }}>
-                  This is an interactive audio and visual experience, so we recommend keeping your sound on
-                </p>
-                <button
-                  onClick={() => { setWithSound(true); unlockAudioContext(true); goToGallery() }}
-                  style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.75)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                >START YOUR EXPERIENCE</button>
-                <button
-                  onClick={() => { setWithSound(false); unlockAudioContext(false); goToGallery() }}
-                  style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.35)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                >SOUND OFF</button>
-              </div>
-            </div>
-          )}
-
-
-        </div>
-      )}
 
       {/* Upload Modal */}
       {showUpload && (
