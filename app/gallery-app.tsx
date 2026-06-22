@@ -269,7 +269,10 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
     }
     setSelectedStudents(prev => {
       const idx = prev.indexOf(name)
-      if (idx !== -1) return prev.filter(s => s !== name)
+      if (idx !== -1) {
+        const next = prev.filter(s => s !== name)
+        return next.length === 0 ? prev : next // never drop below 1
+      }
       if (prev.length < 2) return [...prev, name]
       return [prev[1], name]
     })
@@ -1187,7 +1190,7 @@ Project Lead by Oto Prangishvili`}</p>
           fontFamily: 'var(--font-dm-mono), ui-monospace, monospace',
           overflowY: 'auto',
         }}>
-          {ROOM_STUDENTS.map(name => {
+          {ROOM_STUDENTS.filter(name => name !== 'Name' || isAdmin).map(name => {
             const isSelf = name === 'SELF'
             const isSelected = isSelf ? viewMode === 'self' : selectedStudents.includes(name)
             return (
