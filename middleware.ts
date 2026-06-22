@@ -15,7 +15,7 @@ export function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/intro', request.url))
     }
 
-    // Check if 20+ minutes have passed since last visit
+    // Check if 5+ minutes have passed since last visit
     const lastVisit = parseInt(visitedAt)
     const now = Date.now()
     const minutesPassed = (now - lastVisit) / (1000 * 60)
