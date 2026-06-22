@@ -45,7 +45,8 @@ const [layersOpen, setLayersOpen] = useState(false)
   // Save modal
   const [modal, setModal] = useState(false)
   const [name, setName] = useState('')
-  const [uploadToGallery, setUploadToGallery] = useState(false)
+  const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null)
+  const [uploadToGallery, setUploadToGallery] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -206,6 +207,7 @@ const [layersOpen, setLayersOpen] = useState(false)
 
   const openModal = () => {
     frozenDataUrl.current = captureRef.current?.() ?? null
+    setPreviewDataUrl(frozenDataUrl.current)
     setSaved(false)
     setUploadError(null)
     setModal(true)
@@ -253,7 +255,7 @@ const [layersOpen, setLayersOpen] = useState(false)
         const file = new File([blob], 'artwork.png', { type: 'image/png' })
         const fd = new FormData()
         fd.append('image', file)
-        if (name.trim()) fd.append('visitor_name', name.trim())
+        fd.append('visitor_name', name.trim() || 'UNKNOWN')
         const res = await fetch('/api/visitor-posts', { method: 'POST', body: fd })
         if (!res.ok) {
           const body = await res.json().catch(() => ({}))
@@ -432,7 +434,7 @@ const [layersOpen, setLayersOpen] = useState(false)
               background: 'rgba(255,255,255,0.78)', border: '1px solid rgba(0,0,0,0.08)',
               borderRadius: 6, padding: '11px 12px', color: 'rgba(0,0,0,0.55)',
               backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-            }}>save png</button>
+            }}>publish</button>
           </div>
 
           {/* Main controls pill */}
@@ -604,7 +606,7 @@ const [layersOpen, setLayersOpen] = useState(false)
             background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.08)',
             borderRadius: 6, padding: '20px 24px', color: 'rgba(0,0,0,0.55)', whiteSpace: 'nowrap',
             backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-          }}>save png</button>
+          }}>publish</button>
 
         </div>
         </div>
@@ -613,8 +615,15 @@ const [layersOpen, setLayersOpen] = useState(false)
       {/* Save modal */}
       {modal && (
         <div onClick={closeModal} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 8, padding: '32px 36px', width: 360, display: 'flex', flexDirection: 'column', gap: 20, fontFamily: 'var(--font-dm-mono)' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 8, padding: '32px 36px', width: 520, display: 'flex', flexDirection: 'column', gap: 20, fontFamily: 'var(--font-dm-mono)' }}>
             <p style={{ margin: 0, fontSize: 13, letterSpacing: '0.1em', color: '#222' }}>SAVE ARTWORK</p>
+
+            {/* Preview */}
+            {previewDataUrl && (
+              <div style={{ width: '100%', aspectRatio: `${830 / 1020}`, overflow: 'hidden', borderRadius: 4, border: '1px solid rgba(0,0,0,0.08)' }}>
+                <img src={previewDataUrl} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </div>
+            )}
 
             {/* Name */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -623,7 +632,7 @@ const [layersOpen, setLayersOpen] = useState(false)
                 type="text"
                 value={name}
                 onChange={e => setName(e.target.value)}
-                placeholder="e.g. Mamniashvili Anna"
+                placeholder="Name"
                 style={{ fontFamily: 'var(--font-dm-mono)', fontSize: 11, border: '1px solid rgba(0,0,0,0.15)', borderRadius: 4, padding: '7px 10px', outline: 'none', color: '#333' }}
               />
             </div>
@@ -646,7 +655,7 @@ const [layersOpen, setLayersOpen] = useState(false)
               <button
                 onClick={handleShareDownload}
                 disabled={saving}
-                style={{ ...btn, padding: '9px 0', textAlign: 'center', opacity: saving ? 0.5 : 1, fontSize: 11, letterSpacing: '0.1em' }}
+                style={{ fontFamily: 'var(--font-dm-mono)', fontSize: 11, letterSpacing: '0.1em', cursor: 'pointer', padding: '11px 0', textAlign: 'center', opacity: saving ? 0.5 : 1, background: '#000', color: '#fff', border: 'none', borderRadius: 4 }}
               >
                 {saving ? 'saving...' : 'SHARE & DOWNLOAD'}
               </button>

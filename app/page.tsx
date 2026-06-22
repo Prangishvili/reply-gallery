@@ -69,11 +69,11 @@ export default function IntroPage() {
         <button
           onClick={() => handleChoice(true)}
           style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.75)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-        >START YOUR EXPERIENCE</button>
+        >ENTER</button>
         <button
           onClick={() => handleChoice(false)}
           style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.35)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-        >SOUND OFF</button>
+        >MUTE</button>
       </div>
     </div>
   )

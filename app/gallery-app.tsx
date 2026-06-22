@@ -603,7 +603,7 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
       {/* Top-left nav — REPLY, GALLERY, ARTISTS */}
       {phase === 'gallery' && !selectedStudent && !uiHidden && (
         <div style={{ position: 'fixed', top: 24, left: 24, zIndex: 60, display: 'flex', gap: 24 }}>
-          {([['REPLY', '/circle'], ['GALLERY', '/gallery'], ['ARTISTS', '/room']] as const).map(([label, href]) => (
+          {([['REPLY', '/circle'], ['GALLERY', '/gallery'], ['ARTISTS', '/room'], ['CREATE', '/make']] as const).map(([label, href]) => (
             <Link
               key={label}
               href={href}
