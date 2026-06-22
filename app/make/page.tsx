@@ -25,6 +25,11 @@ export default function MakePage() {
 const [layersOpen, setLayersOpen] = useState(false)
   useEffect(() => { pauseAudio() }, [])
 
+  useEffect(() => {
+    const url = new URLSearchParams(window.location.search).get('image')
+    if (url) setImageUrls([decodeURIComponent(url)])
+  }, [])
+
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)

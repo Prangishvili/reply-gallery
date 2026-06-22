@@ -90,7 +90,7 @@ export default function GalleryPage() {
                 SHARE
               </button>
               <Link
-                href="/circle"
+                href={`/make?image=${encodeURIComponent(post.image_url)}`}
                 style={{ fontSize: 11, letterSpacing: '0.15em', color: '#555', textDecoration: 'none', textTransform: 'uppercase' }}
               >
                 REPLY
