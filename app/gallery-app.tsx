@@ -1112,7 +1112,9 @@ Mariam Wulaia, Nodar Gogichaishvili, Dominika Davrishovi, Salome Shalvashvili, N
               whiteSpace: 'pre-line', textTransform: 'uppercase',
               marginTop: 24,
             }}>{`VA[A]DS — Visual Art, Architecture, and Design School
+
 Free University of Georgia
+
 Music by Chris Zabriskie
 
 Project Lead by Oto Prangishvili`}</p>
