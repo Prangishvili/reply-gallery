@@ -150,8 +150,11 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
 
     const targetZoom = window.innerWidth < 1000 ? 0.6 : 1.4
 
+    console.log('[circle-anim] effect ran — _circleAnimPlayed:', _circleAnimPlayed, '| ref:', circleAnimPlayedRef.current)
+
     // Already played this session (cross-navigation): restore final state immediately
     if (_circleAnimPlayed) {
+      console.log('[circle-anim] SKIP — restoring final state')
       setAdmin(prev => ({ ...prev, circleCamY: 400, circleCamZoom: targetZoom, circleFigureY: 160, circleCamXLoop: true, circleCamXLoopSpeed: 0.1 }))
       setIntroImagesReady(true)
       return
@@ -160,6 +163,7 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
     if (circleAnimPlayedRef.current) { setIntroImagesReady(true); return }
     circleAnimPlayedRef.current = true
     _circleAnimPlayed = true // set now so navigating away mid-animation still skips on return
+    console.log('[circle-anim] PLAY — starting animation')
 
     const INTRO_KEY = 'reply_circle_intro_seen'
     const INTRO_TTL_MS = 24 * 60 * 60 * 1000
