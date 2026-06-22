@@ -1094,6 +1094,7 @@ function CircleCamSaver() {
 function CircleCamDriver({ x, y, z, zoom, mode, initCam }: { x: number; y: number; z: number; zoom: number; mode: CircleCameraMode; initCam?: { x: number; y: number; z: number; zoom: number } }) {
   const { camera } = useThree()
   const ready = useRef(false)
+  const locked = useRef(!!initCam) // when restoring saved state, hand control to OrbitControls immediately
   const prevTarget = useRef({ x, y, z, zoom })
   const settledFrames = useRef(0)
   useFrame(() => {
@@ -1102,9 +1103,9 @@ function CircleCamDriver({ x, y, z, zoom, mode, initCam }: { x: number; y: numbe
       camera.position.set(init.x, init.y, init.z)
       if (camera instanceof THREE.OrthographicCamera) { camera.zoom = init.zoom; camera.updateProjectionMatrix() }
       ready.current = true
-      if (initCam) settledFrames.current = 80
       return
     }
+    if (locked.current) return // camera is under OrbitControls, don't interfere
     const p = prevTarget.current
     if (p.x !== x || p.y !== y || p.z !== z || p.zoom !== zoom) {
       prevTarget.current = { x, y, z, zoom }
