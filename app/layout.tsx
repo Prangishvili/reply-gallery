@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Mono } from "next/font/google";
 import { Suspense } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import { PersistentPlayer } from "./components/PersistentPlayer";
 import "./globals.css";
 
@@ -53,6 +54,7 @@ export default function RootLayout({
       <body className="h-full overflow-hidden">
         {children}
         <Suspense><PersistentPlayer /></Suspense>
+        <Analytics />
       </body>
     </html>
   );
