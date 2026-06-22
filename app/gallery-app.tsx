@@ -1177,17 +1177,6 @@ Project Lead by Oto Prangishvili`}</p>
       )}
 
       {/* Uni logo */}
-      {!uiHidden && mountedView !== 'circle' && (
-        <a
-          href="https://www.freeuni.edu.ge/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="fixed bottom-6 right-6 z-20"
-          style={isAdmin && !panelHidden ? { right: 286 } : {}}
-        >
-          <img src="/UNI.svg" alt="Free University of Tbilisi" className="h-8 w-auto" fetchPriority="low" />
-        </a>
-      )}
 
 
       {/* Student selector — left panel, room view only */}
