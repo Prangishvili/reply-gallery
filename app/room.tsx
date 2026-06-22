@@ -843,7 +843,7 @@ function ScreenshotCapture({ captureRef }: { captureRef: React.MutableRefObject<
   return null
 }
 
-function VideoRecorder({ recordRef }: { recordRef: React.MutableRefObject<{ start: () => void; stop: () => void } | null> }) {
+function VideoRecorder({ recordRef, prefix = 'room' }: { recordRef: React.MutableRefObject<{ start: () => void; stop: () => void } | null>; prefix?: string }) {
   const { gl } = useThree()
   useEffect(() => {
     let recorder: MediaRecorder | null = null
@@ -859,7 +859,7 @@ function VideoRecorder({ recordRef }: { recordRef: React.MutableRefObject<{ star
           const blob = new Blob(chunks, { type: 'video/webm' })
           const url = URL.createObjectURL(blob)
           const a = document.createElement('a')
-          a.href = url; a.download = `room-${Date.now()}.webm`; a.click()
+          a.href = url; a.download = `${prefix}-${Date.now()}.webm`; a.click()
           URL.revokeObjectURL(url)
         }
         recorder.start()
@@ -867,7 +867,7 @@ function VideoRecorder({ recordRef }: { recordRef: React.MutableRefObject<{ star
       stop: () => { recorder?.stop(); recorder = null },
     }
     return () => { recorder?.stop(); recordRef.current = null }
-  }, [gl, recordRef])
+  }, [gl, recordRef, prefix])
   return null
 }
 
@@ -1221,7 +1221,7 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, figu
 
 export type { CircleCameraMode, TextureMapping }
 
-export function CircleCanvas({ posts, students, circleRadius = 300, figureScale = 200, figureY = -10, figureFacing = 4.65, showVertexImages = true, vertexSettings = {} as Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>, showWireframe = true, wireframeStyle = 'points' as WireframeStyle, dotSize = 0.800, dotColor = '#000000', dotCount = 30000, studentTextures = {}, studentTextureMappings = {}, onTextureUpload = () => {}, showNoiseGlobe = false, noiseColor1 = '#08003a', noiseColor2 = '#8c1aff', noiseSpeed = 0.5, noiseScale = 1.0, audioVolume = 0, cameraMode = 'orthographic' as CircleCameraMode, camX = 150, camY = 930, camZ = -1350, camFov = 60, camZoom = 1.8, camXLoop = false, camXLoopSpeed = 1.0, bgColor = '#ffffff', bgImage = null, analyserRef, cameraInfoRef, soloReact = false, isAdmin = false, frameloop = 'always', drift = false, lockPolar = false, initCam }: {
+export function CircleCanvas({ posts, students, circleRadius = 300, figureScale = 200, figureY = -10, figureFacing = 4.65, showVertexImages = true, vertexSettings = {} as Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>, showWireframe = true, wireframeStyle = 'points' as WireframeStyle, dotSize = 0.800, dotColor = '#000000', dotCount = 30000, studentTextures = {}, studentTextureMappings = {}, onTextureUpload = () => {}, showNoiseGlobe = false, noiseColor1 = '#08003a', noiseColor2 = '#8c1aff', noiseSpeed = 0.5, noiseScale = 1.0, audioVolume = 0, cameraMode = 'orthographic' as CircleCameraMode, camX = 150, camY = 930, camZ = -1350, camFov = 60, camZoom = 1.8, camXLoop = false, camXLoopSpeed = 1.0, bgColor = '#ffffff', bgImage = null, analyserRef, cameraInfoRef, soloReact = false, isAdmin = false, frameloop = 'always', drift = false, lockPolar = false, initCam, recordRef }: {
   posts: Post[]; students: string[]
   circleRadius?: number; figureScale?: number; figureY?: number; figureFacing?: number; drift?: boolean
   showVertexImages?: boolean; vertexSettings?: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>
@@ -1240,6 +1240,7 @@ export function CircleCanvas({ posts, students, circleRadius = 300, figureScale 
   frameloop?: 'always' | 'demand' | 'never'
   lockPolar?: boolean
   initCam?: { x: number; y: number; z: number; zoom: number }
+  recordRef?: React.MutableRefObject<{ start: () => void; stop: () => void } | null>
 }) {
   return (
     <Canvas
@@ -1265,6 +1266,7 @@ export function CircleCanvas({ posts, students, circleRadius = 300, figureScale 
         lockPolar={lockPolar}
         initCam={initCam}
       />
+      {recordRef && <VideoRecorder recordRef={recordRef} prefix="circle" />}
     </Canvas>
   )
 }

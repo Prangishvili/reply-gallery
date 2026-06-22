@@ -247,6 +247,8 @@ export function AdminPanel({
   circleFacing, setCircleFacing,
   studentVertexSettings, updateStudentVS,
   onCapture,
+  onRecord,
+  isRecording = false,
 }: {
   admin: AdminSettings
   setAdmin: React.Dispatch<React.SetStateAction<AdminSettings>>
@@ -265,6 +267,8 @@ export function AdminPanel({
   circleFacing: 'camera' | 'normal'; setCircleFacing: (v: 'camera' | 'normal') => void
   studentVertexSettings: Record<string, VertexSettings>; updateStudentVS: (name: string, updates: Partial<VertexSettings>) => void
   onCapture?: () => void
+  onRecord?: () => void
+  isRecording?: boolean
 }) {
   const set = <K extends keyof AdminSettings>(key: K, value: AdminSettings[K]) =>
     setAdmin(prev => ({ ...prev, [key]: value }))
@@ -682,6 +686,22 @@ export function AdminPanel({
             style={{ width: '100%', fontFamily: P.font, fontSize: 10, padding: '6px 0', cursor: 'pointer', background: P.surface, color: P.text, border: `1px solid ${P.border}`, letterSpacing: 1 }}
           >
             SAVE 16-BIT PNG
+          </button>
+        </PanelSection>
+      )}
+
+      {(viewMode === 'circle') && onRecord && (
+        <PanelSection title="Export">
+          <button
+            onClick={onRecord}
+            style={{
+              width: '100%', fontFamily: P.font, fontSize: 10, padding: '6px 0', cursor: 'pointer', letterSpacing: 1,
+              background: isRecording ? 'rgba(200,0,0,0.08)' : P.surface,
+              color: isRecording ? 'rgba(200,0,0,0.8)' : P.text,
+              border: `1px solid ${isRecording ? 'rgba(200,0,0,0.5)' : P.border}`,
+            }}
+          >
+            {isRecording ? '● STOP REC' : 'RECORD VIDEO'}
           </button>
         </PanelSection>
       )}
