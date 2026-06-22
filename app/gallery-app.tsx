@@ -709,8 +709,8 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
         </div>
       )}
 
-      {/* Image controls overlay — room view */}
-      {phase === 'gallery' && mountedView === 'room' && !selectedStudent && !uiHidden && (
+      {/* Image controls overlay — room view, admin only */}
+      {phase === 'gallery' && mountedView === 'room' && !selectedStudent && !uiHidden && isAdmin && (
         <div style={{
           position: 'fixed', right: isAdmin && !panelHidden ? 296 + 24 : 24,
           top: '50%', transform: 'translateY(-50%)',
