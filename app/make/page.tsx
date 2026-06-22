@@ -421,7 +421,7 @@ const [layersOpen, setLayersOpen] = useState(false)
               color: cameraStream ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', fontWeight: cameraStream ? 600 : 400,
               backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
             }}>
-              {cameraStream ? '⏹ camera' : '⏺ camera'}
+              {'camera'}
             </button>
             <button onClick={() => { setMusicOpen(o => !o); if (!musicSongsLoaded) loadMusicSongs() }} style={{
               ...mono, cursor: 'pointer', flex: 1,
@@ -516,7 +516,7 @@ const [layersOpen, setLayersOpen] = useState(false)
             color: cameraStream ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', fontWeight: cameraStream ? 600 : 400,
             backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
           }}>
-            {cameraStream ? '⏹ camera' : '⏺ camera'}
+            {'camera'}
           </button>
 
           {/* Main toolbar */}
