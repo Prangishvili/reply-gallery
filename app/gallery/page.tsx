@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import Link from 'next/link'
 import { supabase, type VisitorPost } from '@/lib/supabase'
 
 const IMAGE_W = 613
@@ -46,11 +47,11 @@ export default function GalleryPage() {
       {/* Top left nav — REPLY, GALLERY, ARTISTS */}
       <div style={{ position: 'fixed', top: 24, left: 24, zIndex: 60, display: 'flex', gap: 24 }}>
         {([['REPLY', '/circle'], ['GALLERY', '/gallery'], ['ARTISTS', '/room']] as const).map(([label, href]) => (
-          <a
+          <Link
             key={label}
             href={href}
             style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', textDecoration: 'none', color: 'rgba(0,0,0,0.75)', transition: 'color 0.15s' }}
-          >{label}</a>
+          >{label}</Link>
         ))}
       </div>
 
@@ -92,12 +93,12 @@ export default function GalleryPage() {
               >
                 SHARE
               </button>
-              <a
+              <Link
                 href="/circle"
                 style={{ fontSize: 11, letterSpacing: '0.15em', color: '#555', textDecoration: 'none', textTransform: 'uppercase' }}
               >
                 REPLY
-              </a>
+              </Link>
             </div>
 
           </div>
