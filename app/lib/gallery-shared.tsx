@@ -641,21 +641,6 @@ export function AdminPanel({
         </PanelSection>
       )}
 
-      <PanelSection title="Upload to DB">
-        <select value={uploadStudent} onChange={e => setUploadStudent(e.target.value)}
-          style={{ width: '100%', marginBottom: 8, fontFamily: P.font, fontSize: 10, background: P.surface, color: P.text, border: `1px solid ${P.border}`, padding: '4px 6px' }}>
-          {STUDENTS.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <label style={{ display: 'block', cursor: 'pointer', background: P.surface, border: `1px solid ${P.border}`, padding: '5px 10px', fontSize: 10, color: P.dim, marginBottom: 8, textAlign: 'center' as const }}>
-          {uploadFiles.length ? `${uploadFiles.length} file${uploadFiles.length > 1 ? 's' : ''} selected` : 'choose files'}
-          <input type="file" accept="image/*,video/*" multiple style={{ display: 'none' }} onChange={e => { setUploadFiles(Array.from(e.target.files ?? [])); e.target.value = '' }} />
-        </label>
-        <button onClick={doUpload} disabled={!uploadFiles.length || !!uploadProgress}
-          style={{ width: '100%', fontFamily: P.font, fontSize: 10, padding: '5px 0', cursor: 'pointer', background: P.surface, color: P.text, border: `1px solid ${P.border}` }}>
-          {uploadProgress ? `uploading ${uploadProgress.done}/${uploadProgress.total}…` : 'upload'}
-        </button>
-        {uploadError && <div style={{ marginTop: 6, fontSize: 10, color: '#f55' }}>{uploadError}</div>}
-      </PanelSection>
 
       {viewMode === 'room' && (
         <PanelSection title="Nutsa — GLB models">
