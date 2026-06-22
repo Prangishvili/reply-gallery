@@ -1105,7 +1105,7 @@ There are no words here. Instead, each person is shown through a visual code, ea
 Visitors are invited to make their own version, to REPLY and to explore the idea of visual dialogue, testing the limits of natural language, and watching the concept through the act itself.
 
 Artists
-Mariam Wulaia, Nodar Gogichaishvili, Dominika Davshrishovi, Salome Shalvashvili, Nutsa Kavtelishvili, Ketevan Lomiashvili, Mariam Qsovreli, Ana Mamniashvili, Bako Shengelia, Sergi Sarajevi, and Natali Chixelidze`}</p>
+Mariam Wulaia, Nodar Gogichaishvili, Dominika Davrishovi, Salome Shalvashvili, Nutsa Kavtelishvili, Ketevan Lomiashvili, Mariam Qsovreli, Ana Mamniashvili, Bako Shengelia, Sergi Sarajevi, and Natali Chixelidze`}</p>
             <p style={{
               fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 16, lineHeight: 2,
               color: 'rgba(0,0,0,0.75)', letterSpacing: '0.02em',
