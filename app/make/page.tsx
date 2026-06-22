@@ -223,7 +223,7 @@ const [layersOpen, setLayersOpen] = useState(false)
         let cropW = ch * CANVAS_RATIO, cropH = ch
         if (cropW > cw) { cropW = cw; cropH = cw / CANVAS_RATIO }
         const x = (cw - cropW) / 2, y = (ch - cropH) / 2
-        const OUT_W = 830 * 2, OUT_H = 1020 * 2
+        const OUT_W = 830 * 3, OUT_H = 1020 * 3
         const out = document.createElement('canvas')
         out.width = OUT_W; out.height = OUT_H
         const ctx = out.getContext('2d')!

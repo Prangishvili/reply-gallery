@@ -7,11 +7,28 @@ import * as THREE from 'three'
 
 // ── Capture ───────────────────────────────────────────────────────────────────
 function CaptureSetup({ captureRef }: { captureRef: React.MutableRefObject<(() => string) | null> }) {
-  const { gl } = useThree()
+  const { gl, scene, camera } = useThree()
   useEffect(() => {
-    captureRef.current = () => gl.domElement.toDataURL('image/png')
+    captureRef.current = () => {
+      const cssW = gl.domElement.clientWidth
+      const cssH = gl.domElement.clientHeight
+      const prevDPR = gl.getPixelRatio()
+      // Ensure the GL framebuffer is at least 1660px wide for a sharp capture
+      const targetDPR = Math.max(prevDPR, Math.ceil(2490 / Math.max(cssW, 1)))
+      if (targetDPR !== prevDPR) {
+        gl.setPixelRatio(targetDPR)
+        gl.setSize(cssW, cssH, false)
+        gl.render(scene, camera)
+      }
+      const dataUrl = gl.domElement.toDataURL('image/png')
+      if (targetDPR !== prevDPR) {
+        gl.setPixelRatio(prevDPR)
+        gl.setSize(cssW, cssH, false)
+      }
+      return dataUrl
+    }
     return () => { captureRef.current = null }
-  }, [gl, captureRef])
+  }, [gl, scene, camera, captureRef])
   return null
 }
 
