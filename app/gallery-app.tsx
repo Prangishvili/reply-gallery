@@ -159,6 +159,7 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
     // StrictMode double-invoke guard
     if (circleAnimPlayedRef.current) { setIntroImagesReady(true); return }
     circleAnimPlayedRef.current = true
+    _circleAnimPlayed = true // set now so navigating away mid-animation still skips on return
 
     const INTRO_KEY = 'reply_circle_intro_seen'
     const INTRO_TTL_MS = 24 * 60 * 60 * 1000
@@ -185,7 +186,7 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
         circleFigureY: fromFigY + (160 - fromFigY) * e,
       }))
       if (t < 1) circleAnimRef.current = requestAnimationFrame(tick)
-      else { _circleAnimPlayed = true; setAdmin(prev => ({ ...prev, circleCamXLoop: true, circleCamXLoopSpeed: 0.1 })); setIntroImagesReady(true); setShowQuote(false) }
+      else { setAdmin(prev => ({ ...prev, circleCamXLoop: true, circleCamXLoopSpeed: 0.1 })); setIntroImagesReady(true); setShowQuote(false) }
     }
     if (showQuoteThisTime) setShowQuote(true)
     circleAnimRef.current = requestAnimationFrame(tick)
