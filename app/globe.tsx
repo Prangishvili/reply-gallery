@@ -14,7 +14,7 @@ const INNER_RADIUS = 1.6
 
 const NAMES = [
   'Nodar Gogichaishvili', 'Sesili Gurgenidze', 'Dominika Davshrishovi', 'Nutsa Kavtelishvili',
-  'Ketevan Lomiashvili', 'Ana Mamniashvili', 'Sergi Sarajevi', 'Natali Chixelidze',
+  'Ketevan Lomiashvili', 'Ana Mamniashvili', 'Sergi Sarajevi', 'Natali Chikhelidze',
   'Salome Shalvashvili', 'Bako Shengelia', 'Mariam Wulaia', 'Mariam Qsovreli',
 ]
 
