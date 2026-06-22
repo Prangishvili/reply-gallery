@@ -24,7 +24,17 @@ export function initAudioManager(ctx: AudioContext) {
   } catch {}
 }
 
+function lazyInit() {
+  if (_ctx && _ctx.state !== 'closed') return
+  try {
+    const ctx = new AudioContext()
+    initAudioManager(ctx)
+    ctx.resume().catch(() => {})
+  } catch {}
+}
+
 export function playAudio(url: string, onEnded: () => void) {
+  lazyInit()
   if (!_audio || !_ctx) return
   _audio.onended = onEnded
   if (_audio.src !== url) _audio.src = url
