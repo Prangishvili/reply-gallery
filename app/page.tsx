@@ -16,7 +16,7 @@ export default function IntroPage() {
     return () => clearInterval(id)
   }, [])
 
-  function unlockAudioContext(sound: boolean) {
+  function unlockAudioContext() {
     if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') return
     try {
       const ctx = new AudioContext()
@@ -31,7 +31,7 @@ export default function IntroPage() {
       analyser.fftSize = 256
       analyser.smoothingTimeConstant = 0.8
       const gain = ctx.createGain()
-      gain.gain.value = sound ? 0.5 : 0
+      gain.gain.value = 1
       source.connect(analyser)
       analyser.connect(gain)
       gain.connect(ctx.destination)
@@ -44,7 +44,7 @@ export default function IntroPage() {
   function handleChoice(withSound: boolean) {
     try { sessionStorage.setItem('reply_sound', withSound ? 'true' : 'false') } catch {}
     markAudioGatePassed()
-    unlockAudioContext(withSound)
+    unlockAudioContext()
     router.push('/circle')
   }
 

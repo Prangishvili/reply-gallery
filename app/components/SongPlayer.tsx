@@ -20,10 +20,12 @@ const btn: React.CSSProperties = {
 }
 
 export function SongPlayer({
+  autoPlay = true,
   onPlay,
   onPause,
   style,
 }: {
+  autoPlay?: boolean
   onPlay: (url: string, onEnded: () => void) => void
   onPause: () => void
   style?: React.CSSProperties
@@ -58,11 +60,12 @@ export function SongPlayer({
           }))
         songsRef.current = list
         setSongs(list)
-        // Auto-play first track on mount (component only mounts after user enters gallery)
-        if (list.length > 0) {
+        if (list.length > 0 && autoPlay) {
           setIndex(0)
           setPlaying(true)
           onPlayRef.current(list[0].url, () => playAt(1))
+        } else if (list.length > 0) {
+          setIndex(0)
         }
       })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

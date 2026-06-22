@@ -333,11 +333,11 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync audio volume — gain mutes when withSound=false so analyser still sees signal
+  // Sync audio volume
   useEffect(() => {
-    if (gainNodeRef.current) gainNodeRef.current.gain.value = withSound ? audioVolume : 0
-    else if (bgAudioRef.current) bgAudioRef.current.volume = withSound ? audioVolume : 0
-  }, [audioVolume, withSound])
+    if (gainNodeRef.current) gainNodeRef.current.gain.value = audioVolume
+    else if (bgAudioRef.current) bgAudioRef.current.volume = audioVolume
+  }, [audioVolume])
 
   // Timebomb: hide one random post every 2s, restore all when disarmed
   useEffect(() => {
@@ -404,7 +404,7 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
       const analyser = ctx.createAnalyser()
       analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.8
       const gain = ctx.createGain()
-      gain.gain.value = sound ? audioVolume : 0
+      gain.gain.value = audioVolume
       source.connect(analyser); analyser.connect(gain); gain.connect(ctx.destination)
       audioCtxRef.current = ctx; analyserRef.current = analyser; gainNodeRef.current = gain
       ctx.resume().catch(() => {})
@@ -424,7 +424,7 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
       audio.volume = 1
       audio.src = url
       audio.onended = onEnded ?? null
-      if (gainNodeRef.current) gainNodeRef.current.gain.value = withSound ? audioVolume : 0
+      if (gainNodeRef.current) gainNodeRef.current.gain.value = audioVolume
       ctx.resume().then(() => audio.play().catch(() => {})).catch(() => {})
     } else {
       // Fallback for sub-pages (no prior gesture unlock) — build fresh pipeline
@@ -443,7 +443,7 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
         const analyser = ctx.createAnalyser()
         analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.8
         const gain = ctx.createGain()
-        gain.gain.value = withSound ? audioVolume : 0
+        gain.gain.value = audioVolume
         source.connect(analyser); analyser.connect(gain); gain.connect(ctx.destination)
         audioCtxRef.current = ctx; analyserRef.current = analyser; gainNodeRef.current = gain
         ctx.resume().then(() => audio.play().catch(() => {})).catch(() => {})
@@ -1205,6 +1205,7 @@ Project Lead by Oto Prangishvili`}</p>
             {phase === 'gallery' && (
               <SongPlayer
                 style={{ position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 10, width: 400 }}
+                autoPlay={withSound}
                 onPlay={(url, onEnded) => replaceBgAudioFromUrl(url, onEnded)}
                 onPause={() => { bgAudioRef.current?.pause() }}
               />
