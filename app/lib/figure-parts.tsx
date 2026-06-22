@@ -12,7 +12,7 @@ import { Post } from '@/lib/supabase'
 export const IS_MOBILE = typeof window !== 'undefined' &&
   (window.innerWidth < 1000 || /iPhone|iPad|Android/i.test(navigator.userAgent))
 export const TEX_MAX_DIM = IS_MOBILE ? 256 : 512
-export const POSTS_PER_FIGURE = IS_MOBILE ? 12 : 200
+export const POSTS_PER_FIGURE = IS_MOBILE ? 40 : 200
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type WireframeStyle = 'edges' | 'dense' | 'dashed' | 'points'
