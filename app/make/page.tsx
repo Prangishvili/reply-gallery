@@ -271,7 +271,7 @@ const [layersOpen, setLayersOpen] = useState(false)
 
   return (
     <>
-      <Link href="/" style={{
+      <Link href="/circle" style={{
         position: 'fixed', top: 24, left: 24, zIndex: 20,
         fontFamily: 'var(--font-dm-mono)', fontSize: 18,
         color: 'rgba(0,0,0,0.45)', textDecoration: 'none', lineHeight: 1,

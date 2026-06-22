@@ -8,7 +8,7 @@ import dynamic from 'next/dynamic'
 import { Post } from '@/lib/supabase'
 
 type ViewMode = 'globe' | 'room' | 'circle' | 'self'
-const ROUTE_FOR: Record<'room' | 'circle' | 'self', string> = { room: '/room', circle: '/', self: '/self' }
+const ROUTE_FOR: Record<'room' | 'circle' | 'self', string> = { room: '/room', circle: '/circle', self: '/self' }
 
 const GlobeCanvas  = dynamic(() => import('./globe'), { ssr: false })
 const RoomCanvas   = dynamic(() => import('./room'),  { ssr: false })
