@@ -19,11 +19,11 @@ import { STUDENTS, ROOM_STUDENTS, STUDENT_VERTEX_DEFAULTS, fileToCaption, ADMIN_
 import type { VertexSettings, AdminSettings, ImageItem, Phase } from './lib/gallery-shared'
 import { getSharedAudioCtx } from './lib/shared-audio-ctx'
 import { getAudioAnalyser } from './lib/audio-manager'
-import { getCircleCam } from './lib/circle-cam-state'
 
-
-// Persists circle animation state across client-side navigations (module survives remounts)
-let _circleAnimPlayed = false
+// Persists across navigations (module lifetime) and page refreshes (sessionStorage)
+let _circleAnimPlayed = (() => {
+  try { return typeof sessionStorage !== 'undefined' && sessionStorage.getItem('reply_circle_anim') === '1' } catch { return false }
+})()
 
 // ─── Main app ─────────────────────────────────────────────────────────────────
 
@@ -67,7 +67,14 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
   const recordRef = useRef<{ start: () => void; stop: () => void } | null>(null)
   const [isRecording, setIsRecording] = useState(false)
 
-  const [admin, setAdmin] = useState<AdminSettings>(ADMIN_DEFAULTS)
+  const [admin, setAdmin] = useState<AdminSettings>(() => {
+    if (_circleAnimPlayed) {
+      const targetZoom = typeof window !== 'undefined' && window.innerWidth < 1000 ? 0.6 : 1.4
+      // circleCamXLoop starts false — enabled after canvas is ready to avoid OrbitControls init fight
+      return { ...ADMIN_DEFAULTS, circleCamY: 400, circleCamZoom: targetZoom, circleFigureY: 160, circleCamXLoop: false, circleCamXLoopSpeed: 0.1 }
+    }
+    return ADMIN_DEFAULTS
+  })
   const {
     audioVolume, timebombActive,
     showFigure, figureRadius, figureSpeed, figureX, figureY, figureZ, figureScale, figureFacing,
@@ -140,9 +147,20 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
     return () => clearTimeout(id)
   }, [viewMode])
 
+  // Fade the canvas in on return navigation so OrbitControls initialization artifacts are hidden
+  const [circleCanvasReady, setCircleCanvasReady] = useState(!_circleAnimPlayed)
+  useEffect(() => {
+    if (!_circleAnimPlayed || circleCanvasReady) return
+    const id = requestAnimationFrame(() => requestAnimationFrame(() => {
+      setCircleCanvasReady(true)
+      setAdmin(prev => ({ ...prev, circleCamXLoop: true }))
+    }))
+    return () => cancelAnimationFrame(id)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Circle intro animation — show quote first, then animate (only once per session)
   // Images start loading only after the animation ends so it runs jank-free
-  const [introImagesReady, setIntroImagesReady] = useState(false)
+  const [introImagesReady, setIntroImagesReady] = useState(_circleAnimPlayed)
   const circleAnimRef = useRef<number | null>(null)
   const circleAnimPlayedRef = useRef(false)
   useEffect(() => {
@@ -150,20 +168,13 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
 
     const targetZoom = window.innerWidth < 1000 ? 0.6 : 1.4
 
-    console.log('[circle-anim] effect ran — _circleAnimPlayed:', _circleAnimPlayed, '| ref:', circleAnimPlayedRef.current)
-
-    // Already played this session (cross-navigation): restore final state immediately
-    if (_circleAnimPlayed) {
-      console.log('[circle-anim] SKIP — restoring final state')
-      setAdmin(prev => ({ ...prev, circleCamY: 400, circleCamZoom: targetZoom, circleFigureY: 160, circleCamXLoop: true, circleCamXLoopSpeed: 0.1 }))
-      setIntroImagesReady(true)
-      return
-    }
+    // Already played this session (cross-navigation): state already initialized correctly, nothing to do
+    if (_circleAnimPlayed) return
     // StrictMode double-invoke guard
     if (circleAnimPlayedRef.current) { setIntroImagesReady(true); return }
     circleAnimPlayedRef.current = true
-    _circleAnimPlayed = true // set now so navigating away mid-animation still skips on return
-    console.log('[circle-anim] PLAY — starting animation')
+    _circleAnimPlayed = true
+    try { sessionStorage.setItem('reply_circle_anim', '1') } catch { /* ignore */ }
 
     const INTRO_KEY = 'reply_circle_intro_seen'
     const INTRO_TTL_MS = 24 * 60 * 60 * 1000
@@ -1231,8 +1242,8 @@ Project Lead by Oto Prangishvili`}</p>
           <RoomCanvas key={roomKey} posts={posts.filter(p => !hiddenIds.has(p.id))} showDoggo={showDoggo} doggoScale={doggoScale} doggoX={doggoX} doggoY={doggoY} doggoZ={doggoZ} showFigure={showFigure} figureRadius={figureRadius} figureSpeed={figureSpeed} figureX={figureX} figureY={figureY} figureZ={figureZ} figureScale={figureScale} figureFacing={figureFacing} figureWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={dotSize} dotColor={dotColor} dotCount={dotCount} showVertexImages={showVertexImages} vertexSettings={studentVertexSettings} figureStudent={figureStudent} figureStudent2={figureStudent2} figureOrbiting={figureOrbiting} camX={camX} camY={camY} camZ={camZ} roomCameraMode={roomCameraMode} roomCamFov={roomCamFov} roomCamZoom={roomCamZoom} roomCamXLoop={roomCamXLoop} roomCamXLoopSpeed={roomCamXLoopSpeed} meshTexture={meshTexture} texScale={texScale} texOffsetX={texOffsetX} texOffsetY={texOffsetY} texRotation={texRotation} transitionKey={transitionKey} figureRings={figureRings} soloReact={soloReact} graffitiMode={graffitiMode} graffitiColor={graffitiColor} graffitiBrushSize={graffitiBrushSize} graffitiClearKey={graffitiClearKey} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} nutsaGlbs={nutsaGlbs} nutsaGlbScale={nutsaGlbScale} nutsaGlbRepeat={nutsaGlbRepeat} drift={figureDrift} origShuffleSeed={roomShuffleSeeds[figureStudent ?? ''] ?? 0} mirrorShuffleSeed={roomShuffleSeeds[figureStudent2 ?? ''] ?? 0} captureRef={captureRef} recordRef={recordRef} />
         )}
         {!loading && !selectedStudent && (
-          <div style={{ display: mountedView === 'circle' ? 'block' : 'none', position: 'absolute', inset: 0 }}>
-            <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={circleFigureY + (isMobileVp ? circleFigureYM : 0)} figureFacing={circleFigureFacing} drift={figureDrift} showVertexImages={circleShowImages && introImagesReady} vertexSettings={studentVertexSettings} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotSizeMobile : circleDotSize} dotColor={dotColor} dotCount={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotCountMobile : dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX + (isMobileVp ? circleCamXM : 0)} camY={circleCamY + (isMobileVp ? circleCamYM : 0)} camZ={circleCamZ + (isMobileVp ? circleCamZM : 0)} camFov={circleCamFov} camZoom={circleCamZoom + (isMobileVp ? circleCamZoomM : 0)} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} cameraInfoRef={isAdmin ? circleCameraInfoRef : undefined} soloReact={false} isAdmin={isAdmin} frameloop={mountedView === 'circle' && phase !== 'entry' ? 'always' : 'demand'} lockPolar={introImagesReady} initCam={(() => { if (!_circleAnimPlayed) return undefined; const c = getCircleCam(); return (c && (Math.abs(c.x) + Math.abs(c.y) + Math.abs(c.z)) > 1) ? c : undefined })()} />
+          <div style={{ display: mountedView === 'circle' ? 'block' : 'none', position: 'absolute', inset: 0, opacity: circleCanvasReady ? 1 : 0, transition: circleCanvasReady ? 'opacity 0.2s ease' : 'none' }}>
+            <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={circleFigureY + (isMobileVp ? circleFigureYM : 0)} figureFacing={circleFigureFacing} drift={figureDrift} showVertexImages={circleShowImages && introImagesReady} vertexSettings={studentVertexSettings} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotSizeMobile : circleDotSize} dotColor={dotColor} dotCount={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotCountMobile : dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX + (isMobileVp ? circleCamXM : 0)} camY={circleCamY + (isMobileVp ? circleCamYM : 0)} camZ={circleCamZ + (isMobileVp ? circleCamZM : 0)} camFov={circleCamFov} camZoom={circleCamZoom + (isMobileVp ? circleCamZoomM : 0)} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} cameraInfoRef={isAdmin ? circleCameraInfoRef : undefined} soloReact={false} isAdmin={isAdmin} frameloop={mountedView === 'circle' && phase !== 'entry' ? 'always' : 'demand'} lockPolar={introImagesReady} />
           </div>
         )}
         {!loading && (posts.length > 0 || visitorPosts.length > 0) && mountedView === 'globe' && !selectedStudent && (
