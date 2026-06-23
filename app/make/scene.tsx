@@ -158,8 +158,9 @@ function loadTex(url: string): Promise<TexEntry> {
           // Native resolution for user uploads, cap at 4096 to avoid GPU OOM
           cW = Math.min(w, 4096); cH = Math.min(h, 4096)
         } else {
-          // Remote (Supabase) images: 2048 cap
-          const scale = Math.min(1, 2048 / Math.max(w, h))
+          // Remote (Supabase) images: 1024 cap on mobile, 2048 on desktop
+          const maxDim = typeof window !== 'undefined' && window.innerWidth < 768 ? 1024 : 2048
+          const scale = Math.min(1, maxDim / Math.max(w, h))
           cW = Math.round(w * scale); cH = Math.round(h * scale)
         }
         const canvas = document.createElement('canvas')
@@ -397,7 +398,7 @@ function Figure({ imageUrls, size, repeat, cameraStream, shuffleSeed, bgColor, a
 // ── Canvas ─────────────────────────────────────────────────────────────────────
 export default function Scene({ imageUrls, size, repeat, shuffleSeed, bgColor, bgImage, cameraStream, captureRef, analyserRef }: { imageUrls: string[]; size: number; repeat: number; shuffleSeed: number; bgColor: string; bgImage: string | null; cameraStream: MediaStream | null; captureRef: React.MutableRefObject<(() => string) | null>; analyserRef?: React.RefObject<AnalyserNode | null> }) {
   return (
-    <Canvas style={{ width: '100%', height: '100%', cursor: 'default', background: bgColor }} gl={{ preserveDrawingBuffer: true }} dpr={[1, 3]} onPointerMissed={undefined}>
+    <Canvas style={{ width: '100%', height: '100%', cursor: 'default', background: bgColor }} gl={{ preserveDrawingBuffer: true }} dpr={[1, typeof window !== 'undefined' && window.innerWidth < 768 ? 2 : 3]} onPointerMissed={undefined}>
       <CaptureSetup captureRef={captureRef} />
       <BackgroundSetter color={bgColor} image={bgImage} />
       <PerspectiveCamera makeDefault position={[0, 150, 600]} fov={40} near={0.1} far={5000} />

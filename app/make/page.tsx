@@ -165,7 +165,10 @@ const [layersOpen, setLayersOpen] = useState(false)
     setLoadingStudent(name)
     setStudentOpen(false)
     const { data } = await supabase.from('posts').select('image_url').eq('student_name', name)
-    if (data && data.length > 0) setImageUrls(data.map(p => p.image_url))
+    if (data && data.length > 0) {
+      const isMob = typeof window !== 'undefined' && window.innerWidth < 768
+      setImageUrls(data.map(p => p.image_url).slice(0, isMob ? 12 : data.length))
+    }
     setLoadingStudent(null)
   }
 
