@@ -75,14 +75,13 @@ export function SongPlayer({
       disabled={!loaded}
       style={{
         width: 28, height: 28, borderRadius: '50%',
-        background: 'rgba(0,0,0,0.07)', border: 'none', cursor: loaded ? 'pointer' : 'default',
+        background: '#F5F5F5', border: 'none', cursor: loaded ? 'pointer' : 'default',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 16, color: 'rgba(0,0,0,0.55)',
         transition: 'background 0.15s',
         flexShrink: 0,
       }}
-      onMouseEnter={e => { if (loaded) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.12)' }}
-      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.07)' }}
+      onMouseEnter={e => { if (loaded) (e.currentTarget as HTMLButtonElement).style.background = '#E8E8E8' }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#F5F5F5' }}
     >
       {content}
     </button>
@@ -101,13 +100,15 @@ export function SongPlayer({
             backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
             borderRadius: 16,
             width: 320,
-            boxShadow: '0 4px 32px rgba(0,0,0,0.12)',
             overflow: 'hidden',
           }}>
-            <div style={{ padding: '16px 20px 8px', fontFamily: MONO, fontSize: 10, letterSpacing: '0.15em', color: 'rgba(0,0,0,0.4)' }}>
-              MUSIC
+            <div style={{ padding: '16px 20px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.15em', color: 'rgba(0,0,0,0.4)' }}>MUSIC BY CHRIS ZABRISKIE</span>
+              <button onClick={toggle} style={{ background: '#F5F5F5', border: 'none', cursor: 'pointer', width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src={playing ? '/pause.svg' : '/play.svg'} alt={playing ? 'pause' : 'play'} style={{ width: 16, height: 16, display: 'block' }} />
+              </button>
             </div>
-            <div style={{ maxHeight: 320, overflowY: 'auto', paddingBottom: 8 }}>
+            <div className="about-scroll" style={{ maxHeight: 320, overflowY: 'auto', paddingBottom: 8 }}>
               {songs.map((song, i) => (
                 <button
                   key={i}
@@ -141,7 +142,7 @@ export function SongPlayer({
         ...style,
       }}>
         {/* Play/pause */}
-        {circleBtn(toggle, playing ? 'pause' : 'play', playing ? '⏸' : '▶')}
+        {false && circleBtn(toggle, playing ? 'pause' : 'play', <img src={playing ? '/pause.svg' : '/play.svg'} alt="" style={{ width: 16, height: 16, display: 'block' }} />)}
 
         {/* Title + shuffle */}
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>

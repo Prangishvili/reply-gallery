@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
@@ -297,8 +297,10 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
 
   const [panelHidden, setPanelHidden] = useState(false)
   const [uiHidden, setUiHidden] = useState(false)
+  const [navMenuOpen, setNavMenuOpen] = useState(false)
 
   const router = useRouter()
+  const pathname = usePathname()
   const isAdmin = useSearchParams().get('admin') === 'true'
 
   // H key toggles admin panel
@@ -604,20 +606,34 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
         </div>
       )}
 
-      {/* Top-left nav — REPLY, GALLERY, ARTISTS */}
+      {/* Top-left nav — REPLY, GALLERY, CREATE */}
       {phase === 'gallery' && !selectedStudent && !uiHidden && (
-        <div style={{ position: 'fixed', top: 24, left: 24, zIndex: 60, display: 'flex', gap: 24 }}>
-          {([['REPLY', '/circle'], ['GALLERY', '/gallery'], ['CREATE', '/make']] as const).map(([label, href]) => (
-            <Link
-              key={label}
-              href={href}
-              style={{
-                fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5,
-                textTransform: 'uppercase', textDecoration: 'none', color: 'rgba(0,0,0,0.75)',
-                transition: 'color 0.15s',
-              }}
-            >{label}</Link>
-          ))}
+        <div style={{ position: 'fixed', top: 24, left: 24, zIndex: 60 }}>
+          {isMobileVp ? (
+            /* Mobile hamburger */
+            <div style={{ position: 'relative' }}>
+              <button onClick={() => setNavMenuOpen(o => !o)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                <img src="/ham.svg" alt="menu" style={{ height: 20, width: 'auto' }} />
+              </button>
+              {navMenuOpen && (
+                <>
+                  <div onClick={() => setNavMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 58 }} />
+                  <div style={{ position: 'absolute', top: 'calc(100% + 12px)', left: 0, zIndex: 59, background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderRadius: 12, padding: '8px 0', minWidth: 140 }}>
+                    {([['REPLY', '/circle'], ['GALLERY', '/gallery'], ['CREATE', '/make']] as const).map(([label, href]) => (
+                      <Link key={label} href={href} onClick={() => setNavMenuOpen(false)} style={{ display: 'block', fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', textDecoration: 'none', color: 'rgba(0,0,0,0.75)', fontWeight: pathname === href ? 500 : 400, padding: '10px 20px' }}>{label}</Link>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            /* Desktop nav */
+            <div style={{ display: 'flex', gap: 24 }}>
+              {([['REPLY', '/circle'], ['GALLERY', '/gallery'], ['CREATE', '/make']] as const).map(([label, href]) => (
+                <Link key={label} href={href} style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', textDecoration: 'none', color: 'rgba(0,0,0,0.75)', fontWeight: pathname === href ? 500 : 400, transition: 'color 0.15s' }}>{label}</Link>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

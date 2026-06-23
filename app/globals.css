@@ -17,6 +17,13 @@ body {
   font-family: var(--font-dm-mono), ui-monospace, monospace;
 }
 
+/* Responsive nav */
+.gallery-nav-mobile { display: none; }
+@media (max-width: 600px) {
+  .gallery-nav-desktop { display: none !important; }
+  .gallery-nav-mobile { display: block; }
+}
+
 /* About overlay scrollbar — hairline solid black.
    scrollbar-width/scrollbar-color override ::-webkit-scrollbar when both are
    set, so the standard properties are scoped to browsers (Firefox) that lack

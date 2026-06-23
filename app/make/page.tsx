@@ -5,7 +5,6 @@ import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { STUDENTS } from '@/app/lib/gallery-shared'
-import { pauseAudio } from '@/app/lib/audio-manager'
 
 const Scene = dynamic(() => import('./scene'), { ssr: false })
 
@@ -23,7 +22,6 @@ export default function MakePage() {
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
   const [shuffleSeed, setShuffleSeed] = useState(0)
 const [layersOpen, setLayersOpen] = useState(false)
-  useEffect(() => { pauseAudio() }, [])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -288,7 +286,7 @@ const [layersOpen, setLayersOpen] = useState(false)
         position: 'fixed', top: 24, left: 24, zIndex: 20,
         textDecoration: 'none', lineHeight: 1,
       }}>
-        <img src="/arrow.svg" alt="back" style={{ height: 20, width: 'auto', opacity: 0.45 }} />
+        <img src="/arrow-back.svg" alt="back" style={{ height: 20, width: 'auto', opacity: 0.45 }} />
       </Link>
 
       <style>{`

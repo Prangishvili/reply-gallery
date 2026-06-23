@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { supabase, type VisitorPost } from '@/lib/supabase'
 
@@ -10,6 +11,8 @@ const INFO_H = 157
 
 export default function GalleryPage() {
   const [posts, setPosts] = useState<VisitorPost[]>([])
+  const [menuOpen, setMenuOpen] = useState(false)
+  const pathname = usePathname()
   const [preview, setPreview] = useState<VisitorPost | null>(null)
   const [showAbout, setShowAbout] = useState(false)
 
@@ -37,22 +40,43 @@ export default function GalleryPage() {
 
   return (
     <div style={{ height: '100vh', overflowY: 'auto', background: '#fff', padding: '70px 20px 120px', fontFamily: 'var(--font-dm-mono)', cursor: 'default', scrollbarWidth: 'none' }}>
-      <style>{`*, *::before, *::after { cursor: default !important; } button, a, .clickable { cursor: pointer !important; } ::-webkit-scrollbar { display: none; }`}</style>
+      <style>{`*, *::before, *::after { cursor: default !important; } button, a, .clickable { cursor: pointer !important; } ::-webkit-scrollbar { display: none; }
+.gallery-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; }
+        @media (max-width: 1400px) { .gallery-grid { grid-template-columns: repeat(4, 1fr); } }
+        @media (max-width: 1000px) { .gallery-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 600px)  { .gallery-grid { grid-template-columns: repeat(2, 1fr); } }
+      `}</style>
 
       {/* Logo — bottom center */}
       <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 20, pointerEvents: 'none', userSelect: 'none' }}>
         <img src="/logo.svg" alt="Reply" style={{ height: 64, width: 'auto' }} />
       </div>
 
-      {/* Top left nav — REPLY, GALLERY, ARTISTS */}
-      <div style={{ position: 'fixed', top: 24, left: 24, zIndex: 60, display: 'flex', gap: 24 }}>
-        {([['REPLY', '/circle'], ['GALLERY', '/gallery'], ['CREATE', '/make']] as const).map(([label, href]) => (
-          <Link
-            key={label}
-            href={href}
-            style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', textDecoration: 'none', color: 'rgba(0,0,0,0.75)', transition: 'color 0.15s' }}
-          >{label}</Link>
-        ))}
+      {/* Top left nav */}
+      <div style={{ position: 'fixed', top: 24, left: 24, zIndex: 60 }}>
+        {/* Desktop nav */}
+        <div className="gallery-nav-desktop" style={{ display: 'flex', gap: 24 }}>
+          {([['REPLY', '/circle'], ['GALLERY', '/gallery'], ['CREATE', '/make']] as const).map(([label, href]) => (
+            <Link key={label} href={href} style={{ fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', textDecoration: 'none', color: 'rgba(0,0,0,0.75)', fontWeight: pathname === href ? 500 : 400, transition: 'color 0.15s' }}>{label}</Link>
+          ))}
+        </div>
+
+        {/* Mobile hamburger */}
+        <div className="gallery-nav-mobile">
+          <button onClick={() => setMenuOpen(o => !o)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            <img src="/ham.svg" alt="menu" style={{ height: 20, width: 'auto' }} />
+          </button>
+          {menuOpen && (
+            <>
+              <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 58 }} />
+              <div style={{ position: 'absolute', top: 'calc(100% + 12px)', left: 0, zIndex: 59, background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderRadius: 12, padding: '8px 0', minWidth: 140 }}>
+                {([['REPLY', '/circle'], ['GALLERY', '/gallery'], ['CREATE', '/make']] as const).map(([label, href]) => (
+                  <Link key={label} href={href} onClick={() => setMenuOpen(false)} style={{ display: 'block', fontFamily: 'var(--font-dm-mono), ui-monospace, monospace', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', textDecoration: 'none', color: 'rgba(0,0,0,0.75)', padding: '10px 20px' }}>{label}</Link>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Top right — ABOUT */}
@@ -64,12 +88,12 @@ export default function GalleryPage() {
       </button>
 
       {/* Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }}>
+      <div className="gallery-grid">
         {posts.map(post => (
           <div key={post.id}>
 
             {/* Image card */}
-            <div onClick={() => setPreview(post)} style={{ aspectRatio: `${IMAGE_W} / ${IMAGE_H}`, background: '#fff', border: '1px solid rgba(0,0,0,0.08)', position: 'relative', overflow: 'hidden', cursor: 'pointer' }}>
+            <div onClick={() => setPreview(post)} style={{ aspectRatio: `${IMAGE_W} / ${IMAGE_H}`, background: '#fff', position: 'relative', overflow: 'hidden', cursor: 'pointer' }}>
 {post.image_url
                 ? <img src={post.image_url} alt={post.visitor_name ?? ''} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
                 : <div style={{ position: 'absolute', inset: 0, background: '#f9f9f9' }} />
@@ -77,7 +101,7 @@ export default function GalleryPage() {
             </div>
 
             {/* Info section */}
-            <div style={{ minHeight: INFO_H, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '20px 0', borderTop: '1px solid rgba(0,0,0,0.08)' }}>
+            <div style={{ minHeight: INFO_H, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '20px 0', borderTop: 'none' }}>
               {post.visitor_name && (
                 <span style={{ fontSize: 11, letterSpacing: '0.15em', color: '#333', textTransform: 'uppercase' }}>
                   {post.visitor_name}
