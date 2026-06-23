@@ -169,6 +169,9 @@ function loadTex(url: string): Promise<TexEntry> {
         canvas.getContext('2d')!.drawImage(img, 0, 0, cW, cH)
         const tex = new THREE.CanvasTexture(canvas)
         tex.colorSpace = THREE.SRGBColorSpace
+        // Release the full-res decoded bitmap now that it's been downscaled into the canvas.
+        img.onload = null
+        img.src = ''
         resolve({ tex, aspect })
       }
       img.onerror = () => resolve({ tex: new THREE.Texture(), aspect: 1 })
@@ -202,14 +205,23 @@ function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed
   const vertices = useMemo(() => sampleTriangleData(triData, count), [triData, count])
 
   // ── Image textures — rebuilt ONLY when imageUrls changes ──────────────────────
+  // Loaded SEQUENTIALLY (not Promise.all) so only one full-res source image is decoded
+  // in memory at a time — concurrent decodes spike past mobile Safari's memory budget
+  // and crash the WebGL context. Entries are published progressively so images appear
+  // as they load instead of after a long blank wait.
   const [imgEntries, setImgEntries] = useState<TexEntry[]>([])
   useEffect(() => {
     let cancelled = false
-    // Empty imageUrls → Promise.all([]) resolves to [] and clears entries, without a
-    // synchronous setState in the effect body.
-    Promise.all(imageUrls.map(url => loadTex(url))).then(entries => {
-      if (!cancelled) setImgEntries(entries)
-    })
+    if (imageUrls.length === 0) { setImgEntries([]); return }
+    ;(async () => {
+      const entries: TexEntry[] = []
+      for (const url of imageUrls) {
+        const e = await loadTex(url)
+        if (cancelled) return
+        entries.push(e)
+        setImgEntries([...entries])
+      }
+    })()
     return () => { cancelled = true }
   }, [imageUrls])
 
