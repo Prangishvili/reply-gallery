@@ -155,8 +155,9 @@ function loadTex(url: string): Promise<TexEntry> {
           // Rasterize SVGs at 4096px wide so zoom never reveals pixels
           cW = 4096; cH = Math.max(1, Math.round(4096 / aspect))
         } else if (url.startsWith('blob:')) {
-          // Native resolution for user uploads, cap at 4096 to avoid GPU OOM
-          cW = Math.min(w, 4096); cH = Math.min(h, 4096)
+          // User uploads: 1024 cap on mobile, 4096 on desktop
+          const blobCap = typeof window !== 'undefined' && window.innerWidth < 768 ? 1024 : 4096
+          cW = Math.min(w, blobCap); cH = Math.min(h, blobCap)
         } else {
           // Remote (Supabase) images: 1024 cap on mobile, 2048 on desktop
           const maxDim = typeof window !== 'undefined' && window.innerWidth < 768 ? 1024 : 2048
