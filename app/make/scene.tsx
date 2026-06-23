@@ -4,6 +4,22 @@ import { Suspense, useMemo, useEffect, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { PerspectiveCamera, OrbitControls, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
+import { crumb } from '@/app/lib/crash-log'
+
+// ── GL diagnostics ──────────────────────────────────────────────────────────────
+function GLWatch() {
+  const { gl } = useThree()
+  useEffect(() => {
+    const el = gl.domElement
+    crumb('GL ready: canvas mounted, renderer created')
+    const onLost = (e: Event) => { e.preventDefault(); crumb('!!! WEBGL CONTEXT LOST') }
+    const onRestored = () => crumb('WEBGL context restored')
+    el.addEventListener('webglcontextlost', onLost)
+    el.addEventListener('webglcontextrestored', onRestored)
+    return () => { el.removeEventListener('webglcontextlost', onLost); el.removeEventListener('webglcontextrestored', onRestored) }
+  }, [gl])
+  return null
+}
 
 // ── Capture ───────────────────────────────────────────────────────────────────
 function CaptureSetup({ captureRef }: { captureRef: React.MutableRefObject<(() => string) | null> }) {
@@ -195,13 +211,15 @@ function loadTex(url: string): Promise<TexEntry> {
   let p = texCache.get(url)
   if (p) return p
   p = (async () => {
-    if (await detectSvg(url)) return loadSvgTex(url)
+    const tag = url.startsWith('blob:') ? 'blob' : url.split('/').pop()?.slice(0, 18)
+    if (await detectSvg(url)) { crumb(`tex svg ${tag}`); return loadSvgTex(url) }
     try {
       const buf = await (await fetch(url)).arrayBuffer()
       const blob = new Blob([buf])
       const dim = imageSizeFromBytes(buf)
       // blob: = user upload (4096 desktop), else Supabase remote (2048 desktop); 1024 on mobile
       const cap = isMobile() ? 1024 : (url.startsWith('blob:') ? 4096 : 2048)
+      crumb(`tex ${tag} ${Math.round(buf.byteLength / 1024)}KB src ${dim ? dim.w + 'x' + dim.h : 'dim?'} cap ${cap}`)
 
       let opts: ImageBitmapOptions | undefined
       if (dim && Math.max(dim.w, dim.h) > cap) {
@@ -218,8 +236,10 @@ function loadTex(url: string): Promise<TexEntry> {
       bitmap.close()
       const tex = new THREE.CanvasTexture(canvas)
       tex.colorSpace = THREE.SRGBColorSpace
+      crumb(`tex ${tag} done ${canvas.width}x${canvas.height}`)
       return { tex, aspect }
-    } catch {
+    } catch (e) {
+      crumb(`tex ${tag} ERROR ${String(e).slice(0, 60)}`)
       return { tex: new THREE.Texture(), aspect: 1 }
     }
   })()
@@ -258,17 +278,20 @@ function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed
   useEffect(() => {
     let cancelled = false
     if (imageUrls.length === 0) { setImgEntries([]); return }
+    crumb(`MixedImages: loading ${imageUrls.length} textures, repeat ${repeat} -> ${count} sprites`)
     ;(async () => {
       const entries: TexEntry[] = []
-      for (const url of imageUrls) {
-        const e = await loadTex(url)
+      for (let i = 0; i < imageUrls.length; i++) {
+        const e = await loadTex(imageUrls[i])
         if (cancelled) return
         entries.push(e)
         setImgEntries([...entries])
+        crumb(`MixedImages: published ${i + 1}/${imageUrls.length}`)
       }
+      crumb(`MixedImages: all textures done`)
     })()
     return () => { cancelled = true }
-  }, [imageUrls])
+  }, [imageUrls]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Camera texture — set up ONLY when cameraStream changes ─────────────────────
   const [camTex, setCamTex] = useState<THREE.VideoTexture | null>(null)
@@ -441,7 +464,7 @@ function FigureDots({ scene }: { scene: THREE.Object3D }) {
 // ── Figure ─────────────────────────────────────────────────────────────────────
 function Figure({ imageUrls, size, repeat, cameraStream, shuffleSeed, bgColor, analyserRef }: { imageUrls: string[]; size: number; repeat: number; cameraStream: MediaStream | null; shuffleSeed: number; bgColor: string; analyserRef?: React.RefObject<AnalyserNode | null> }) {
   const { scene } = useGLTF('/figure.glb')
-  const clone = useMemo(() => scene.clone(true), [scene])
+  const clone = useMemo(() => { crumb('figure.glb loaded + cloned'); return scene.clone(true) }, [scene])
 
   return (
     <group scale={200} rotation={[0, 0, 0]}>
@@ -457,6 +480,7 @@ function Figure({ imageUrls, size, repeat, cameraStream, shuffleSeed, bgColor, a
 export default function Scene({ imageUrls, size, repeat, shuffleSeed, bgColor, bgImage, cameraStream, captureRef, analyserRef }: { imageUrls: string[]; size: number; repeat: number; shuffleSeed: number; bgColor: string; bgImage: string | null; cameraStream: MediaStream | null; captureRef: React.MutableRefObject<(() => string) | null>; analyserRef?: React.RefObject<AnalyserNode | null> }) {
   return (
     <Canvas style={{ width: '100%', height: '100%', cursor: 'default', background: bgColor }} gl={{ preserveDrawingBuffer: !isMobile() }} dpr={[1, isMobile() ? 2 : 3]} onPointerMissed={undefined}>
+      <GLWatch />
       <CaptureSetup captureRef={captureRef} />
       <BackgroundSetter color={bgColor} image={bgImage} />
       <PerspectiveCamera makeDefault position={[0, 150, 600]} fov={40} near={0.1} far={5000} />

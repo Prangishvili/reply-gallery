@@ -5,8 +5,10 @@ import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { STUDENTS } from '@/app/lib/gallery-shared'
+import { crumb, debugEnabled } from '@/app/lib/crash-log'
 
 const Scene = dynamic(() => import('./scene'), { ssr: false })
+const DebugOverlay = dynamic(() => import('@/app/components/DebugOverlay').then(m => ({ default: m.DebugOverlay })), { ssr: false })
 
 const CANVAS_RATIO = 830 / 1020
 const mono: React.CSSProperties = { fontFamily: 'var(--font-dm-mono)', fontSize: 11 }
@@ -23,7 +25,11 @@ export default function MakePage() {
   const [shuffleSeed, setShuffleSeed] = useState(0)
 const [layersOpen, setLayersOpen] = useState(false)
 
+  const [showDebug] = useState(() => debugEnabled())
+
   useEffect(() => {
+    const dm = (navigator as unknown as { deviceMemory?: number }).deviceMemory
+    crumb(`=== make page mount === vp ${window.innerWidth}x${window.innerHeight} dpr ${window.devicePixelRatio} mem ${dm ?? '?'}GB`)
     const params = new URLSearchParams(window.location.search)
     const url = params.get('image')
     if (url) setImageUrls([decodeURIComponent(url)])
@@ -164,10 +170,14 @@ const [layersOpen, setLayersOpen] = useState(false)
   async function loadStudentImages(name: string) {
     setLoadingStudent(name)
     setStudentOpen(false)
-    const { data } = await supabase.from('posts').select('image_url').eq('student_name', name)
+    crumb(`loadStudentImages: query "${name}"`)
+    const { data, error } = await supabase.from('posts').select('image_url').eq('student_name', name)
+    crumb(`loadStudentImages: got ${data?.length ?? 0} rows${error ? ' ERR ' + error.message : ''}`)
     if (data && data.length > 0) {
       const isMob = typeof window !== 'undefined' && window.innerWidth < 768
-      setImageUrls(data.map(p => p.image_url).slice(0, isMob ? 12 : data.length))
+      const urls = data.map(p => p.image_url).slice(0, isMob ? 12 : data.length)
+      crumb(`loadStudentImages: setImageUrls ${urls.length} (mobile=${isMob})`)
+      setImageUrls(urls)
     }
     setLoadingStudent(null)
   }
@@ -285,6 +295,7 @@ const [layersOpen, setLayersOpen] = useState(false)
 
   return (
     <>
+      {showDebug && <DebugOverlay />}
       <Link href="/circle" style={{
         position: 'fixed', top: 24, left: 24, zIndex: 20,
         textDecoration: 'none', lineHeight: 1,
