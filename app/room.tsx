@@ -901,7 +901,7 @@ function CircleNameTag({ student, nameSize, blurNames, onNameClick, namesClickab
   )
 }
 
-function CircleFigure({ angle, radius, figureScale, figureY, figureFacing = 4.65, posts, showVertexImages, imagesVisible = true, vertexSettings, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, meshTexture, texScale, texRepeat, texOffsetX, texOffsetY, texRotation, student, onTextureUpload, analyserRef, isAdmin = false, drift = false }: {
+function CircleFigure({ angle, radius, figureScale, figureY, figureFacing = 4.65, posts, showVertexImages, imagesVisible = true, vertexSettings, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, meshTexture, texScale, texRepeat, texOffsetX, texOffsetY, texRotation, student, onTextureUpload, analyserRef, isAdmin = false, drift = false, onFigureClick }: {
   angle: number; radius: number; figureScale: number; figureY: number; figureFacing?: number; drift?: boolean
   posts: Post[]; showVertexImages: boolean; imagesVisible?: boolean; vertexSettings: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal'; driftSpeed?: number; driftAmp?: number; driftEnabled?: boolean }>
   showWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
@@ -910,6 +910,7 @@ function CircleFigure({ angle, radius, figureScale, figureY, figureFacing = 4.65
   student: string; onTextureUpload: (student: string, url: string | null) => void
   analyserRef?: React.RefObject<AnalyserNode | null>
   isAdmin?: boolean
+  onFigureClick?: (student: string) => void
 }) {
   const { scene: raw } = useGLTF('/figure.glb')
   const cloned = useMemo(() => {
@@ -1010,7 +1011,7 @@ function CircleFigure({ angle, radius, figureScale, figureY, figureFacing = 4.65
   }, [cloned])
 
   return (
-    <group position={[radius * Math.sin(angle), figureY, radius * Math.cos(angle)]} scale={figureScale} rotation={[0, rotY, 0]} frustumCulled={false}>
+    <group position={[radius * Math.sin(angle), figureY, radius * Math.cos(angle)]} scale={figureScale} rotation={[0, rotY, 0]} frustumCulled={false} onClick={onFigureClick ? (e) => { e.stopPropagation(); onFigureClick(student) } : undefined}>
       <group position={[-figureCenter.x, -figureCenter.y, -figureCenter.z]}>
         <primitive object={cloned} frustumCulled={false} />
         {showWireframe && !isSergiFigure && !(showVertexImages && imagesLoaded) && (
@@ -1126,7 +1127,7 @@ function CircleCamDriver({ x, y, z, zoom, mode, initCam }: { x: number; y: numbe
   return null
 }
 
-function CircleScene({ posts, students, circleRadius, figureScale, figureY, figureFacing = 4.65, showVertexImages, vertexSettings, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, studentTextures, studentTextureMappings, onTextureUpload, showNoiseGlobe, noiseColor1, noiseColor2, noiseSpeed, noiseScale, audioVolume, cameraMode, camX, camY, camZ, camFov, camZoom, camXLoop, camXLoopSpeed, bgColor, bgImage, analyserRef, cameraInfoRef, soloReact = false, isAdmin = false, drift = false, lockPolar = false, initCam }: {
+function CircleScene({ posts, students, circleRadius, figureScale, figureY, figureFacing = 4.65, showVertexImages, vertexSettings, showWireframe, wireframeStyle, dotSize, dotColor, dotCount, studentTextures, studentTextureMappings, onTextureUpload, showNoiseGlobe, noiseColor1, noiseColor2, noiseSpeed, noiseScale, audioVolume, cameraMode, camX, camY, camZ, camFov, camZoom, camXLoop, camXLoopSpeed, bgColor, bgImage, analyserRef, cameraInfoRef, soloReact = false, isAdmin = false, drift = false, lockPolar = false, initCam, onFigureClick }: {
   posts: Post[]; students: string[]; circleRadius: number; figureScale: number; figureY: number; figureFacing?: number; drift?: boolean
   showVertexImages: boolean; vertexSettings: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>
   showWireframe: boolean; wireframeStyle: WireframeStyle; dotSize: number; dotColor: string; dotCount: number
@@ -1143,6 +1144,7 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, figu
   isAdmin?: boolean
   lockPolar?: boolean
   initCam?: { x: number; y: number; z: number; zoom: number }
+  onFigureClick?: (student: string) => void
 }) {
   const [activeStudents, setActiveStudents] = useState<Set<number>>(new Set([0]))
   const soloTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -1211,6 +1213,7 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, figu
             analyserRef={!soloReact || activeStudents.has(i) ? analyserRef : undefined}
             isAdmin={isAdmin}
             drift={drift}
+            onFigureClick={onFigureClick}
           />
         )
       })}
@@ -1221,7 +1224,7 @@ function CircleScene({ posts, students, circleRadius, figureScale, figureY, figu
 
 export type { CircleCameraMode, TextureMapping }
 
-export function CircleCanvas({ posts, students, circleRadius = 300, figureScale = 200, figureY = -10, figureFacing = 4.65, showVertexImages = true, vertexSettings = {} as Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>, showWireframe = true, wireframeStyle = 'points' as WireframeStyle, dotSize = 0.800, dotColor = '#000000', dotCount = 30000, studentTextures = {}, studentTextureMappings = {}, onTextureUpload = () => {}, showNoiseGlobe = false, noiseColor1 = '#08003a', noiseColor2 = '#8c1aff', noiseSpeed = 0.5, noiseScale = 1.0, audioVolume = 0, cameraMode = 'orthographic' as CircleCameraMode, camX = 150, camY = 930, camZ = -1350, camFov = 60, camZoom = 1.8, camXLoop = false, camXLoopSpeed = 1.0, bgColor = '#ffffff', bgImage = null, analyserRef, cameraInfoRef, soloReact = false, isAdmin = false, frameloop = 'always', drift = false, lockPolar = false, initCam, recordRef }: {
+export function CircleCanvas({ posts, students, circleRadius = 300, figureScale = 200, figureY = -10, figureFacing = 4.65, showVertexImages = true, vertexSettings = {} as Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>, showWireframe = true, wireframeStyle = 'points' as WireframeStyle, dotSize = 0.800, dotColor = '#000000', dotCount = 30000, studentTextures = {}, studentTextureMappings = {}, onTextureUpload = () => {}, showNoiseGlobe = false, noiseColor1 = '#08003a', noiseColor2 = '#8c1aff', noiseSpeed = 0.5, noiseScale = 1.0, audioVolume = 0, cameraMode = 'orthographic' as CircleCameraMode, camX = 150, camY = 930, camZ = -1350, camFov = 60, camZoom = 1.8, camXLoop = false, camXLoopSpeed = 1.0, bgColor = '#ffffff', bgImage = null, analyserRef, cameraInfoRef, soloReact = false, isAdmin = false, frameloop = 'always', drift = false, lockPolar = false, initCam, recordRef, onFigureClick }: {
   posts: Post[]; students: string[]
   circleRadius?: number; figureScale?: number; figureY?: number; figureFacing?: number; drift?: boolean
   showVertexImages?: boolean; vertexSettings?: Record<string, { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal' }>
@@ -1241,6 +1244,7 @@ export function CircleCanvas({ posts, students, circleRadius = 300, figureScale 
   lockPolar?: boolean
   initCam?: { x: number; y: number; z: number; zoom: number }
   recordRef?: React.MutableRefObject<{ start: () => void; stop: () => void } | null>
+  onFigureClick?: (student: string) => void
 }) {
   return (
     <Canvas
@@ -1265,6 +1269,7 @@ export function CircleCanvas({ posts, students, circleRadius = 300, figureScale 
         isAdmin={isAdmin}
         lockPolar={lockPolar}
         initCam={initCam}
+        onFigureClick={onFigureClick}
       />
       {recordRef && <VideoRecorder recordRef={recordRef} prefix="circle" />}
     </Canvas>

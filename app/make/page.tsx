@@ -26,9 +26,12 @@ const [layersOpen, setLayersOpen] = useState(false)
   useEffect(() => { pauseAudio() }, [])
 
   useEffect(() => {
-    const url = new URLSearchParams(window.location.search).get('image')
+    const params = new URLSearchParams(window.location.search)
+    const url = params.get('image')
     if (url) setImageUrls([decodeURIComponent(url)])
-  }, [])
+    const artist = params.get('artist')
+    if (artist) loadStudentImages(decodeURIComponent(artist))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
@@ -517,7 +520,7 @@ const [layersOpen, setLayersOpen] = useState(false)
           <button onClick={toggleCamera} style={{
             ...mono, cursor: 'pointer',
             background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.08)',
-            borderRadius: 6, padding: '20px 24px', whiteSpace: 'nowrap',
+            borderRadius: 9999, padding: '20px 24px', whiteSpace: 'nowrap',
             color: cameraStream ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', fontWeight: cameraStream ? 600 : 400,
             backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
           }}>
@@ -528,7 +531,7 @@ const [layersOpen, setLayersOpen] = useState(false)
           <div style={{
             display: 'flex', gap: 20, alignItems: 'center',
             background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.08)',
-            borderRadius: 6, padding: '20px 24px', whiteSpace: 'nowrap',
+            borderRadius: 9999, padding: '20px 24px', whiteSpace: 'nowrap',
             backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
           }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, ...mono, color: 'rgba(0,0,0,0.4)' }}>
@@ -564,7 +567,7 @@ const [layersOpen, setLayersOpen] = useState(false)
           <button onClick={() => { setMusicOpen(o => !o); if (!musicSongsLoaded) loadMusicSongs() }} style={{
             ...mono, cursor: 'pointer',
             background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.08)',
-            borderRadius: 6, padding: '20px 24px', whiteSpace: 'nowrap',
+            borderRadius: 9999, padding: '20px 24px', whiteSpace: 'nowrap',
             color: musicOpen ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', fontWeight: musicOpen ? 600 : 400,
             backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
           }}>music</button>
@@ -574,7 +577,7 @@ const [layersOpen, setLayersOpen] = useState(false)
             <button onClick={() => setStudentOpen(o => !o)} style={{
               ...mono, cursor: 'pointer',
               background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.08)',
-              borderRadius: 6, padding: '20px 24px', color: studentOpen ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', whiteSpace: 'nowrap',
+              borderRadius: 9999, padding: '20px 24px', color: studentOpen ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', whiteSpace: 'nowrap',
               backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
               fontWeight: studentOpen ? 600 : 400,
             }}>
@@ -610,7 +613,7 @@ const [layersOpen, setLayersOpen] = useState(false)
           <button onClick={openModal} style={{
             ...mono, cursor: 'pointer',
             background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.08)',
-            borderRadius: 6, padding: '20px 24px', color: 'rgba(0,0,0,0.55)', whiteSpace: 'nowrap',
+            borderRadius: 9999, padding: '20px 24px', color: 'rgba(0,0,0,0.55)', whiteSpace: 'nowrap',
             backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
           }}>publish</button>
 

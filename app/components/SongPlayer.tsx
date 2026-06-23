@@ -1,40 +1,30 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { ARTIST_NAME, ARTIST_URL, COVER_ART } from '@/app/lib/songs'
 
 type Song = { title: string; url: string }
 
-const MONO: React.CSSProperties = {
-  fontFamily: "'DM Mono', ui-monospace, monospace",
-  fontStyle: 'normal',
-  fontWeight: 400,
-  fontSize: 11,
-  lineHeight: '14px',
-  color: '#000000',
-}
-
-const btn: React.CSSProperties = {
-  background: 'none', border: 'none', cursor: 'pointer',
-  padding: '0 3px', fontSize: 9, color: 'rgba(0,0,0,0.45)', lineHeight: 1,
-}
+const SERIF = "Georgia, 'Times New Roman', serif"
+const MONO = "'DM Mono', ui-monospace, monospace"
 
 export function SongPlayer({
   autoPlay = true,
   onPlay,
   onPause,
+  onCollapse,
   style,
 }: {
   autoPlay?: boolean
   onPlay: (url: string, onEnded: () => void) => void
   onPause: () => void
+  onCollapse?: () => void
   style?: React.CSSProperties
 }) {
   const [songs, setSongs] = useState<Song[]>([])
   const [index, setIndex] = useState(0)
   const [playing, setPlaying] = useState(false)
+  const [listOpen, setListOpen] = useState(false)
 
-  // Refs avoid stale closures in auto-advance callbacks
   const songsRef = useRef<Song[]>([])
   const onPlayRef = useRef(onPlay)
   onPlayRef.current = onPlay
@@ -78,31 +68,100 @@ export function SongPlayer({
   const current = songs[index]
   const loaded = songs.length > 0
 
+  const circleBtn = (onClick: () => void, label: string, content: React.ReactNode) => (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      disabled={!loaded}
+      style={{
+        width: 28, height: 28, borderRadius: '50%',
+        background: 'rgba(0,0,0,0.07)', border: 'none', cursor: loaded ? 'pointer' : 'default',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 16, color: 'rgba(0,0,0,0.55)',
+        transition: 'background 0.15s',
+        flexShrink: 0,
+      }}
+      onMouseEnter={e => { if (loaded) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.12)' }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.07)' }}
+    >
+      {content}
+    </button>
+  )
+
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14,
-      background: 'transparent',
-      padding: '12px 20px 12px 12px',
-      userSelect: 'none',
-      ...style,
-    }}>
-      <img src={COVER_ART} alt="cover" style={{ width: 24, height: 24, objectFit: 'cover', flexShrink: 0, display: 'block' }} />
-      <div style={{ ...MONO, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: loaded ? '#000' : 'rgba(0,0,0,0.3)' }}>
-        {loaded ? (
-          <>
-            {current.title}
-            <span style={{ opacity: 0.45 }}> by </span>
-            <a href={ARTIST_URL} target="_blank" rel="noopener noreferrer"
-              style={{ color: '#000', textDecoration: 'underline' }}>
-              {ARTIST_NAME}
-            </a>
-          </>
-        ) : '…'}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-        <button style={btn} onClick={() => playAt(index - 1)} disabled={!loaded}>&#9664;</button>
-        <button style={btn} onClick={toggle} disabled={!loaded}>{playing ? '■' : '▶'}</button>
-        <button style={btn} onClick={() => playAt(index + 1)} disabled={!loaded}>&#9654;</button>
+    <div style={{ position: 'relative', display: 'inline-flex' }}>
+      {/* Song list popover */}
+      {listOpen && (
+        <>
+          <div onClick={() => setListOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 28 }} />
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 12px)', left: '50%', transform: 'translateX(-50%)',
+            zIndex: 29,
+            background: 'rgba(242,242,242,0.97)',
+            backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+            borderRadius: 16,
+            width: 320,
+            boxShadow: '0 4px 32px rgba(0,0,0,0.12)',
+            overflow: 'hidden',
+          }}>
+            <div style={{ padding: '16px 20px 8px', fontFamily: MONO, fontSize: 10, letterSpacing: '0.15em', color: 'rgba(0,0,0,0.4)' }}>
+              MUSIC
+            </div>
+            <div style={{ maxHeight: 320, overflowY: 'auto', paddingBottom: 8 }}>
+              {songs.map((song, i) => (
+                <button
+                  key={i}
+                  onClick={() => { playAt(i); setListOpen(false) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    width: '100%', padding: '10px 20px',
+                    background: i === index ? 'rgba(0,0,0,0.06)' : 'none',
+                    border: 'none', cursor: 'pointer', textAlign: 'left',
+                  }}
+                  onMouseEnter={e => { if (i !== index) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.04)' }}
+                  onMouseLeave={e => { if (i !== index) (e.currentTarget as HTMLButtonElement).style.background = 'none' }}
+                >
+                  <span style={{ fontFamily: MONO, fontSize: 11, color: i === index && playing ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.3)', flexShrink: 0, width: 10 }}>
+                    {i === index && playing ? '▶' : '▶'}
+                  </span>
+                  <span style={{ fontFamily: MONO, fontSize: 11, color: i === index ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {song.title}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Player bar */}
+      <div style={{
+        display: 'flex', alignItems: 'center',
+        gap: 16, userSelect: 'none', padding: 0,
+        ...style,
+      }}>
+        {/* Play/pause */}
+        {circleBtn(toggle, playing ? 'pause' : 'play', playing ? '⏸' : '▶')}
+
+        {/* Title + shuffle */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+          <button
+            onClick={() => loaded && setListOpen(o => !o)}
+            style={{
+              background: 'none', border: 'none', padding: 0, cursor: loaded ? 'pointer' : 'default',
+              fontFamily: SERIF, fontSize: 14, lineHeight: 1.15,
+              color: loaded ? 'rgba(0,0,0,0.82)' : 'rgba(0,0,0,0.2)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {loaded ? current.title : '…'}
+          </button>
+          <button
+            onClick={() => playAt(Math.floor(Math.random() * songsRef.current.length))}
+            disabled={!loaded}
+            style={{ background: 'none', border: 'none', cursor: loaded ? 'pointer' : 'default', padding: 0, fontFamily: SERIF, fontSize: 14, color: 'rgba(0,0,0,0.4)', lineHeight: 1.15 }}
+          >Shuffle</button>
+        </div>
       </div>
     </div>
   )
