@@ -210,12 +210,8 @@ const [layersOpen, setLayersOpen] = useState(false)
 
   const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return
-    const isMob = typeof window !== 'undefined' && window.innerWidth < 768
     const urls = Array.from(files).map(f => URL.createObjectURL(f))
-    setImageUrls(prev => {
-      const combined = [...prev, ...urls]
-      return isMob ? combined.slice(0, 12) : combined
-    })
+    setImageUrls(prev => [...prev, ...urls])
   }
 
   const openModal = () => {
