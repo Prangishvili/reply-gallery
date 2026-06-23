@@ -217,8 +217,8 @@ function loadTex(url: string): Promise<TexEntry> {
       const buf = await (await fetch(url)).arrayBuffer()
       const blob = new Blob([buf])
       const dim = imageSizeFromBytes(buf)
-      // blob: = user upload (4096 desktop), else Supabase remote (2048 desktop); 1024 on mobile
-      const cap = isMobile() ? 1024 : (url.startsWith('blob:') ? 4096 : 2048)
+      // blob: = user upload (4096 desktop), else Supabase remote (2048 desktop); 512 on mobile
+      const cap = isMobile() ? 512 : (url.startsWith('blob:') ? 4096 : 2048)
       crumb(`tex ${tag} ${Math.round(buf.byteLength / 1024)}KB src ${dim ? dim.w + 'x' + dim.h : 'dim?'} cap ${cap}`)
 
       let opts: ImageBitmapOptions | undefined
@@ -236,6 +236,9 @@ function loadTex(url: string): Promise<TexEntry> {
       bitmap.close()
       const tex = new THREE.CanvasTexture(canvas)
       tex.colorSpace = THREE.SRGBColorSpace
+      // No mipmaps: saves ~33% texture memory and avoids non-power-of-two upscaling.
+      tex.generateMipmaps = false
+      tex.minFilter = THREE.LinearFilter
       crumb(`tex ${tag} done ${canvas.width}x${canvas.height}`)
       return { tex, aspect }
     } catch (e) {
@@ -430,7 +433,7 @@ function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed
 // ── Dot cloud ──────────────────────────────────────────────────────────────────
 function FigureDots({ scene }: { scene: THREE.Object3D }) {
   const geo = useMemo(() => {
-    const DOT_COUNT = 30000
+    const DOT_COUNT = isMobile() ? 10000 : 30000
     scene.updateMatrixWorld(true)
     const rootInv = new THREE.Matrix4().copy(scene.matrixWorld).invert()
     const all: number[] = []
@@ -479,7 +482,7 @@ function Figure({ imageUrls, size, repeat, cameraStream, shuffleSeed, bgColor, a
 // ── Canvas ─────────────────────────────────────────────────────────────────────
 export default function Scene({ imageUrls, size, repeat, shuffleSeed, bgColor, bgImage, cameraStream, captureRef, analyserRef }: { imageUrls: string[]; size: number; repeat: number; shuffleSeed: number; bgColor: string; bgImage: string | null; cameraStream: MediaStream | null; captureRef: React.MutableRefObject<(() => string) | null>; analyserRef?: React.RefObject<AnalyserNode | null> }) {
   return (
-    <Canvas style={{ width: '100%', height: '100%', cursor: 'default', background: bgColor }} gl={{ preserveDrawingBuffer: !isMobile() }} dpr={[1, isMobile() ? 2 : 3]} onPointerMissed={undefined}>
+    <Canvas style={{ width: '100%', height: '100%', cursor: 'default', background: bgColor }} gl={{ preserveDrawingBuffer: !isMobile() }} dpr={[1, isMobile() ? 1.5 : 3]} onPointerMissed={undefined}>
       <GLWatch />
       <CaptureSetup captureRef={captureRef} />
       <BackgroundSetter color={bgColor} image={bgImage} />
