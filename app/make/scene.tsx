@@ -18,8 +18,10 @@ function CaptureSetup({ captureRef }: { captureRef: React.MutableRefObject<(() =
       if (targetDPR !== prevDPR) {
         gl.setPixelRatio(targetDPR)
         gl.setSize(cssW, cssH, false)
-        gl.render(scene, camera)
       }
+      // Always render immediately before reading pixels — mobile runs without
+      // preserveDrawingBuffer, so the buffer is only valid right after a render.
+      gl.render(scene, camera)
       const dataUrl = gl.domElement.toDataURL('image/png')
       if (targetDPR !== prevDPR) {
         gl.setPixelRatio(prevDPR)
@@ -130,6 +132,35 @@ function sampleTriangleData({ tris, cum, totalArea }: TriangleData, count: numbe
 type TexEntry = { tex: THREE.Texture; aspect: number }
 const texCache = new Map<string, Promise<TexEntry>>()
 
+const isMobile = () => typeof window !== 'undefined' && window.innerWidth < 768
+
+// Read pixel dimensions straight from the encoded header bytes — no decode. This lets us
+// ask the decoder for a downscaled bitmap directly, so a 6000×8000 phone photo never
+// materializes full-res in memory (which would OOM mobile Safari and kill the GL context).
+function imageSizeFromBytes(buf: ArrayBuffer): { w: number; h: number } | null {
+  const v = new DataView(buf)
+  if (v.byteLength < 24) return null
+  // PNG
+  if (v.getUint32(0) === 0x89504e47) return { w: v.getUint32(16), h: v.getUint32(20) }
+  // GIF
+  if (v.getUint8(0) === 0x47 && v.getUint8(1) === 0x49 && v.getUint8(2) === 0x46)
+    return { w: v.getUint16(6, true), h: v.getUint16(8, true) }
+  // JPEG — walk segment markers to the Start-Of-Frame
+  if (v.getUint16(0) === 0xffd8) {
+    let off = 2
+    while (off + 9 < v.byteLength) {
+      if (v.getUint8(off) !== 0xff) { off++; continue }
+      const marker = v.getUint8(off + 1)
+      if ((marker >= 0xc0 && marker <= 0xc3) || (marker >= 0xc5 && marker <= 0xc7) ||
+          (marker >= 0xc9 && marker <= 0xcb) || (marker >= 0xcd && marker <= 0xcf)) {
+        return { h: v.getUint16(off + 5), w: v.getUint16(off + 7) }
+      }
+      off += 2 + v.getUint16(off + 2)
+    }
+  }
+  return null
+}
+
 async function detectSvg(url: string): Promise<boolean> {
   if (url.split('?')[0].toLowerCase().endsWith('.svg')) return true
   if (url.startsWith('blob:')) {
@@ -138,45 +169,59 @@ async function detectSvg(url: string): Promise<boolean> {
   return false
 }
 
+// SVGs rasterize via <img> so the vector scales crisply to a large canvas.
+function loadSvgTex(url: string): Promise<TexEntry> {
+  return new Promise<TexEntry>(resolve => {
+    const img = new window.Image()
+    if (!url.startsWith('blob:')) img.crossOrigin = 'anonymous'
+    img.decoding = 'async'
+    img.onload = () => {
+      const aspect = (img.naturalWidth || 300) / (img.naturalHeight || 300)
+      const cW = 4096, cH = Math.max(1, Math.round(4096 / aspect))
+      const canvas = document.createElement('canvas')
+      canvas.width = cW; canvas.height = cH
+      canvas.getContext('2d')!.drawImage(img, 0, 0, cW, cH)
+      const tex = new THREE.CanvasTexture(canvas)
+      tex.colorSpace = THREE.SRGBColorSpace
+      img.onload = null; img.src = ''
+      resolve({ tex, aspect })
+    }
+    img.onerror = () => resolve({ tex: new THREE.Texture(), aspect: 1 })
+    img.src = url
+  })
+}
+
 function loadTex(url: string): Promise<TexEntry> {
   let p = texCache.get(url)
   if (p) return p
   p = (async () => {
-    const isSvg = await detectSvg(url)
-    return new Promise<TexEntry>(resolve => {
-      const img = new window.Image()
-      if (!url.startsWith('blob:')) img.crossOrigin = 'anonymous'
-      img.decoding = 'async'
-      img.onload = () => {
-        const w = img.naturalWidth || 300, h = img.naturalHeight || 300
-        const aspect = w / h
-        let cW: number, cH: number
-        if (isSvg) {
-          // Rasterize SVGs at 4096px wide so zoom never reveals pixels
-          cW = 4096; cH = Math.max(1, Math.round(4096 / aspect))
-        } else if (url.startsWith('blob:')) {
-          // User uploads: 1024 cap on mobile, 4096 on desktop
-          const blobCap = typeof window !== 'undefined' && window.innerWidth < 768 ? 1024 : 4096
-          cW = Math.min(w, blobCap); cH = Math.min(h, blobCap)
-        } else {
-          // Remote (Supabase) images: 1024 cap on mobile, 2048 on desktop
-          const maxDim = typeof window !== 'undefined' && window.innerWidth < 768 ? 1024 : 2048
-          const scale = Math.min(1, maxDim / Math.max(w, h))
-          cW = Math.round(w * scale); cH = Math.round(h * scale)
-        }
-        const canvas = document.createElement('canvas')
-        canvas.width = Math.max(1, cW); canvas.height = Math.max(1, cH)
-        canvas.getContext('2d')!.drawImage(img, 0, 0, cW, cH)
-        const tex = new THREE.CanvasTexture(canvas)
-        tex.colorSpace = THREE.SRGBColorSpace
-        // Release the full-res decoded bitmap now that it's been downscaled into the canvas.
-        img.onload = null
-        img.src = ''
-        resolve({ tex, aspect })
+    if (await detectSvg(url)) return loadSvgTex(url)
+    try {
+      const buf = await (await fetch(url)).arrayBuffer()
+      const blob = new Blob([buf])
+      const dim = imageSizeFromBytes(buf)
+      // blob: = user upload (4096 desktop), else Supabase remote (2048 desktop); 1024 on mobile
+      const cap = isMobile() ? 1024 : (url.startsWith('blob:') ? 4096 : 2048)
+
+      let opts: ImageBitmapOptions | undefined
+      if (dim && Math.max(dim.w, dim.h) > cap) {
+        const scale = cap / Math.max(dim.w, dim.h)
+        opts = { resizeWidth: Math.round(dim.w * scale), resizeHeight: Math.round(dim.h * scale), resizeQuality: 'high' }
       }
-      img.onerror = () => resolve({ tex: new THREE.Texture(), aspect: 1 })
-      img.src = url
-    })
+      // resizeWidth/Height makes the decoder downsample during decode — the full-res
+      // bitmap is never held, so peak memory stays bounded even for huge source images.
+      const bitmap = await createImageBitmap(blob, opts)
+      const aspect = bitmap.width / bitmap.height
+      const canvas = document.createElement('canvas')
+      canvas.width = bitmap.width; canvas.height = bitmap.height
+      canvas.getContext('2d')!.drawImage(bitmap, 0, 0)
+      bitmap.close()
+      const tex = new THREE.CanvasTexture(canvas)
+      tex.colorSpace = THREE.SRGBColorSpace
+      return { tex, aspect }
+    } catch {
+      return { tex: new THREE.Texture(), aspect: 1 }
+    }
   })()
   texCache.set(url, p)
   return p
@@ -411,7 +456,7 @@ function Figure({ imageUrls, size, repeat, cameraStream, shuffleSeed, bgColor, a
 // ── Canvas ─────────────────────────────────────────────────────────────────────
 export default function Scene({ imageUrls, size, repeat, shuffleSeed, bgColor, bgImage, cameraStream, captureRef, analyserRef }: { imageUrls: string[]; size: number; repeat: number; shuffleSeed: number; bgColor: string; bgImage: string | null; cameraStream: MediaStream | null; captureRef: React.MutableRefObject<(() => string) | null>; analyserRef?: React.RefObject<AnalyserNode | null> }) {
   return (
-    <Canvas style={{ width: '100%', height: '100%', cursor: 'default', background: bgColor }} gl={{ preserveDrawingBuffer: true }} dpr={[1, typeof window !== 'undefined' && window.innerWidth < 768 ? 2 : 3]} onPointerMissed={undefined}>
+    <Canvas style={{ width: '100%', height: '100%', cursor: 'default', background: bgColor }} gl={{ preserveDrawingBuffer: !isMobile() }} dpr={[1, isMobile() ? 2 : 3]} onPointerMissed={undefined}>
       <CaptureSetup captureRef={captureRef} />
       <BackgroundSetter color={bgColor} image={bgImage} />
       <PerspectiveCamera makeDefault position={[0, 150, 600]} fov={40} near={0.1} far={5000} />
