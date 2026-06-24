@@ -290,6 +290,14 @@ function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed
   const [imgEntries, setImgEntries] = useState<TexEntry[]>([])
   useEffect(() => {
     let cancelled = false
+    // Evict textures no longer needed so GPU memory is freed before loading the new set
+    const urlSet = new Set(imageUrls)
+    for (const [key, promise] of texCache.entries()) {
+      if (!urlSet.has(key)) {
+        promise.then(e => e.tex.dispose())
+        texCache.delete(key)
+      }
+    }
     if (imageUrls.length === 0) { setImgEntries([]); return }
     crumb(`MixedImages: loading ${imageUrls.length} textures, repeat ${repeat} -> ${count} sprites`)
     ;(async () => {

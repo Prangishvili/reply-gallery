@@ -316,7 +316,7 @@ const [layersOpen, setLayersOpen] = useState(false)
             <span style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>repeat</span><span style={{ opacity: 0.7 }}>{repeat}</span>
             </span>
-            <input type="range" min={1} max={99} step={1} value={repeat} onChange={e => setRepeat(Number(e.target.value))} style={{ width: '100%' }} />
+            <input type="range" min={1} max={isMobile ? 20 : 99} step={1} value={repeat} onChange={e => setRepeat(Number(e.target.value))} style={{ width: '100%' }} />
           </label>
         </div>
       )}
