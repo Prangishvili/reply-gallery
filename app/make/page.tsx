@@ -50,11 +50,11 @@ const [layersOpen, setLayersOpen] = useState(false)
   const toolbarRef = useRef<HTMLDivElement>(null)
   const [toolbarH, setToolbarH] = useState(160)
   useEffect(() => {
-    if (!isMobile || !toolbarRef.current) return
+    if (!toolbarRef.current) return
     const ro = new ResizeObserver(() => setToolbarH(toolbarRef.current!.offsetHeight))
     ro.observe(toolbarRef.current)
     return () => ro.disconnect()
-  }, [isMobile])
+  }, [])
 
   // Save modal
   const [modal, setModal] = useState(false)
@@ -237,7 +237,7 @@ const [layersOpen, setLayersOpen] = useState(false)
       `}</style>
 
       {/* Canvas — full-screen on desktop, page card on mobile */}
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: isMobile ? toolbarH : 0 }}>
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
         <Scene imageUrls={imageUrls} size={size} repeat={repeat} shuffleSeed={shuffleSeed} bgColor={bgColor} bgImage={bgImage} cameraStream={cameraStream} captureRef={captureRef} analyserRef={analyserRef} />
       </div>
 
@@ -263,9 +263,7 @@ const [layersOpen, setLayersOpen] = useState(false)
       )}
       {layersOpen && imageUrls.length > 0 && (
         <div onClick={e => e.stopPropagation()} style={{
-          ...(isMobile
-            ? { position: 'fixed', bottom: toolbarH + 8, left: '50%', transform: 'translateX(-50%)' }
-            : { position: 'fixed', bottom: 108, left: '50%', transform: 'translateX(-50%)' }),
+          position: 'fixed', bottom: toolbarH + 32, left: '50%', transform: 'translateX(-50%)',
           background: 'rgba(242,242,242,0.97)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
           border: 'none', borderRadius: 10,
           padding: '14px 16px', zIndex: 9,
@@ -302,9 +300,7 @@ const [layersOpen, setLayersOpen] = useState(false)
       )}
       {sizeOpen && (imageUrls.length > 0 || cameraStream) && (
         <div onClick={e => e.stopPropagation()} style={{
-          ...(isMobile
-            ? { position: 'fixed', bottom: toolbarH + 8, left: '50%', transform: 'translateX(-50%)' }
-            : { position: 'fixed', bottom: 108, left: '50%', transform: 'translateX(-50%)' }),
+          position: 'fixed', bottom: toolbarH + 32, left: '50%', transform: 'translateX(-50%)',
           background: 'rgba(242,242,242,0.97)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
           border: 'none', borderRadius: 10,
           padding: '16px 20px', zIndex: 9, width: 260, maxWidth: 'calc(100vw - 32px)',
@@ -325,84 +321,8 @@ const [layersOpen, setLayersOpen] = useState(false)
         </div>
       )}
 
-      {/* Controls */}
-      {isMobile ? (
-        /* Mobile: vertical bottom panel */
-        <div ref={toolbarRef} style={{ position: 'fixed', left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', padding: '10px 16px', gap: 8, zIndex: 10, borderTop: '1px solid rgba(0,0,0,0.07)' }}>
-          {/* Camera + Music + Save row */}
-          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-            <button onClick={toggleCamera} style={{
-              ...mono, cursor: 'pointer', flex: 1,
-              background: 'rgba(247,247,247,0.85)', border: 'none',
-              borderRadius: 6, padding: '11px 12px',
-              color: cameraStream ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', fontWeight: cameraStream ? 600 : 400,
-              backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-            }}>
-              {'camera'}
-            </button>
-            <button onClick={openModal} style={{
-              ...mono, cursor: 'pointer', flex: 1,
-              background: 'rgba(247,247,247,0.85)', border: 'none',
-              borderRadius: 6, padding: '11px 12px', color: 'rgba(0,0,0,0.55)',
-              backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-            }}>publish</button>
-          </div>
-
-          {/* Main controls pill */}
-          <div style={{
-            background: 'rgba(247,247,247,0.85)', border: 'none',
-            borderRadius: 6, padding: '14px 16px',
-            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-            display: 'flex', flexDirection: 'column', gap: 13,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, ...mono, color: 'rgba(0,0,0,0.4)', flexShrink: 0 }}>
-                <span>Color</span>
-                <input type="color" value={bgColor} onChange={e => { setBgColor(e.target.value); setBgImage(null) }} style={{ width: 22, height: 16 }} />
-              </label>
-            </div>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <label className="make-clickable" style={{ ...btn }}>
-                {bgImage ? 'change bg' : '+ bg image'}
-                <input type="file" accept="image/*" style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) setBgImage(URL.createObjectURL(f)); e.target.value = '' }} />
-              </label>
-              {bgImage && <button onClick={() => setBgImage(null)} style={btn}>remove bg</button>}
-                <label style={{ ...btn }}>
-                + upload
-                <input type="file" accept="image/*" multiple style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={e => { handleFiles(e.target.files); e.target.value = '' }} />
-              </label>
-              {(imageUrls.length > 0 || cameraStream) && <button onClick={() => setSizeOpen(o => !o)} style={sizeOpen ? btnOn : btn}>size</button>}
-              {imageUrls.length > 0 && <button onClick={() => setShuffleSeed(s => s + 1)} style={btn}>shuffle</button>}
-              {imageUrls.length > 0 && <button onClick={() => setLayersOpen(o => !o)} style={layersOpen ? btnOn : btn}>layers</button>}
-              <button onClick={() => setStudentOpen(o => !o)} style={studentOpen ? btnOn : btn}>
-                {loadingStudent ? 'loading…' : 'artist'}
-              </button>
-              {studentOpen && (
-                <>
-                  <div onClick={() => setStudentOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 8 }} />
-                  <div style={{
-                    position: 'fixed', bottom: toolbarH + 8, left: 16, zIndex: 9,
-                    background: 'rgba(242,242,242,0.97)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: 'none',
-                    borderRadius: 8, padding: '8px 0',
-                    backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
-                    minWidth: 200,
-                  }}>
-                    {STUDENTS.map(name => (
-                      <button key={name} onClick={() => loadStudentImages(name)} style={{
-                        ...mono, cursor: 'pointer', display: 'block', width: '100%',
-                        textAlign: 'left', padding: '8px 16px',
-                        background: 'none', border: 'none', color: 'rgba(0,0,0,0.75)',
-                      }}>{name}</button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      ) : (
-        /* Desktop: horizontal bottom toolbar */
-        <div className="toolbar-scroll" style={{ position: 'fixed', bottom: 24, left: 0, right: 0, display: 'flex', justifyContent: 'center', zIndex: 10, paddingInline: 16, overflowX: 'auto', scrollbarWidth: 'none' }}>
+      {/* Controls — unified horizontal scrollable row */}
+      <div ref={toolbarRef} className="toolbar-scroll" style={{ position: 'fixed', bottom: 24, left: 0, right: 0, display: 'flex', justifyContent: isMobile ? 'flex-start' : 'center', zIndex: 10, paddingInline: 16, overflowX: 'auto', scrollbarWidth: 'none' }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
 
           {/* Camera pill */}
@@ -412,11 +332,9 @@ const [layersOpen, setLayersOpen] = useState(false)
             borderRadius: 9999, padding: '20px 24px', whiteSpace: 'nowrap',
             color: cameraStream ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', fontWeight: cameraStream ? 600 : 400,
             backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-          }}>
-            {'camera'}
-          </button>
+          }}>camera</button>
 
-          {/* Main toolbar */}
+          {/* Main toolbar pill */}
           <div style={{
             display: 'flex', gap: 20, alignItems: 'center',
             background: 'rgba(247,247,247,0.82)', border: 'none',
@@ -428,7 +346,7 @@ const [layersOpen, setLayersOpen] = useState(false)
               <input type="color" value={bgColor} onChange={e => { setBgColor(e.target.value); setBgImage(null) }} style={{ width: 24, height: 18 }} />
             </label>
             <label className="make-clickable" style={{ ...btn, display: 'inline-block' }}>
-              {bgImage ? 'change bg image' : '+ bg image'}
+              + bg image
               <input type="file" accept="image/*" style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) setBgImage(URL.createObjectURL(f)); e.target.value = '' }} />
             </label>
             {bgImage && <button onClick={() => setBgImage(null)} style={btn}>remove bg</button>}
@@ -441,27 +359,25 @@ const [layersOpen, setLayersOpen] = useState(false)
             {imageUrls.length > 0 && <button onClick={() => setLayersOpen(o => !o)} style={layersOpen ? btnOn : btn}>layers</button>}
           </div>
 
-          {/* Student pill */}
+          {/* Artist pill */}
           <div style={{ position: 'relative' }}>
             <button onClick={() => setStudentOpen(o => !o)} style={{
               ...mono, cursor: 'pointer',
               background: 'rgba(247,247,247,0.82)', border: 'none',
-              borderRadius: 9999, padding: '20px 24px', color: studentOpen ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', whiteSpace: 'nowrap',
+              borderRadius: 9999, padding: '20px 24px', whiteSpace: 'nowrap',
+              color: studentOpen ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', fontWeight: studentOpen ? 600 : 400,
               backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-              fontWeight: studentOpen ? 600 : 400,
             }}>
-              {loadingStudent ? `loading…` : 'artist'}
+              {loadingStudent ? 'loading…' : 'artist'}
             </button>
             {studentOpen && (
               <>
                 <div onClick={() => setStudentOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 8 }} />
                 <div style={{
-                  position: 'fixed', bottom: 108, left: '50%', transform: 'translateX(-50%)',
+                  position: 'fixed', bottom: toolbarH + 8, left: '50%', transform: 'translateX(-50%)',
                   zIndex: 9,
                   background: 'rgba(242,242,242,0.97)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: 'none',
-                  borderRadius: 8, padding: '8px 0',
-                  backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
-                  minWidth: 200,
+                  borderRadius: 8, padding: '8px 0', minWidth: 200,
                 }}>
                   {STUDENTS.map(name => (
                     <button key={name} onClick={() => loadStudentImages(name)} style={{
@@ -478,17 +394,16 @@ const [layersOpen, setLayersOpen] = useState(false)
             )}
           </div>
 
-          {/* Save pill */}
+          {/* Publish pill */}
           <button onClick={openModal} style={{
             ...mono, cursor: 'pointer',
             background: 'rgba(247,247,247,0.82)', border: 'none',
-            borderRadius: 9999, padding: '20px 24px', color: 'rgba(0,0,0,0.55)', whiteSpace: 'nowrap',
+            borderRadius: 9999, padding: '20px 24px', whiteSpace: 'nowrap', color: 'rgba(0,0,0,0.55)',
             backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
           }}>publish</button>
 
         </div>
-        </div>
-      )}
+      </div>
 
       {/* Save modal */}
       {modal && (
