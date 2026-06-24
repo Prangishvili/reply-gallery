@@ -333,7 +333,7 @@ const [layersOpen, setLayersOpen] = useState(false)
           <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
             <button onClick={toggleCamera} style={{
               ...mono, cursor: 'pointer', flex: 1,
-              background: 'rgba(232,232,232,0.85)', border: '1px solid rgba(0,0,0,0.08)',
+              background: 'rgba(247,247,247,0.85)', border: 'none',
               borderRadius: 6, padding: '11px 12px',
               color: cameraStream ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', fontWeight: cameraStream ? 600 : 400,
               backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
@@ -342,7 +342,7 @@ const [layersOpen, setLayersOpen] = useState(false)
             </button>
             <button onClick={openModal} style={{
               ...mono, cursor: 'pointer', flex: 1,
-              background: 'rgba(232,232,232,0.85)', border: '1px solid rgba(0,0,0,0.08)',
+              background: 'rgba(247,247,247,0.85)', border: 'none',
               borderRadius: 6, padding: '11px 12px', color: 'rgba(0,0,0,0.55)',
               backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
             }}>publish</button>
@@ -350,7 +350,7 @@ const [layersOpen, setLayersOpen] = useState(false)
 
           {/* Main controls pill */}
           <div style={{
-            background: 'rgba(232,232,232,0.85)', border: '1px solid rgba(0,0,0,0.08)',
+            background: 'rgba(247,247,247,0.85)', border: 'none',
             borderRadius: 6, padding: '14px 16px',
             backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
             display: 'flex', flexDirection: 'column', gap: 13,
@@ -408,7 +408,7 @@ const [layersOpen, setLayersOpen] = useState(false)
           {/* Camera pill */}
           <button onClick={toggleCamera} style={{
             ...mono, cursor: 'pointer',
-            background: 'rgba(232,232,232,0.82)', border: '1px solid rgba(0,0,0,0.08)',
+            background: 'rgba(247,247,247,0.82)', border: 'none',
             borderRadius: 9999, padding: '20px 24px', whiteSpace: 'nowrap',
             color: cameraStream ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', fontWeight: cameraStream ? 600 : 400,
             backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
@@ -419,7 +419,7 @@ const [layersOpen, setLayersOpen] = useState(false)
           {/* Main toolbar */}
           <div style={{
             display: 'flex', gap: 20, alignItems: 'center',
-            background: 'rgba(232,232,232,0.82)', border: '1px solid rgba(0,0,0,0.08)',
+            background: 'rgba(247,247,247,0.82)', border: 'none',
             borderRadius: 9999, padding: '20px 24px', whiteSpace: 'nowrap',
             backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
           }}>
@@ -445,7 +445,7 @@ const [layersOpen, setLayersOpen] = useState(false)
           <div style={{ position: 'relative' }}>
             <button onClick={() => setStudentOpen(o => !o)} style={{
               ...mono, cursor: 'pointer',
-              background: 'rgba(232,232,232,0.82)', border: '1px solid rgba(0,0,0,0.08)',
+              background: 'rgba(247,247,247,0.82)', border: 'none',
               borderRadius: 9999, padding: '20px 24px', color: studentOpen ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', whiteSpace: 'nowrap',
               backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
               fontWeight: studentOpen ? 600 : 400,
@@ -481,7 +481,7 @@ const [layersOpen, setLayersOpen] = useState(false)
           {/* Save pill */}
           <button onClick={openModal} style={{
             ...mono, cursor: 'pointer',
-            background: 'rgba(232,232,232,0.82)', border: '1px solid rgba(0,0,0,0.08)',
+            background: 'rgba(247,247,247,0.82)', border: 'none',
             borderRadius: 9999, padding: '20px 24px', color: 'rgba(0,0,0,0.55)', whiteSpace: 'nowrap',
             backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
           }}>publish</button>
