@@ -266,7 +266,7 @@ const [layersOpen, setLayersOpen] = useState(false)
           ...(isMobile
             ? { position: 'fixed', bottom: toolbarH + 8, left: '50%', transform: 'translateX(-50%)' }
             : { position: 'fixed', bottom: 108, left: '50%', transform: 'translateX(-50%)' }),
-          background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+          background: 'rgba(242,242,242,0.97)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
           border: 'none', borderRadius: 10,
           padding: '14px 16px', zIndex: 9,
           maxWidth: 'calc(100vw - 32px)', maxHeight: 'calc(100vh - 40px)', overflowY: 'auto',
@@ -305,7 +305,7 @@ const [layersOpen, setLayersOpen] = useState(false)
           ...(isMobile
             ? { position: 'fixed', bottom: toolbarH + 8, left: '50%', transform: 'translateX(-50%)' }
             : { position: 'fixed', bottom: 108, left: '50%', transform: 'translateX(-50%)' }),
-          background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+          background: 'rgba(242,242,242,0.97)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
           border: 'none', borderRadius: 10,
           padding: '16px 20px', zIndex: 9, width: 260, maxWidth: 'calc(100vw - 32px)',
           display: 'flex', flexDirection: 'column', gap: 16,
@@ -382,7 +382,7 @@ const [layersOpen, setLayersOpen] = useState(false)
                   <div onClick={() => setStudentOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 8 }} />
                   <div style={{
                     position: 'fixed', bottom: toolbarH + 8, left: 16, zIndex: 9,
-                    background: 'rgba(247,247,247,0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: 'none',
+                    background: 'rgba(242,242,242,0.97)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: 'none',
                     borderRadius: 8, padding: '8px 0',
                     backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
                     minWidth: 200,
@@ -458,7 +458,7 @@ const [layersOpen, setLayersOpen] = useState(false)
                 <div style={{
                   position: 'fixed', bottom: 108, left: '50%', transform: 'translateX(-50%)',
                   zIndex: 9,
-                  background: 'rgba(247,247,247,0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: 'none',
+                  background: 'rgba(242,242,242,0.97)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: 'none',
                   borderRadius: 8, padding: '8px 0',
                   backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
                   minWidth: 200,
