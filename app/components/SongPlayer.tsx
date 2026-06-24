@@ -67,7 +67,8 @@ export function SongPlayer({
     const file = files[0]
     const url = URL.createObjectURL(file)
     blobsRef.current.push(url)
-    const title = file.name.replace(/\.[^.]+$/, '')
+    const raw = file.name.replace(/\.[^.]+$/, '')
+    const title = raw.length > 20 ? raw.slice(0, 20) + '…' : raw
     const newList = [...songsRef.current, { title, url }]
     songsRef.current = newList
     setSongs(newList)
