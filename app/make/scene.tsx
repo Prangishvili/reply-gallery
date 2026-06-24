@@ -193,13 +193,17 @@ function loadSvgTex(url: string): Promise<TexEntry> {
     img.decoding = 'async'
     img.onload = () => {
       const aspect = (img.naturalWidth || 300) / (img.naturalHeight || 300)
-      const cW = 4096, cH = Math.max(1, Math.round(4096 / aspect))
+      const cap = isMobile() ? 512 : 4096
+      const cW = cap, cH = Math.max(1, Math.round(cap / aspect))
       const canvas = document.createElement('canvas')
       canvas.width = cW; canvas.height = cH
       canvas.getContext('2d')!.drawImage(img, 0, 0, cW, cH)
       const tex = new THREE.CanvasTexture(canvas)
       tex.colorSpace = THREE.SRGBColorSpace
+      tex.generateMipmaps = false
+      tex.minFilter = THREE.LinearFilter
       img.onload = null; img.src = ''
+      crumb(`tex svg done ${cW}x${cH}`)
       resolve({ tex, aspect })
     }
     img.onerror = () => resolve({ tex: new THREE.Texture(), aspect: 1 })
