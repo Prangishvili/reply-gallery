@@ -134,7 +134,7 @@ const [layersOpen, setLayersOpen] = useState(false)
   const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return
     const MAX_FILE_MB = isMobile ? 15 : Infinity
-    const MAX_UPLOADS = isMobile ? 40 : Infinity
+    const MAX_UPLOADS = isMobile ? 80 : Infinity
     const allowed = Array.from(files).filter(f => f.size <= MAX_FILE_MB * 1024 * 1024)
     const urls = allowed.map(f => URL.createObjectURL(f))
     setImageUrls(prev => {
