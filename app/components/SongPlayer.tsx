@@ -6,6 +6,10 @@ type Song = { title: string; url: string }
 
 const SERIF = "Georgia, 'Times New Roman', serif"
 const MONO = "'DM Mono', ui-monospace, monospace"
+const RESUME_KEY = 'reply_current_song'
+
+function saveResume(url: string) { try { sessionStorage.setItem(RESUME_KEY, url) } catch {} }
+function loadResume(): string | null { try { return sessionStorage.getItem(RESUME_KEY) } catch { return null } }
 
 export function SongPlayer({
   autoPlay = true,
@@ -36,6 +40,7 @@ export function SongPlayer({
     const next = ((i % list.length) + list.length) % list.length
     setIndex(next)
     setPlaying(true)
+    saveResume(list[next].url)
     onPlayRef.current(list[next].url, () => playAt(next + 1))
   }
 
@@ -51,12 +56,14 @@ export function SongPlayer({
           }))
         songsRef.current = list
         setSongs(list)
-        if (list.length > 0 && autoPlay) {
-          setIndex(0)
+        if (list.length === 0) return
+        const resumeUrl = loadResume()
+        const resumeIdx = resumeUrl ? list.findIndex(s => s.url === resumeUrl) : -1
+        const startIdx = resumeIdx >= 0 ? resumeIdx : 0
+        setIndex(startIdx)
+        if (autoPlay || resumeIdx >= 0) {
           setPlaying(true)
-          onPlayRef.current(list[0].url, () => playAt(1))
-        } else if (list.length > 0) {
-          setIndex(0)
+          onPlayRef.current(list[startIdx].url, () => playAt(startIdx + 1))
         }
       })
     return () => { blobsRef.current.forEach(u => URL.revokeObjectURL(u)) }
@@ -75,6 +82,7 @@ export function SongPlayer({
     const next = newList.length - 1
     setIndex(next)
     setPlaying(true)
+    saveResume(url)
     onPlayRef.current(url, () => playAt(next + 1))
   }
 
