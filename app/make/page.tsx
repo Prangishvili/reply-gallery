@@ -51,7 +51,7 @@ const [layersOpen, setLayersOpen] = useState(false)
   const [toolbarH, setToolbarH] = useState(160)
   useEffect(() => {
     if (!toolbarRef.current) return
-    const ro = new ResizeObserver(() => setToolbarH(toolbarRef.current!.offsetHeight))
+    const ro = new ResizeObserver(() => { if (toolbarRef.current) setToolbarH(toolbarRef.current.offsetHeight) })
     ro.observe(toolbarRef.current)
     return () => ro.disconnect()
   }, [])
@@ -134,7 +134,7 @@ const [layersOpen, setLayersOpen] = useState(false)
   const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return
     const MAX_FILE_MB = isMobile ? 15 : Infinity
-    const MAX_UPLOADS = isMobile ? 12 : Infinity
+    const MAX_UPLOADS = isMobile ? 40 : Infinity
     const allowed = Array.from(files).filter(f => f.size <= MAX_FILE_MB * 1024 * 1024)
     const urls = allowed.map(f => URL.createObjectURL(f))
     setImageUrls(prev => {
