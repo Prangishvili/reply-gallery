@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { STUDENTS } from '@/app/lib/gallery-shared'
 import { crumb, debugEnabled } from '@/app/lib/crash-log'
+import { onAudioReady, getAudioAnalyser } from '@/app/lib/audio-manager'
 
 const Scene = dynamic(() => import('./scene'), { ssr: false })
 const DebugOverlay = dynamic(() => import('@/app/components/DebugOverlay').then(m => ({ default: m.DebugOverlay })), { ssr: false })
@@ -69,100 +70,11 @@ const [layersOpen, setLayersOpen] = useState(false)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const micStreamRef = useRef<MediaStream | null>(null)
 
-  // Music player
-  const [musicOpen, setMusicOpen] = useState(false)
-  const [musicSongs, setMusicSongs] = useState<{ title: string; url: string }[]>([])
-  const [musicSongsLoaded, setMusicSongsLoaded] = useState(false)
-  const [musicIndex, setMusicIndex] = useState(-1)
-  const [musicPlaying, setMusicPlaying] = useState(false)
   const [audioSrcModal, setAudioSrcModal] = useState(false)
   const micAnalyserRef = useRef<AnalyserNode | null>(null)
-  const musicAnalyserRef = useRef<AnalyserNode | null>(null)
-  const makeMusicRef = useRef<HTMLAudioElement | null>(null)
-  const musicAudioCtxRef = useRef<AudioContext | null>(null)
-  const musicBlobUrlsRef = useRef<string[]>([])
-  const musicSongsRef = useRef<{ title: string; url: string }[]>([])
-  const musicIdxRef = useRef(-1)
-  const musicPlayingRef = useRef(false)
-  musicSongsRef.current = musicSongs
-  musicIdxRef.current = musicIndex
-  musicPlayingRef.current = musicPlaying
 
-  const loadMusicSongs = async () => {
-    const { data } = await supabase.storage.from('audio').list('', { limit: 200, sortBy: { column: 'name', order: 'asc' } })
-    if (!data) return
-    const list = data
-      .filter(f => /\.(mp3|aac|m4a|ogg|wav)$/i.test(f.name))
-      .map(f => ({
-        title: f.name.replace(/\.[^.]+$/, '').replace(/^Chris Zabriskie\s*[-–]\s*Short Songs \d{6}\s*[-–]\s*\d{6}\s*[-–]\s*/i, ''),
-        url: supabase.storage.from('audio').getPublicUrl(f.name).data.publicUrl,
-      }))
-    musicSongsRef.current = list
-    setMusicSongs(list)
-    setMusicSongsLoaded(true)
-  }
-
-  const playMusicAt = (i: number) => {
-    const songs = musicSongsRef.current
-    if (songs.length === 0) return
-    const next = ((i % songs.length) + songs.length) % songs.length
-    if (!makeMusicRef.current) {
-      // Create audio element and wire into Web Audio so analyserRef picks up the signal
-      const audio = new Audio()
-      audio.crossOrigin = 'anonymous'
-      audio.volume = 0.7
-      makeMusicRef.current = audio
-      try {
-        const ctx = new AudioContext()
-        const source = ctx.createMediaElementSource(audio)
-        const analyser = ctx.createAnalyser()
-        analyser.fftSize = 256
-        analyser.smoothingTimeConstant = 0.8
-        source.connect(analyser)
-        analyser.connect(ctx.destination)
-        musicAudioCtxRef.current = ctx
-        musicAnalyserRef.current = analyser
-        if (micAnalyserRef.current) {
-          setAudioSrcModal(true)
-        } else {
-          analyserRef.current = analyser
-        }
-        ctx.resume().catch(() => {})
-      } catch {}
-    }
-    musicAudioCtxRef.current?.resume().catch(() => {})
-    const audio = makeMusicRef.current
-    audio.onended = () => playMusicAt(next + 1)
-    if (musicIdxRef.current === next) {
-      if (musicPlayingRef.current) { audio.pause(); setMusicPlaying(false) }
-      else { audio.play().catch(() => {}); setMusicPlaying(true) }
-    } else {
-      audio.src = songs[next].url
-      audio.play().catch(() => {})
-      setMusicIndex(next)
-      setMusicPlaying(true)
-    }
-  }
-
-  const handleMusicUpload = (files: FileList | null) => {
-    if (!files || files.length === 0) return
-    const file = files[0]
-    const url = URL.createObjectURL(file)
-    musicBlobUrlsRef.current.push(url)
-    const title = file.name.replace(/\.[^.]+$/, '')
-    const newList = [...musicSongsRef.current, { title, url }]
-    musicSongsRef.current = newList
-    setMusicSongs(newList)
-    playMusicAt(newList.length - 1)
-  }
-
-  useEffect(() => {
-    return () => {
-      makeMusicRef.current?.pause()
-      musicAudioCtxRef.current?.close().catch(() => {})
-      musicBlobUrlsRef.current.forEach(u => URL.revokeObjectURL(u))
-    }
-  }, [])
+  // Wire analyserRef to the shared top player (audio-manager singleton)
+  useEffect(() => onAudioReady(analyser => { analyserRef.current = analyser }), [])
 
   const [studentOpen, setStudentOpen] = useState(false)
   const [loadingStudent, setLoadingStudent] = useState<string | null>(null)
@@ -191,7 +103,7 @@ const [layersOpen, setLayersOpen] = useState(false)
       audioCtxRef.current?.close().catch(() => {})
       audioCtxRef.current = null
       micAnalyserRef.current = null
-      analyserRef.current = musicAnalyserRef.current
+      analyserRef.current = getAudioAnalyser()
     } else {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true })
@@ -207,7 +119,7 @@ const [layersOpen, setLayersOpen] = useState(false)
           source.connect(analyser)
           audioCtxRef.current = ctx
           micAnalyserRef.current = analyser
-          if (musicAnalyserRef.current) {
+          if (getAudioAnalyser()) {
             setAudioSrcModal(true)
           } else {
             analyserRef.current = analyser
@@ -382,57 +294,6 @@ const [layersOpen, setLayersOpen] = useState(false)
         </div>
       )}
 
-      {/* Music panel */}
-      {musicOpen && (
-        <div onClick={() => setMusicOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 8 }} />
-      )}
-      {musicOpen && (
-        <div onClick={e => e.stopPropagation()} style={{
-          ...(isMobile
-            ? { position: 'fixed', bottom: toolbarH + 8, left: '50%', transform: 'translateX(-50%)' }
-            : { position: 'fixed', bottom: 108, left: '50%', transform: 'translateX(-50%)' }),
-          background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
-          border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10,
-          width: 320, maxWidth: 'calc(100vw - 32px)',
-          maxHeight: 360, display: 'flex', flexDirection: 'column', zIndex: 9,
-        }}>
-          <div style={{ ...mono, padding: '12px 16px 8px', color: 'rgba(0,0,0,0.35)', fontSize: 10, letterSpacing: '0.1em', flexShrink: 0 }}>MUSIC</div>
-          <div style={{ overflowY: 'auto', flex: 1 }}>
-            {!musicSongsLoaded && <div style={{ ...mono, padding: '8px 16px', color: 'rgba(0,0,0,0.3)' }}>loading…</div>}
-            {musicSongsLoaded && musicSongs.length === 0 && <div style={{ ...mono, padding: '8px 16px', color: 'rgba(0,0,0,0.3)' }}>no songs yet</div>}
-            {musicSongs.map((song, i) => (
-              <div
-                key={song.url}
-                onClick={() => playMusicAt(i)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '7px 16px', cursor: 'pointer',
-                  background: musicIndex === i ? 'rgba(0,0,0,0.04)' : 'none',
-                }}
-                onMouseEnter={e => { if (musicIndex !== i) e.currentTarget.style.background = 'rgba(0,0,0,0.02)' }}
-                onMouseLeave={e => { if (musicIndex !== i) e.currentTarget.style.background = 'none' }}
-              >
-                <span style={{ ...mono, fontSize: 9, color: 'rgba(0,0,0,0.35)', flexShrink: 0, width: 10, textAlign: 'center' }}>
-                  {musicIndex === i && musicPlaying ? '■' : '▶'}
-                </span>
-                <span style={{ ...mono, fontSize: 10, color: 'rgba(0,0,0,0.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {song.title}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-            <label className="make-clickable" style={{ ...btn, color: 'rgba(0,0,0,0.55)' }}>
-              + add song
-              <input
-                type="file"
-                accept=".mp3,.aac,.m4a,.ogg,.wav,audio/*"
-                style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }}
-                onChange={e => { handleMusicUpload(e.target.files); e.target.value = '' }}
-              />
-            </label>
-          </div>
-        </div>
-      )}
 
       {/* Controls */}
       {isMobile ? (
@@ -449,13 +310,6 @@ const [layersOpen, setLayersOpen] = useState(false)
             }}>
               {'camera'}
             </button>
-            <button onClick={() => { setMusicOpen(o => !o); if (!musicSongsLoaded) loadMusicSongs() }} style={{
-              ...mono, cursor: 'pointer', flex: 1,
-              background: 'rgba(255,255,255,0.78)', border: '1px solid rgba(0,0,0,0.08)',
-              borderRadius: 6, padding: '11px 12px',
-              color: musicOpen ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', fontWeight: musicOpen ? 600 : 400,
-              backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-            }}>music</button>
             <button onClick={openModal} style={{
               ...mono, cursor: 'pointer', flex: 1,
               background: 'rgba(255,255,255,0.78)', border: '1px solid rgba(0,0,0,0.08)',
@@ -581,15 +435,6 @@ const [layersOpen, setLayersOpen] = useState(false)
             {imageUrls.length > 0 && <button onClick={() => setLayersOpen(o => !o)} style={layersOpen ? btnOn : btn}>layers</button>}
           </div>
 
-          {/* Music pill */}
-          <button onClick={() => { setMusicOpen(o => !o); if (!musicSongsLoaded) loadMusicSongs() }} style={{
-            ...mono, cursor: 'pointer',
-            background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.08)',
-            borderRadius: 9999, padding: '20px 24px', whiteSpace: 'nowrap',
-            color: musicOpen ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', fontWeight: musicOpen ? 600 : 400,
-            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-          }}>music</button>
-
           {/* Student pill */}
           <div style={{ position: 'relative' }}>
             <button onClick={() => setStudentOpen(o => !o)} style={{
@@ -705,7 +550,7 @@ const [layersOpen, setLayersOpen] = useState(false)
                 style={{ flex: 1, ...mono, cursor: 'pointer', padding: '12px 0', borderRadius: 6, border: '1px solid rgba(0,0,0,0.12)', background: 'none', color: 'rgba(0,0,0,0.75)', fontSize: 11 }}
               >Mic</button>
               <button
-                onClick={() => { analyserRef.current = musicAnalyserRef.current; setAudioSrcModal(false) }}
+                onClick={() => { analyserRef.current = getAudioAnalyser(); setAudioSrcModal(false) }}
                 style={{ flex: 1, ...mono, cursor: 'pointer', padding: '12px 0', borderRadius: 6, border: '1px solid rgba(0,0,0,0.12)', background: 'none', color: 'rgba(0,0,0,0.75)', fontSize: 11 }}
               >Music</button>
             </div>

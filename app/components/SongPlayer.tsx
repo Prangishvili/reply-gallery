@@ -26,6 +26,7 @@ export function SongPlayer({
   const [listOpen, setListOpen] = useState(false)
 
   const songsRef = useRef<Song[]>([])
+  const blobsRef = useRef<string[]>([])
   const onPlayRef = useRef(onPlay)
   onPlayRef.current = onPlay
 
@@ -58,7 +59,23 @@ export function SongPlayer({
           setIndex(0)
         }
       })
+    return () => { blobsRef.current.forEach(u => URL.revokeObjectURL(u)) }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleUpload(files: FileList | null) {
+    if (!files?.[0]) return
+    const file = files[0]
+    const url = URL.createObjectURL(file)
+    blobsRef.current.push(url)
+    const title = file.name.replace(/\.[^.]+$/, '')
+    const newList = [...songsRef.current, { title, url }]
+    songsRef.current = newList
+    setSongs(newList)
+    const next = newList.length - 1
+    setIndex(next)
+    setPlaying(true)
+    onPlayRef.current(url, () => playAt(next + 1))
+  }
 
   function toggle() {
     if (playing) { onPause(); setPlaying(false) }
@@ -108,7 +125,7 @@ export function SongPlayer({
                 <img src={playing ? '/pause.svg' : '/play.svg'} alt={playing ? 'pause' : 'play'} style={{ width: 16, height: 16, display: 'block' }} />
               </button>
             </div>
-            <div className="about-scroll" style={{ maxHeight: 320, overflowY: 'auto', paddingBottom: 8 }}>
+            <div className="about-scroll" style={{ maxHeight: 320, overflowY: 'auto', paddingBottom: 4 }}>
               {songs.map((song, i) => (
                 <button
                   key={i}
@@ -130,6 +147,12 @@ export function SongPlayer({
                   </span>
                 </button>
               ))}
+            </div>
+            <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)', padding: '10px 20px' }}>
+              <label style={{ cursor: 'pointer', fontFamily: MONO, fontSize: 10, color: 'rgba(0,0,0,0.4)', letterSpacing: '0.05em', position: 'relative' }}>
+                + add song
+                <input type="file" accept=".mp3,.aac,.m4a,.ogg,.wav,audio/*" style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={e => { handleUpload(e.target.files); e.target.value = ''; setListOpen(false) }} />
+              </label>
             </div>
           </div>
         </>
