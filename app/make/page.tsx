@@ -321,6 +321,30 @@ const [layersOpen, setLayersOpen] = useState(false)
         </div>
       )}
 
+      {/* Artist popup */}
+      {studentOpen && (
+        <div onClick={() => setStudentOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 11 }} />
+      )}
+      {studentOpen && (
+        <div onClick={e => e.stopPropagation()} style={{
+          position: 'fixed', bottom: toolbarH + 32, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 12,
+          background: 'rgba(242,242,242,0.97)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: 'none',
+          borderRadius: 8, padding: '8px 0', minWidth: 200,
+        }}>
+          {STUDENTS.map(name => (
+            <button key={name} onClick={() => loadStudentImages(name)} style={{
+              ...mono, cursor: 'pointer', display: 'block', width: '100%',
+              textAlign: 'left', padding: '8px 16px',
+              background: 'none', border: 'none', color: 'rgba(0,0,0,0.75)',
+            }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.04)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+            >{name}</button>
+          ))}
+        </div>
+      )}
+
       {/* Controls — unified horizontal scrollable row */}
       <div ref={toolbarRef} className="toolbar-scroll" style={{ position: 'fixed', bottom: 24, left: 0, right: 0, display: 'flex', justifyContent: isMobile ? 'flex-start' : 'center', zIndex: 10, paddingInline: 16, overflowX: 'auto', scrollbarWidth: 'none' }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
@@ -360,39 +384,15 @@ const [layersOpen, setLayersOpen] = useState(false)
           </div>
 
           {/* Artist pill */}
-          <div style={{ position: 'relative' }}>
-            <button onClick={() => setStudentOpen(o => !o)} style={{
-              ...mono, cursor: 'pointer',
-              background: 'rgba(247,247,247,0.82)', border: 'none',
-              borderRadius: 9999, padding: '20px 24px', whiteSpace: 'nowrap',
-              color: studentOpen ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', fontWeight: studentOpen ? 600 : 400,
-              backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-            }}>
-              {loadingStudent ? 'loading…' : 'artist'}
-            </button>
-            {studentOpen && (
-              <>
-                <div onClick={() => setStudentOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 8 }} />
-                <div style={{
-                  position: 'fixed', bottom: toolbarH + 8, left: '50%', transform: 'translateX(-50%)',
-                  zIndex: 9,
-                  background: 'rgba(242,242,242,0.97)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: 'none',
-                  borderRadius: 8, padding: '8px 0', minWidth: 200,
-                }}>
-                  {STUDENTS.map(name => (
-                    <button key={name} onClick={() => loadStudentImages(name)} style={{
-                      ...mono, cursor: 'pointer', display: 'block', width: '100%',
-                      textAlign: 'left', padding: '8px 16px',
-                      background: 'none', border: 'none', color: 'rgba(0,0,0,0.75)',
-                    }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.04)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                    >{name}</button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+          <button onClick={() => setStudentOpen(o => !o)} style={{
+            ...mono, cursor: 'pointer',
+            background: 'rgba(247,247,247,0.82)', border: 'none',
+            borderRadius: 9999, padding: '20px 24px', whiteSpace: 'nowrap',
+            color: studentOpen ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.55)', fontWeight: studentOpen ? 600 : 400,
+            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+          }}>
+            {loadingStudent ? 'loading…' : 'artist'}
+          </button>
 
           {/* Publish pill */}
           <button onClick={openModal} style={{
