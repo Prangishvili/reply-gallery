@@ -25,6 +25,7 @@ export default function MakePage() {
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
   const [shuffleSeed, setShuffleSeed] = useState(0)
 const [layersOpen, setLayersOpen] = useState(false)
+  const [sizeOpen, setSizeOpen] = useState(false)
 
   const [showDebug] = useState(() => debugEnabled())
 
@@ -295,6 +296,35 @@ const [layersOpen, setLayersOpen] = useState(false)
       )}
 
 
+      {/* Size / repeat popup */}
+      {sizeOpen && (imageUrls.length > 0 || cameraStream) && (
+        <div onClick={() => setSizeOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 8 }} />
+      )}
+      {sizeOpen && (imageUrls.length > 0 || cameraStream) && (
+        <div onClick={e => e.stopPropagation()} style={{
+          ...(isMobile
+            ? { position: 'fixed', bottom: toolbarH + 8, left: '50%', transform: 'translateX(-50%)' }
+            : { position: 'fixed', bottom: 108, left: '50%', transform: 'translateX(-50%)' }),
+          background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+          border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10,
+          padding: '16px 20px', zIndex: 9, width: 260, maxWidth: 'calc(100vw - 32px)',
+          display: 'flex', flexDirection: 'column', gap: 16,
+        }}>
+          <label style={{ ...mono, color: 'rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>size</span><span style={{ opacity: 0.7 }}>{size.toFixed(2)}</span>
+            </span>
+            <input type="range" min={0.01} max={0.3} step={0.005} value={size} onChange={e => setSize(Number(e.target.value))} style={{ width: '100%' }} />
+          </label>
+          <label style={{ ...mono, color: 'rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>repeat</span><span style={{ opacity: 0.7 }}>{repeat}</span>
+            </span>
+            <input type="range" min={1} max={99} step={1} value={repeat} onChange={e => setRepeat(Number(e.target.value))} style={{ width: '100%' }} />
+          </label>
+        </div>
+      )}
+
       {/* Controls */}
       {isMobile ? (
         /* Mobile: vertical bottom panel */
@@ -325,25 +355,11 @@ const [layersOpen, setLayersOpen] = useState(false)
             backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
             display: 'flex', flexDirection: 'column', gap: 13,
           }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, ...mono, color: 'rgba(0,0,0,0.4)', flexShrink: 0, paddingTop: 2 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, ...mono, color: 'rgba(0,0,0,0.4)', flexShrink: 0 }}>
                 <span>Color</span>
                 <input type="color" value={bgColor} onChange={e => { setBgColor(e.target.value); setBgImage(null) }} style={{ width: 22, height: 16 }} />
               </label>
-              {(imageUrls.length > 0 || cameraStream) && (<>
-                <label style={{ flex: 1, ...mono, color: 'rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <span style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>size</span><span style={{ opacity: 0.7 }}>{size.toFixed(2)}</span>
-                  </span>
-                  <input type="range" min={0.01} max={0.3} step={0.005} value={size} onChange={e => setSize(Number(e.target.value))} style={{ width: '100%' }} />
-                </label>
-                <label style={{ flex: 1, ...mono, color: 'rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <span style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>repeat</span><span style={{ opacity: 0.7 }}>{repeat}</span>
-                  </span>
-                  <input type="range" min={1} max={99} step={1} value={repeat} onChange={e => setRepeat(Number(e.target.value))} style={{ width: '100%' }} />
-                </label>
-              </>)}
             </div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               <label className="make-clickable" style={{ ...btn }}>
@@ -355,6 +371,7 @@ const [layersOpen, setLayersOpen] = useState(false)
                 + upload
                 <input type="file" accept="image/*" multiple style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={e => { handleFiles(e.target.files); e.target.value = '' }} />
               </label>
+              {(imageUrls.length > 0 || cameraStream) && <button onClick={() => setSizeOpen(o => !o)} style={sizeOpen ? btnOn : btn}>size</button>}
               {imageUrls.length > 0 && <button onClick={() => setShuffleSeed(s => s + 1)} style={btn}>shuffle</button>}
               {imageUrls.length > 0 && <button onClick={() => setLayersOpen(o => !o)} style={layersOpen ? btnOn : btn}>layers</button>}
               <button onClick={() => setStudentOpen(o => !o)} style={studentOpen ? btnOn : btn}>
@@ -410,18 +427,6 @@ const [layersOpen, setLayersOpen] = useState(false)
               Color
               <input type="color" value={bgColor} onChange={e => { setBgColor(e.target.value); setBgImage(null) }} style={{ width: 24, height: 18 }} />
             </label>
-            {(imageUrls.length > 0 || cameraStream) && (<>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, ...mono, color: 'rgba(0,0,0,0.4)' }}>
-                size
-                <input type="range" min={0.01} max={0.3} step={0.005} value={size} onChange={e => setSize(Number(e.target.value))} style={{ width: 90 }} />
-                {size.toFixed(3)}
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, ...mono, color: 'rgba(0,0,0,0.4)' }}>
-                repeat
-                <input type="range" min={1} max={99} step={1} value={repeat} onChange={e => setRepeat(Number(e.target.value))} style={{ width: 90 }} />
-                {repeat}
-              </label>
-            </>)}
             <label className="make-clickable" style={{ ...btn, display: 'inline-block' }}>
               {bgImage ? 'change bg image' : '+ bg image'}
               <input type="file" accept="image/*" style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) setBgImage(URL.createObjectURL(f)); e.target.value = '' }} />
@@ -431,6 +436,7 @@ const [layersOpen, setLayersOpen] = useState(false)
               + upload images
               <input type="file" accept="image/*" multiple style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={e => { handleFiles(e.target.files); e.target.value = '' }} />
             </label>
+            {(imageUrls.length > 0 || cameraStream) && <button onClick={() => setSizeOpen(o => !o)} style={sizeOpen ? btnOn : btn}>size</button>}
             {imageUrls.length > 0 && <button onClick={() => setShuffleSeed(s => s + 1)} style={btn}>shuffle</button>}
             {imageUrls.length > 0 && <button onClick={() => setLayersOpen(o => !o)} style={layersOpen ? btnOn : btn}>layers</button>}
           </div>
