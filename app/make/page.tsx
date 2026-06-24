@@ -88,7 +88,7 @@ const [layersOpen, setLayersOpen] = useState(false)
     crumb(`loadStudentImages: got ${data?.length ?? 0} rows${error ? ' ERR ' + error.message : ''}`)
     if (data && data.length > 0) {
       const isMob = typeof window !== 'undefined' && window.innerWidth < 768
-      const urls = data.map(p => p.image_url).slice(0, isMob ? 8 : data.length)
+      const urls = data.map(p => p.image_url).slice(0, isMob ? 30 : data.length)
       crumb(`loadStudentImages: setImageUrls ${urls.length} (mobile=${isMob})`)
       setImageUrls(urls)
     }
