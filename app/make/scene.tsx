@@ -233,17 +233,23 @@ function loadTex(url: string): Promise<TexEntry> {
       // resizeWidth/Height makes the decoder downsample during decode — the full-res
       // bitmap is never held, so peak memory stays bounded even for huge source images.
       const bitmap = await createImageBitmap(blob, opts)
-      const aspect = bitmap.width / bitmap.height
+      // Post-decode cap: formats like HEIC return dim=null so opts is never set,
+      // meaning createImageBitmap decodes full-res. Catch that here.
+      const rawW = bitmap.width, rawH = bitmap.height
+      const postScale = Math.max(rawW, rawH) > cap ? cap / Math.max(rawW, rawH) : 1
+      const finalW = Math.round(rawW * postScale)
+      const finalH = Math.round(rawH * postScale)
+      const aspect = rawW / rawH
       const canvas = document.createElement('canvas')
-      canvas.width = bitmap.width; canvas.height = bitmap.height
-      canvas.getContext('2d')!.drawImage(bitmap, 0, 0)
+      canvas.width = finalW; canvas.height = finalH
+      canvas.getContext('2d')!.drawImage(bitmap, 0, 0, finalW, finalH)
       bitmap.close()
       const tex = new THREE.CanvasTexture(canvas)
       tex.colorSpace = THREE.SRGBColorSpace
       // No mipmaps: saves ~33% texture memory and avoids non-power-of-two upscaling.
       tex.generateMipmaps = false
       tex.minFilter = THREE.LinearFilter
-      crumb(`tex ${tag} done ${canvas.width}x${canvas.height}`)
+      crumb(`tex ${tag} done ${finalW}x${finalH}${postScale < 1 && !dim ? ' (HEIC/unknown fallback)' : ''}`)
       return { tex, aspect }
     } catch (e) {
       crumb(`tex ${tag} ERROR ${String(e).slice(0, 60)}`)
