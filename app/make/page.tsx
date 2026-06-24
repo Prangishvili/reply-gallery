@@ -220,8 +220,14 @@ const [layersOpen, setLayersOpen] = useState(false)
 
   const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return
-    const urls = Array.from(files).map(f => URL.createObjectURL(f))
-    setImageUrls(prev => [...prev, ...urls])
+    const MAX_FILE_MB = isMobile ? 15 : Infinity
+    const MAX_UPLOADS = isMobile ? 12 : Infinity
+    const allowed = Array.from(files).filter(f => f.size <= MAX_FILE_MB * 1024 * 1024)
+    const urls = allowed.map(f => URL.createObjectURL(f))
+    setImageUrls(prev => {
+      const slots = Math.max(0, MAX_UPLOADS - prev.length)
+      return [...prev, ...urls.slice(0, slots)]
+    })
   }
 
   const openModal = () => {
