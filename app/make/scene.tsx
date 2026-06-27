@@ -51,33 +51,94 @@ function CaptureSetup({ captureRef }: { captureRef: React.MutableRefObject<(() =
 }
 
 // ── Background ────────────────────────────────────────────────────────────────
-function BackgroundSetter({ color, image }: { color: string; image: string | null }) {
+function BackgroundSetter({ color, image, video, bgSize }: { color: string; image: string | null; video: string | null; bgSize: number }) {
   const { scene, size } = useThree()
+  const vidRef    = useRef<HTMLVideoElement | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const texRef    = useRef<THREE.CanvasTexture | null>(null)
+  const imgRef    = useRef<HTMLImageElement | null>(null)
+  const bgSizeRef = useRef(bgSize)
+  bgSizeRef.current = bgSize
+
+  // Static image background
   useEffect(() => {
+    if (video) return
     if (image) {
       let cancelled = false
-      let tex: THREE.CanvasTexture | null = null
       const img = new window.Image()
       img.onload = () => {
         if (cancelled) return
+        imgRef.current = img
         const cw = size.width, ch = size.height
         const iw = img.naturalWidth, ih = img.naturalHeight
-        const scale = Math.max(cw / iw, ch / ih)
+        const scale = Math.max(cw / iw, ch / ih) * bgSizeRef.current
         const dw = iw * scale, dh = ih * scale
         const canvas = document.createElement('canvas')
         canvas.width = cw; canvas.height = ch
         canvas.getContext('2d')!.drawImage(img, (cw - dw) / 2, (ch - dh) / 2, dw, dh)
-        tex = new THREE.CanvasTexture(canvas)
+        const tex = new THREE.CanvasTexture(canvas)
         tex.colorSpace = THREE.SRGBColorSpace
+        canvasRef.current = canvas; texRef.current = tex
         scene.background = tex
       }
       img.src = image
-      return () => { cancelled = true; tex?.dispose(); scene.background = null }
+      return () => {
+        cancelled = true; imgRef.current = null
+        texRef.current?.dispose(); texRef.current = null; canvasRef.current = null
+        scene.background = null
+      }
     }
     // eslint-disable-next-line react-hooks/immutability -- setting scene.background is the standard R3F imperative pattern
     scene.background = new THREE.Color(color)
     return () => { scene.background = null }
-  }, [color, image, scene, size.width, size.height])
+  }, [color, image, video, scene, size.width, size.height])
+
+  // Redraw static image when bgSize changes
+  useEffect(() => {
+    const img = imgRef.current, canvas = canvasRef.current, tex = texRef.current
+    if (!img || !canvas || !tex) return
+    const cw = canvas.width, ch = canvas.height
+    const iw = img.naturalWidth, ih = img.naturalHeight
+    const scale = Math.max(cw / iw, ch / ih) * bgSize
+    const dw = iw * scale, dh = ih * scale
+    const ctx = canvas.getContext('2d')!
+    ctx.clearRect(0, 0, cw, ch)
+    ctx.drawImage(img, (cw - dw) / 2, (ch - dh) / 2, dw, dh)
+    tex.needsUpdate = true
+  }, [bgSize])
+
+  // Video background
+  useEffect(() => {
+    if (!video) return
+    const vid = document.createElement('video')
+    vid.src = video; vid.muted = true; vid.loop = true; vid.playsInline = true; vid.autoplay = true
+    vid.play().catch(() => {})
+    const canvas = document.createElement('canvas')
+    canvas.width = size.width; canvas.height = size.height
+    const tex = new THREE.CanvasTexture(canvas)
+    tex.colorSpace = THREE.SRGBColorSpace
+    vidRef.current = vid; canvasRef.current = canvas; texRef.current = tex
+    scene.background = tex
+    return () => {
+      vid.pause(); vid.src = ''
+      vidRef.current = null; canvasRef.current = null
+      tex.dispose(); texRef.current = null
+      scene.background = null
+    }
+  }, [video, scene, size.width, size.height])
+
+  useFrame(() => {
+    const vid = vidRef.current, canvas = canvasRef.current, tex = texRef.current
+    if (!vid || !canvas || !tex || vid.readyState < 2) return
+    const cw = canvas.width, ch = canvas.height, vw = vid.videoWidth, vh = vid.videoHeight
+    if (!vw || !vh) return
+    const scale = Math.max(cw / vw, ch / vh) * bgSizeRef.current
+    const ctx = canvas.getContext('2d')!
+    ctx.clearRect(0, 0, cw, ch)
+    ctx.drawImage(vid, (cw - vw * scale) / 2, (ch - vh * scale) / 2, vw * scale, vh * scale)
+    tex.needsUpdate = true
+  })
+
   return null
 }
 
@@ -296,7 +357,7 @@ function loadTex(url: string): Promise<TexEntry> {
 // Images and camera are managed by SEPARATE effects so that uploading images never
 // tears down a running camera, and toggling the camera never reloads images. This
 // makes the two orderings (camera-first vs images-first) behave identically.
-function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed, sizeRandomize, bgColor, analyserRef }: {
+function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed, sizeRandomize, drift, driftSpeed, driftAmp, bgColor, analyserRef }: {
   scene: THREE.Object3D
   imageUrls: string[]
   cameraStream: MediaStream | null
@@ -304,6 +365,9 @@ function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed
   repeat: number
   shuffleSeed: number
   sizeRandomize: boolean
+  drift: boolean
+  driftSpeed: number
+  driftAmp: number
   bgColor: string
   analyserRef?: React.RefObject<AnalyserNode | null>
 }) {
@@ -431,6 +495,23 @@ function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed
   const spriteRefs = useRef<(THREE.Sprite | null)[]>([])
   const aspectsRef = useRef<number[]>([])
   const dataArrRef = useRef<Uint8Array | null>(null)
+  const clockRef   = useRef(0)
+  const driftRef   = useRef<{ dx: number; dy: number; dz: number; phase: number; speed: number }[]>([])
+
+  useEffect(() => {
+    if (!drift) { driftRef.current = []; return }
+    driftRef.current = vertices.map(() => {
+      const theta = Math.random() * Math.PI * 2
+      const phi   = Math.acos(2 * Math.random() - 1)
+      return {
+        dx: Math.sin(phi) * Math.cos(theta),
+        dy: Math.sin(phi) * Math.sin(theta),
+        dz: Math.cos(phi),
+        phase: Math.random() * Math.PI * 2,
+        speed: (0.15 + Math.random() * 0.2) * driftSpeed,
+      }
+    })
+  }, [drift, driftSpeed, vertices])
 
   // Per-sprite scale multipliers — recomputed when shuffle or randomize changes
   const sizeScales = useMemo(() => {
@@ -446,7 +527,7 @@ function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed
     return Array.from({ length: count }, () => 0.25 + rand() * 1.75)
   }, [sizeRandomize, shuffleSeed, count])
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     let vol = 0
     if (analyserRef?.current) {
       const a = analyserRef.current
@@ -458,10 +539,24 @@ function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed
       vol = Math.min((sum / dataArrRef.current.length / 255) * 2, 1)
     }
     const s = 1 + vol * 3
+    if (drift && driftRef.current.length > 0) clockRef.current += delta
     spriteRefs.current.forEach((sprite, i) => {
       if (!sprite) return
       const randScale = sizeScales ? (sizeScales[i] ?? 1) : 1
       sprite.scale.set(s * size * randScale * (aspectsRef.current[i] ?? 1), s * size * randScale, 1)
+      if (drift && driftRef.current.length > 0) {
+        const d = driftRef.current[i]
+        const v = vertices[i]
+        if (d && v) {
+          const amp = size * driftAmp
+          const t = Math.sin(clockRef.current * d.speed * Math.PI * 2 + d.phase) * amp
+          sprite.position.set(
+            v.pos.x + v.normal.x * 0.02 + d.dx * t,
+            v.pos.y + v.normal.y * 0.02 + d.dy * t,
+            v.pos.z + v.normal.z * 0.02 + d.dz * t,
+          )
+        }
+      }
     })
   })
 
@@ -532,7 +627,7 @@ function FigureDots({ scene }: { scene: THREE.Object3D }) {
 }
 
 // ── Figure ─────────────────────────────────────────────────────────────────────
-function Figure({ imageUrls, size, repeat, cameraStream, shuffleSeed, sizeRandomize, bgColor, analyserRef }: { imageUrls: string[]; size: number; repeat: number; cameraStream: MediaStream | null; shuffleSeed: number; sizeRandomize: boolean; bgColor: string; analyserRef?: React.RefObject<AnalyserNode | null> }) {
+function Figure({ imageUrls, size, repeat, cameraStream, shuffleSeed, sizeRandomize, drift, driftSpeed, driftAmp, bgColor, analyserRef }: { imageUrls: string[]; size: number; repeat: number; cameraStream: MediaStream | null; shuffleSeed: number; sizeRandomize: boolean; drift: boolean; driftSpeed: number; driftAmp: number; bgColor: string; analyserRef?: React.RefObject<AnalyserNode | null> }) {
   const { scene } = useGLTF('/figure.glb')
   const clone = useMemo(() => { crumb('figure.glb loaded + cloned'); return scene.clone(true) }, [scene])
 
@@ -540,19 +635,48 @@ function Figure({ imageUrls, size, repeat, cameraStream, shuffleSeed, sizeRandom
     <group scale={200} rotation={[0, 0, 0]}>
       <FigureDots scene={clone} />
       {(imageUrls.length > 0 || !!cameraStream) && (
-        <MixedImages scene={clone} imageUrls={imageUrls} cameraStream={cameraStream} size={size} repeat={repeat} shuffleSeed={shuffleSeed} sizeRandomize={sizeRandomize} bgColor={bgColor} analyserRef={analyserRef} />
+        <MixedImages scene={clone} imageUrls={imageUrls} cameraStream={cameraStream} size={size} repeat={repeat} shuffleSeed={shuffleSeed} sizeRandomize={sizeRandomize} drift={drift} driftSpeed={driftSpeed} driftAmp={driftAmp} bgColor={bgColor} analyserRef={analyserRef} />
       )}
     </group>
   )
 }
 
+// ── Video recorder ─────────────────────────────────────────────────────────────
+function VideoRecorder({ recordRef }: { recordRef: React.MutableRefObject<{ start: () => void; stop: () => void } | null> }) {
+  const { gl } = useThree()
+  useEffect(() => {
+    let recorder: MediaRecorder | null = null
+    let chunks: Blob[] = []
+    recordRef.current = {
+      start: () => {
+        chunks = []
+        const stream = gl.domElement.captureStream(60)
+        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm'
+        recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 50_000_000 })
+        recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
+        recorder.onstop = () => {
+          const blob = new Blob(chunks, { type: 'video/webm' })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a'); a.href = url; a.download = `make-${Date.now()}.webm`; a.click()
+          URL.revokeObjectURL(url)
+        }
+        recorder.start()
+      },
+      stop: () => { recorder?.stop(); recorder = null },
+    }
+    return () => { recorder?.stop(); recordRef.current = null }
+  }, [gl, recordRef])
+  return null
+}
+
 // ── Canvas ─────────────────────────────────────────────────────────────────────
-export default function Scene({ imageUrls, size, repeat, shuffleSeed, sizeRandomize, bgColor, bgImage, cameraStream, captureRef, analyserRef }: { imageUrls: string[]; size: number; repeat: number; shuffleSeed: number; sizeRandomize: boolean; bgColor: string; bgImage: string | null; cameraStream: MediaStream | null; captureRef: React.MutableRefObject<(() => string) | null>; analyserRef?: React.RefObject<AnalyserNode | null> }) {
+export default function Scene({ imageUrls, size, repeat, shuffleSeed, sizeRandomize, drift, driftSpeed, driftAmp, bgColor, bgImage, bgVideo, bgSize, cameraStream, captureRef, recordRef, analyserRef }: { imageUrls: string[]; size: number; repeat: number; shuffleSeed: number; sizeRandomize: boolean; drift: boolean; driftSpeed: number; driftAmp: number; bgColor: string; bgImage: string | null; bgVideo: string | null; bgSize: number; cameraStream: MediaStream | null; captureRef: React.MutableRefObject<(() => string) | null>; recordRef: React.MutableRefObject<{ start: () => void; stop: () => void } | null>; analyserRef?: React.RefObject<AnalyserNode | null> }) {
   return (
     <Canvas style={{ width: '100%', height: '100%', cursor: 'default', background: bgColor }} gl={{ preserveDrawingBuffer: !isMobile() }} dpr={[1, isMobile() ? 1.5 : 3]} onPointerMissed={undefined}>
       <GLWatch />
       <CaptureSetup captureRef={captureRef} />
-      <BackgroundSetter color={bgColor} image={bgImage} />
+      <VideoRecorder recordRef={recordRef} />
+      <BackgroundSetter color={bgColor} image={bgImage} video={bgVideo} bgSize={bgSize} />
       <PerspectiveCamera makeDefault position={[0, 150, 600]} fov={40} near={0.1} far={5000} />
       <OrbitControls
         target={[0, 260, 0]}
@@ -564,7 +688,7 @@ export default function Scene({ imageUrls, size, repeat, shuffleSeed, sizeRandom
         maxAzimuthAngle={Math.PI / 4}
       />
       <Suspense fallback={null}>
-        <Figure imageUrls={imageUrls} size={size} repeat={repeat} cameraStream={cameraStream} shuffleSeed={shuffleSeed} sizeRandomize={sizeRandomize} bgColor={bgColor} analyserRef={analyserRef} />
+        <Figure imageUrls={imageUrls} size={size} repeat={repeat} cameraStream={cameraStream} shuffleSeed={shuffleSeed} sizeRandomize={sizeRandomize} drift={drift} driftSpeed={driftSpeed} driftAmp={driftAmp} bgColor={bgColor} analyserRef={analyserRef} />
       </Suspense>
     </Canvas>
   )

@@ -242,7 +242,7 @@ export function prefetchPostImages(posts: Post[]) {
 }
 
 // ── FigureVertexImages ────────────────────────────────────────────────────────
-export function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRepeat, facing = 'normal', analyserRef, showConnections = false, drift = false, driftSpeed = 1, driftAmp = 0.5, onLoaded, shuffleSeed = 0 }: { scene: THREE.Object3D; posts: Post[]; size: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal'; analyserRef?: React.RefObject<AnalyserNode | null>; showConnections?: boolean; drift?: boolean; driftSpeed?: number; driftAmp?: number; onLoaded?: () => void; shuffleSeed?: number }) {
+export function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, audioRepeat, facing = 'normal', analyserRef, showConnections = false, drift = false, driftSpeed = 1, driftAmp = 0.5, onLoaded, shuffleSeed = 0, sizeRandomize = false, audioSizeRandomize = false }: { scene: THREE.Object3D; posts: Post[]; size: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal'; analyserRef?: React.RefObject<AnalyserNode | null>; showConnections?: boolean; drift?: boolean; driftSpeed?: number; driftAmp?: number; onLoaded?: () => void; shuffleSeed?: number; sizeRandomize?: boolean; audioSizeRandomize?: boolean }) {
   const [isAudioActive, setIsAudioActive] = useState(false)
   const isAudioActiveRef = useRef(false)
   const effectiveRepeat = isAudioActive && audioRepeat != null ? audioRepeat : repeat
@@ -261,6 +261,19 @@ export function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, a
     () => repeatedPosts.length > 0 ? sampleVerticesWithNormals(scene, repeatedPosts.length) : [],
     [scene, repeatedPosts.length]
   )
+
+  const sizeScales = useMemo(() => {
+    if ((!sizeRandomize && !audioSizeRandomize) || vertices.length === 0) return null
+    const seed = shuffleSeed === 0 ? 1 : shuffleSeed
+    let a = seed >>> 0
+    const rand = () => {
+      a = (a + 0x6d2b79f5) | 0
+      let t = Math.imul(a ^ (a >>> 15), 1 | a)
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+    return Array.from({ length: vertices.length }, () => 0.25 + rand() * 1.75)
+  }, [sizeRandomize, audioSizeRandomize, shuffleSeed, vertices.length])
 
   const meshMap        = useRef<Map<number, THREE.Mesh>>(new Map())
   const dataArrRef     = useRef<Uint8Array | null>(null)
@@ -310,9 +323,11 @@ export function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, a
       setIsAudioActive(playing)
     }
     const activeSize = (playing && audioImgSize != null) ? audioImgSize : size
+    const applyRandScale = sizeRandomize || (audioSizeRandomize && playing)
     meshMap.current.forEach((mesh, i) => {
       const aspect = spriteData[i % spriteData.length]?.aspect ?? 1
-      const s = activeSize * (1 + vol * 3)
+      const randScale = (applyRandScale && sizeScales) ? (sizeScales[i] ?? 1) : 1
+      const s = activeSize * (1 + vol * 3) * randScale
       mesh.scale.set(s * aspect, s, 1)
     })
     if ((showConnections || drift) && driftRef.current.length > 0) {
@@ -496,13 +511,14 @@ export function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, a
         const px = v.pos.x + v.normal.x * 0.02
         const py = v.pos.y + v.normal.y * 0.02
         const pz = v.pos.z + v.normal.z * 0.02
+        const randScale = (sizeRandomize && sizeScales) ? (sizeScales[i] ?? 1) : 1
         if (facing === 'camera') {
           return (
             <sprite
               key={i}
               ref={(el: THREE.Sprite | null) => { if (el) meshMap.current.set(i, el as unknown as THREE.Mesh); else meshMap.current.delete(i) }}
               position={[px, py, pz]}
-              scale={[size * aspect, size, 1]}
+              scale={[size * aspect * randScale, size * randScale, 1]}
             >
               <spriteMaterial map={tex} sizeAttenuation transparent depthWrite={false} />
             </sprite>
@@ -515,7 +531,7 @@ export function FigureVertexImages({ scene, posts, size, repeat, audioImgSize, a
             ref={(el: THREE.Mesh | null) => { if (el) meshMap.current.set(i, el); else meshMap.current.delete(i) }}
             position={[px, py, pz]}
             quaternion={q}
-            scale={[size * aspect, size, 1]}
+            scale={[size * aspect * randScale, size * randScale, 1]}
           >
             <planeGeometry args={[1, 1]} />
             <meshBasicMaterial map={tex} side={THREE.DoubleSide} transparent alphaTest={0.01} />

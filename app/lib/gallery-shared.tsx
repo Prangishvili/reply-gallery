@@ -11,11 +11,11 @@ export const ROOM_STUDENTS = [...STUDENTS, 'Name']
 // audioImgSize / audioRepeat → used when audio is playing (omit to keep same as static)
 // facing: 'normal'           → images lie flat on the mesh surface
 // facing: 'camera'           → images always face the camera (old billboard behaviour)
-export type VertexSettings = { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal'; driftSpeed?: number; driftAmp?: number; driftEnabled?: boolean }
+export type VertexSettings = { imgSize: number; repeat: number; audioImgSize?: number; audioRepeat?: number; facing?: 'camera' | 'normal'; driftSpeed?: number; driftAmp?: number; driftEnabled?: boolean; sizeRandomize?: boolean; audioSizeRandomize?: boolean }
 export const STUDENT_VERTEX_DEFAULTS: Record<string, VertexSettings> = {
   'Nodar Gogichaishvili':  { imgSize: 0.200, repeat: 9, driftSpeed: 0.2, driftAmp: 0.2, audioImgSize: 0.100, audioRepeat: 13, facing: 'camera', driftEnabled: true },
   'Sesili Gurgenidze':     { imgSize: 0.170, repeat: 11, audioImgSize: 0.110, audioRepeat: 11, facing: 'camera', driftEnabled: true },
-  'Dominika Davshrishovi': { imgSize: 0.275, repeat: 17, driftSpeed: 0.4, driftAmp: 0.25, audioImgSize: 0.150, audioRepeat: 17, facing: 'camera', driftEnabled: true },
+  'Dominika Davshrishovi': { imgSize: 0.100, repeat: 68, driftSpeed: 0.4, driftAmp: 0.25, audioImgSize: 0.060, audioRepeat: 55, audioSizeRandomize: true, facing: 'camera', driftEnabled: true },
   'Nutsa Kavtelishvili':   { imgSize: 0.135, repeat: 19, driftSpeed: 0.6, driftAmp: 0.20, audioImgSize: 0.125, audioRepeat: 18, facing: 'camera', driftEnabled: true },
   'Ketevan Lomiashvili':   { imgSize: 0.150, repeat: 7, driftSpeed: 0.15, driftAmp: 0.50, audioImgSize: 0.100, audioRepeat: 7, facing: 'camera', driftEnabled: true },
   'Ana Mamniashvili':      { imgSize: 0.175, repeat: 12, audioImgSize: 0.115, audioRepeat: 9, facing: 'camera', driftEnabled: false },

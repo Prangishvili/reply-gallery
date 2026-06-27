@@ -22,18 +22,25 @@ export default function MakePage() {
   const [repeat, setRepeat] = useState(5)
   const [bgColor, setBgColor] = useState('#ffffff')
   const [bgImage, setBgImage] = useState<string | null>(null)
+  const [bgVideo, setBgVideo] = useState<string | null>(null)
+  const [bgSize, setBgSize] = useState(1.0)
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
   const [shuffleSeed, setShuffleSeed] = useState(0)
   const [sizeRandomize, setSizeRandomize] = useState(false)
+  const [drift, setDrift] = useState(false)
+  const [driftSpeed, setDriftSpeed] = useState(0.5)
+  const [driftAmp, setDriftAmp] = useState(1.0)
   const [layersOpen, setLayersOpen] = useState(false)
   const [sizeOpen, setSizeOpen] = useState(false)
 
   const [showDebug] = useState(() => debugEnabled())
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     const dm = (navigator as unknown as { deviceMemory?: number }).deviceMemory
     crumb(`=== make page mount === vp ${window.innerWidth}x${window.innerHeight} dpr ${window.devicePixelRatio} mem ${dm ?? '?'}GB`)
     const params = new URLSearchParams(window.location.search)
+    if (params.get('admin') === 'true') setIsAdmin(true)
     const url = params.get('image')
     if (url) setImageUrls([decodeURIComponent(url)])
     const artist = params.get('artist')
@@ -67,6 +74,8 @@ export default function MakePage() {
   const [uploadError, setUploadError] = useState<string | null>(null)
 
   const captureRef = useRef<(() => string) | null>(null)
+  const recordRef = useRef<{ start: () => void; stop: () => void } | null>(null)
+  const [isRecording, setIsRecording] = useState(false)
   const frozenDataUrl = useRef<string | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
@@ -239,7 +248,7 @@ export default function MakePage() {
 
       {/* Canvas — full-screen on desktop, page card on mobile */}
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
-        <Scene imageUrls={imageUrls} size={size} repeat={repeat} shuffleSeed={shuffleSeed} sizeRandomize={sizeRandomize} bgColor={bgColor} bgImage={bgImage} cameraStream={cameraStream} captureRef={captureRef} analyserRef={analyserRef} />
+        <Scene imageUrls={imageUrls} size={size} repeat={repeat} shuffleSeed={shuffleSeed} sizeRandomize={sizeRandomize} drift={drift} driftSpeed={driftSpeed} driftAmp={driftAmp} bgColor={bgColor} bgImage={bgImage} bgVideo={bgVideo} bgSize={bgSize} cameraStream={cameraStream} captureRef={captureRef} recordRef={recordRef} analyserRef={analyserRef} />
       </div>
 
       {/* Crop guide — desktop only */}
@@ -313,6 +322,14 @@ export default function MakePage() {
             </span>
             <input type="range" min={0.01} max={0.3} step={0.005} value={size} onChange={e => setSize(Number(e.target.value))} style={{ width: '100%' }} />
           </label>
+          {isAdmin && (bgImage || bgVideo) && (
+            <label style={{ ...mono, color: 'rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>bg size</span><span style={{ opacity: 0.7 }}>{bgSize.toFixed(2)}</span>
+              </span>
+              <input type="range" min={0.1} max={3} step={0.05} value={bgSize} onChange={e => setBgSize(Number(e.target.value))} style={{ width: '100%' }} />
+            </label>
+          )}
           <label style={{ ...mono, color: 'rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>repeat</span><span style={{ opacity: 0.7 }}>{repeat}</span>
@@ -325,6 +342,28 @@ export default function MakePage() {
               {sizeRandomize ? 'on' : 'off'}
             </button>
           </div>
+          {isAdmin && <>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ ...mono, color: 'rgba(0,0,0,0.4)' }}>drift</span>
+              <button onClick={() => setDrift(o => !o)} style={drift ? btnOn : btn}>
+                {drift ? 'on' : 'off'}
+              </button>
+            </div>
+            {drift && <>
+              <label style={{ ...mono, color: 'rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>drift speed</span><span style={{ opacity: 0.7 }}>{driftSpeed.toFixed(2)}</span>
+                </span>
+                <input type="range" min={0.05} max={3} step={0.05} value={driftSpeed} onChange={e => setDriftSpeed(Number(e.target.value))} style={{ width: '100%' }} />
+              </label>
+              <label style={{ ...mono, color: 'rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>drift amount</span><span style={{ opacity: 0.7 }}>{driftAmp.toFixed(2)}</span>
+                </span>
+                <input type="range" min={0.1} max={5} step={0.1} value={driftAmp} onChange={e => setDriftAmp(Number(e.target.value))} style={{ width: '100%' }} />
+              </label>
+            </>}
+          </>}
         </div>
       )}
 
@@ -374,13 +413,19 @@ export default function MakePage() {
           }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, ...mono, color: 'rgba(0,0,0,0.4)' }}>
               Color
-              <input type="color" value={bgColor} onChange={e => { setBgColor(e.target.value); setBgImage(null) }} style={{ width: 24, height: 18 }} />
+              <input type="color" value={bgColor} onChange={e => { setBgColor(e.target.value); setBgImage(null); setBgVideo(null) }} style={{ width: 24, height: 18 }} />
             </label>
             <label className="make-clickable" style={{ ...btn, display: 'inline-block' }}>
-              + bg image
-              <input type="file" accept="image/*" style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) setBgImage(URL.createObjectURL(f)); e.target.value = '' }} />
+              {bgImage || bgVideo ? 'change bg' : '+ bg'}
+              <input type="file" accept="image/*,video/*" style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={e => {
+                const f = e.target.files?.[0]; if (!f) return
+                const url = URL.createObjectURL(f)
+                if (f.type.startsWith('video/')) { setBgVideo(url); setBgImage(null) }
+                else { setBgImage(url); setBgVideo(null) }
+                e.target.value = ''
+              }} />
             </label>
-            {bgImage && <button onClick={() => setBgImage(null)} style={btn}>remove bg</button>}
+            {(bgImage || bgVideo) && <button onClick={() => { setBgImage(null); setBgVideo(null) }} style={btn}>remove bg</button>}
             <label style={{ ...btn, display: 'inline-block' }}>
               + upload images
               <input type="file" accept="image/*,video/*" multiple style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={e => { handleFiles(e.target.files); e.target.value = '' }} />
@@ -400,6 +445,18 @@ export default function MakePage() {
           }}>
             {loadingStudent ? 'loading…' : 'artist'}
           </button>
+
+          {/* Record pill — admin only */}
+          {isAdmin && <button onClick={() => {
+            if (isRecording) { recordRef.current?.stop(); setIsRecording(false) }
+            else { recordRef.current?.start(); setIsRecording(true) }
+          }} style={{
+            ...mono, cursor: 'pointer',
+            background: isRecording ? 'rgba(200,0,0,0.08)' : 'rgba(247,247,247,0.82)', border: 'none',
+            borderRadius: 9999, padding: '20px 24px', whiteSpace: 'nowrap',
+            color: isRecording ? 'rgba(200,0,0,0.8)' : 'rgba(0,0,0,0.55)',
+            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+          }}>{isRecording ? '● stop' : 'record'}</button>}
 
           {/* Publish pill */}
           <button onClick={openModal} style={{
