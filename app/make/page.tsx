@@ -24,7 +24,8 @@ export default function MakePage() {
   const [bgImage, setBgImage] = useState<string | null>(null)
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
   const [shuffleSeed, setShuffleSeed] = useState(0)
-const [layersOpen, setLayersOpen] = useState(false)
+  const [sizeRandomize, setSizeRandomize] = useState(false)
+  const [layersOpen, setLayersOpen] = useState(false)
   const [sizeOpen, setSizeOpen] = useState(false)
 
   const [showDebug] = useState(() => debugEnabled())
@@ -135,7 +136,7 @@ const [layersOpen, setLayersOpen] = useState(false)
     if (!files || files.length === 0) return
     const MAX_FILE_MB = isMobile ? 15 : Infinity
     const MAX_UPLOADS = isMobile ? 80 : Infinity
-    const allowed = Array.from(files).filter(f => f.size <= MAX_FILE_MB * 1024 * 1024)
+    const allowed = Array.from(files).filter(f => f.type.startsWith('video/') || f.size <= MAX_FILE_MB * 1024 * 1024)
     const urls = allowed.map(f => URL.createObjectURL(f))
     setImageUrls(prev => {
       const slots = Math.max(0, MAX_UPLOADS - prev.length)
@@ -238,7 +239,7 @@ const [layersOpen, setLayersOpen] = useState(false)
 
       {/* Canvas — full-screen on desktop, page card on mobile */}
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
-        <Scene imageUrls={imageUrls} size={size} repeat={repeat} shuffleSeed={shuffleSeed} bgColor={bgColor} bgImage={bgImage} cameraStream={cameraStream} captureRef={captureRef} analyserRef={analyserRef} />
+        <Scene imageUrls={imageUrls} size={size} repeat={repeat} shuffleSeed={shuffleSeed} sizeRandomize={sizeRandomize} bgColor={bgColor} bgImage={bgImage} cameraStream={cameraStream} captureRef={captureRef} analyserRef={analyserRef} />
       </div>
 
       {/* Crop guide — desktop only */}
@@ -318,6 +319,12 @@ const [layersOpen, setLayersOpen] = useState(false)
             </span>
             <input type="range" min={1} max={isMobile ? 20 : 99} step={1} value={repeat} onChange={e => setRepeat(Number(e.target.value))} style={{ width: '100%' }} />
           </label>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ ...mono, color: 'rgba(0,0,0,0.4)' }}>randomize size</span>
+            <button onClick={() => { setSizeRandomize(o => !o); if (!sizeRandomize) setShuffleSeed(s => s + 1) }} style={sizeRandomize ? btnOn : btn}>
+              {sizeRandomize ? 'on' : 'off'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -376,7 +383,7 @@ const [layersOpen, setLayersOpen] = useState(false)
             {bgImage && <button onClick={() => setBgImage(null)} style={btn}>remove bg</button>}
             <label style={{ ...btn, display: 'inline-block' }}>
               + upload images
-              <input type="file" accept="image/*" multiple style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={e => { handleFiles(e.target.files); e.target.value = '' }} />
+              <input type="file" accept="image/*,video/*" multiple style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={e => { handleFiles(e.target.files); e.target.value = '' }} />
             </label>
             {(imageUrls.length > 0 || cameraStream) && <button onClick={() => setSizeOpen(o => !o)} style={sizeOpen ? btnOn : btn}>size</button>}
             {imageUrls.length > 0 && <button onClick={() => setShuffleSeed(s => s + 1)} style={btn}>shuffle</button>}

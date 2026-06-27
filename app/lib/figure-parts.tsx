@@ -152,6 +152,7 @@ type CachedTex = {
   aspect: number
   svgRadiusFraction?: number
   gif?: { img: HTMLImageElement; canvas: HTMLCanvasElement; tex: THREE.CanvasTexture }
+  video?: HTMLVideoElement
 }
 const texCache = new Map<string, Promise<CachedTex>>()
 
@@ -170,13 +171,33 @@ export function getCachedTex(url: string): Promise<CachedTex> {
   p = new Promise<CachedTex>(resolve => {
     queueImageLoad(async () => {
       let ext = url.split('?')[0].split('.').pop()?.toLowerCase() ?? ''
+      let blobType = ''
       if (url.startsWith('blob:')) {
         try {
-          const type = (await (await fetch(url)).blob()).type
-          ext = type.includes('svg') ? 'svg' : type.includes('gif') ? 'gif' : 'bitmap'
+          blobType = (await (await fetch(url)).blob()).type
+          ext = blobType.includes('svg') ? 'svg' : blobType.includes('gif') ? 'gif' : blobType.startsWith('video/') ? 'video' : 'bitmap'
         } catch { ext = 'bitmap' }
       }
-      if (ext === 'svg') {
+      const isVideo = ext === 'video' || /\.(mp4|mov|webm|m4v|avi)$/i.test(url.split('?')[0])
+      if (isVideo) {
+        const video = document.createElement('video')
+        video.src = url
+        video.muted = true
+        video.loop = true
+        video.playsInline = true
+        video.autoplay = true
+        if (!url.startsWith('blob:')) video.crossOrigin = 'anonymous'
+        await new Promise<void>(r => {
+          if (video.readyState >= 1) { r(); return }
+          video.addEventListener('loadedmetadata', () => r(), { once: true })
+          setTimeout(r, 5000)
+        })
+        const aspect = (video.videoWidth || 1) / (video.videoHeight || 1)
+        video.play().catch(() => {})
+        const tex = new THREE.VideoTexture(video)
+        tex.colorSpace = THREE.SRGBColorSpace
+        resolve({ tex, aspect, video })
+      } else if (ext === 'svg') {
         const [aspect, svgText] = await Promise.all([
           loadImgAspect(url),
           fetch(url).then(r => r.text()).catch(() => ''),

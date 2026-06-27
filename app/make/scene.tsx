@@ -145,7 +145,7 @@ function sampleTriangleData({ tris, cum, totalArea }: TriangleData, count: numbe
 }
 
 // ── Texture loader ─────────────────────────────────────────────────────────────
-type TexEntry = { tex: THREE.Texture; aspect: number }
+type TexEntry = { tex: THREE.Texture; aspect: number; video?: HTMLVideoElement }
 const texCache = new Map<string, Promise<TexEntry>>()
 
 const isMobile = () => typeof window !== 'undefined' && window.innerWidth < 768
@@ -185,6 +185,37 @@ async function detectSvg(url: string): Promise<boolean> {
   return false
 }
 
+async function detectVideo(url: string): Promise<boolean> {
+  if (/\.(mp4|mov|webm|m4v|avi)$/i.test(url.split('?')[0])) return true
+  if (url.startsWith('blob:')) {
+    try { return (await (await fetch(url)).blob()).type.startsWith('video/') } catch {}
+  }
+  return false
+}
+
+function loadVideoTex(url: string): Promise<TexEntry> {
+  return new Promise<TexEntry>(resolve => {
+    const video = document.createElement('video')
+    video.src = url
+    video.muted = true
+    video.loop = true
+    video.playsInline = true
+    video.autoplay = true
+    if (!url.startsWith('blob:')) video.crossOrigin = 'anonymous'
+    const onMeta = () => {
+      const aspect = (video.videoWidth || 1) / (video.videoHeight || 1)
+      video.play().catch(() => {})
+      const tex = new THREE.VideoTexture(video)
+      tex.colorSpace = THREE.SRGBColorSpace
+      crumb(`tex video done ${video.videoWidth}x${video.videoHeight}`)
+      resolve({ tex, aspect, video })
+    }
+    if (video.readyState >= 1 && video.videoWidth > 0) { onMeta(); return }
+    video.addEventListener('loadedmetadata', onMeta, { once: true })
+    setTimeout(() => { if (video.videoWidth > 0) onMeta(); else resolve({ tex: new THREE.Texture(), aspect: 1 }) }, 5000)
+  })
+}
+
 // SVGs rasterize via <img> so the vector scales crisply to a large canvas.
 function loadSvgTex(url: string): Promise<TexEntry> {
   return new Promise<TexEntry>(resolve => {
@@ -216,6 +247,7 @@ function loadTex(url: string): Promise<TexEntry> {
   if (p) return p
   p = (async () => {
     const tag = url.startsWith('blob:') ? 'blob' : url.split('/').pop()?.slice(0, 18)
+    if (await detectVideo(url)) { crumb(`tex video ${tag}`); return loadVideoTex(url) }
     if (await detectSvg(url)) { crumb(`tex svg ${tag}`); return loadSvgTex(url) }
     try {
       const buf = await (await fetch(url)).arrayBuffer()
@@ -264,13 +296,14 @@ function loadTex(url: string): Promise<TexEntry> {
 // Images and camera are managed by SEPARATE effects so that uploading images never
 // tears down a running camera, and toggling the camera never reloads images. This
 // makes the two orderings (camera-first vs images-first) behave identically.
-function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed, bgColor, analyserRef }: {
+function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed, sizeRandomize, bgColor, analyserRef }: {
   scene: THREE.Object3D
   imageUrls: string[]
   cameraStream: MediaStream | null
   size: number
   repeat: number
   shuffleSeed: number
+  sizeRandomize: boolean
   bgColor: string
   analyserRef?: React.RefObject<AnalyserNode | null>
 }) {
@@ -294,7 +327,7 @@ function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed
     const urlSet = new Set(imageUrls)
     for (const [key, promise] of texCache.entries()) {
       if (!urlSet.has(key)) {
-        promise.then(e => e.tex.dispose())
+        promise.then(e => { e.video?.pause(); e.tex.dispose() })
         texCache.delete(key)
       }
     }
@@ -399,6 +432,20 @@ function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed
   const aspectsRef = useRef<number[]>([])
   const dataArrRef = useRef<Uint8Array | null>(null)
 
+  // Per-sprite scale multipliers — recomputed when shuffle or randomize changes
+  const sizeScales = useMemo(() => {
+    if (!sizeRandomize) return null
+    const seed = shuffleSeed === 0 ? 1 : shuffleSeed
+    let a = seed >>> 0
+    const rand = () => {
+      a = (a + 0x6d2b79f5) | 0
+      let t = Math.imul(a ^ (a >>> 15), 1 | a)
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+    return Array.from({ length: count }, () => 0.25 + rand() * 1.75)
+  }, [sizeRandomize, shuffleSeed, count])
+
   useFrame(() => {
     let vol = 0
     if (analyserRef?.current) {
@@ -412,7 +459,9 @@ function MixedImages({ scene, imageUrls, cameraStream, size, repeat, shuffleSeed
     }
     const s = 1 + vol * 3
     spriteRefs.current.forEach((sprite, i) => {
-      if (sprite) sprite.scale.set(s * size * (aspectsRef.current[i] ?? 1), s * size, 1)
+      if (!sprite) return
+      const randScale = sizeScales ? (sizeScales[i] ?? 1) : 1
+      sprite.scale.set(s * size * randScale * (aspectsRef.current[i] ?? 1), s * size * randScale, 1)
     })
   })
 
@@ -483,7 +532,7 @@ function FigureDots({ scene }: { scene: THREE.Object3D }) {
 }
 
 // ── Figure ─────────────────────────────────────────────────────────────────────
-function Figure({ imageUrls, size, repeat, cameraStream, shuffleSeed, bgColor, analyserRef }: { imageUrls: string[]; size: number; repeat: number; cameraStream: MediaStream | null; shuffleSeed: number; bgColor: string; analyserRef?: React.RefObject<AnalyserNode | null> }) {
+function Figure({ imageUrls, size, repeat, cameraStream, shuffleSeed, sizeRandomize, bgColor, analyserRef }: { imageUrls: string[]; size: number; repeat: number; cameraStream: MediaStream | null; shuffleSeed: number; sizeRandomize: boolean; bgColor: string; analyserRef?: React.RefObject<AnalyserNode | null> }) {
   const { scene } = useGLTF('/figure.glb')
   const clone = useMemo(() => { crumb('figure.glb loaded + cloned'); return scene.clone(true) }, [scene])
 
@@ -491,14 +540,14 @@ function Figure({ imageUrls, size, repeat, cameraStream, shuffleSeed, bgColor, a
     <group scale={200} rotation={[0, 0, 0]}>
       <FigureDots scene={clone} />
       {(imageUrls.length > 0 || !!cameraStream) && (
-        <MixedImages scene={clone} imageUrls={imageUrls} cameraStream={cameraStream} size={size} repeat={repeat} shuffleSeed={shuffleSeed} bgColor={bgColor} analyserRef={analyserRef} />
+        <MixedImages scene={clone} imageUrls={imageUrls} cameraStream={cameraStream} size={size} repeat={repeat} shuffleSeed={shuffleSeed} sizeRandomize={sizeRandomize} bgColor={bgColor} analyserRef={analyserRef} />
       )}
     </group>
   )
 }
 
 // ── Canvas ─────────────────────────────────────────────────────────────────────
-export default function Scene({ imageUrls, size, repeat, shuffleSeed, bgColor, bgImage, cameraStream, captureRef, analyserRef }: { imageUrls: string[]; size: number; repeat: number; shuffleSeed: number; bgColor: string; bgImage: string | null; cameraStream: MediaStream | null; captureRef: React.MutableRefObject<(() => string) | null>; analyserRef?: React.RefObject<AnalyserNode | null> }) {
+export default function Scene({ imageUrls, size, repeat, shuffleSeed, sizeRandomize, bgColor, bgImage, cameraStream, captureRef, analyserRef }: { imageUrls: string[]; size: number; repeat: number; shuffleSeed: number; sizeRandomize: boolean; bgColor: string; bgImage: string | null; cameraStream: MediaStream | null; captureRef: React.MutableRefObject<(() => string) | null>; analyserRef?: React.RefObject<AnalyserNode | null> }) {
   return (
     <Canvas style={{ width: '100%', height: '100%', cursor: 'default', background: bgColor }} gl={{ preserveDrawingBuffer: !isMobile() }} dpr={[1, isMobile() ? 1.5 : 3]} onPointerMissed={undefined}>
       <GLWatch />
@@ -515,7 +564,7 @@ export default function Scene({ imageUrls, size, repeat, shuffleSeed, bgColor, b
         maxAzimuthAngle={Math.PI / 4}
       />
       <Suspense fallback={null}>
-        <Figure imageUrls={imageUrls} size={size} repeat={repeat} cameraStream={cameraStream} shuffleSeed={shuffleSeed} bgColor={bgColor} analyserRef={analyserRef} />
+        <Figure imageUrls={imageUrls} size={size} repeat={repeat} cameraStream={cameraStream} shuffleSeed={shuffleSeed} sizeRandomize={sizeRandomize} bgColor={bgColor} analyserRef={analyserRef} />
       </Suspense>
     </Canvas>
   )
