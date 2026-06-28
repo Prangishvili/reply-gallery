@@ -27,7 +27,7 @@ let _circleAnimPlayed = (() => {
 
 // ─── Main app ─────────────────────────────────────────────────────────────────
 
-export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode }) {
+export function GalleryApp({ initialView = 'circle', circleStudents: circleStudentsOverride, adminOverrides }: { initialView?: ViewMode; circleStudents?: string[]; adminOverrides?: Partial<AdminSettings> }) {
   const [phase, setPhase] = useState<Phase>('gallery')
   const [showQuote, setShowQuote] = useState(false)
   // Native cursor — custom orange cursor removed
@@ -70,12 +70,10 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
   const [isCircleRecording, setIsCircleRecording] = useState(false)
 
   const [admin, setAdmin] = useState<AdminSettings>(() => {
-    if (_circleAnimPlayed) {
-      const targetZoom = typeof window !== 'undefined' && window.innerWidth < 1000 ? 0.6 : 1.4
-      // circleCamXLoop starts false — enabled after canvas is ready to avoid OrbitControls init fight
-      return { ...ADMIN_DEFAULTS, circleCamY: 400, circleCamZoom: targetZoom, circleFigureY: 160, circleCamXLoop: false, circleCamXLoopSpeed: 0.1 }
-    }
-    return ADMIN_DEFAULTS
+    const base = _circleAnimPlayed
+      ? { ...ADMIN_DEFAULTS, circleCamY: 400, circleCamZoom: typeof window !== 'undefined' && window.innerWidth < 1000 ? 0.6 : 1.4, circleFigureY: 160, circleCamXLoop: false, circleCamXLoopSpeed: 0.1 }
+      : ADMIN_DEFAULTS
+    return adminOverrides ? { ...base, ...adminOverrides } : base
   })
   const {
     audioVolume, timebombActive,
@@ -115,6 +113,7 @@ export function GalleryApp({ initialView = 'circle' }: { initialView?: ViewMode 
   const [studentTextures, setStudentTextures] = useState<Record<string, string | null>>({})
   const [studentTextureMappings, setStudentTextureMappings] = useState<Record<string, TextureMapping>>({})
   const [activeEditStudent, setActiveEditStudent] = useState<string | null>(null)
+  const [circleStudents, setCircleStudents] = useState<string[]>(() => circleStudentsOverride ?? STUDENTS.filter(s => s !== 'SELF'))
 
   const handleCircleTextureUpload = (student: string, url: string | null) => {
     setStudentTextures(prev => {
@@ -1252,7 +1251,14 @@ Project Lead by Oto Prangishvili`}</p>
         )}
         {!loading && !selectedStudent && (
           <div style={{ display: mountedView === 'circle' ? 'block' : 'none', position: 'absolute', inset: 0, opacity: circleCanvasReady ? 1 : 0, transition: circleCanvasReady ? 'opacity 0.2s ease' : 'none' }}>
-            <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={STUDENTS.filter(s => s !== 'SELF')} circleRadius={circleRadius} figureScale={figureScale} figureY={circleFigureY + (isMobileVp ? circleFigureYM : 0)} figureFacing={circleFigureFacing} drift={figureDrift} showVertexImages={circleShowImages && introImagesReady} vertexSettings={studentVertexSettings} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotSizeMobile : circleDotSize} dotColor={dotColor} dotCount={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotCountMobile : dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX + (isMobileVp ? circleCamXM : 0)} camY={circleCamY + (isMobileVp ? circleCamYM : 0)} camZ={circleCamZ + (isMobileVp ? circleCamZM : 0)} camFov={circleCamFov} camZoom={circleCamZoom + (isMobileVp ? circleCamZoomM : 0)} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} cameraInfoRef={isAdmin ? circleCameraInfoRef : undefined} soloReact={false} frameloop={mountedView === 'circle' && phase !== 'entry' ? 'always' : 'demand'} lockPolar={introImagesReady} recordRef={circleRecordRef} onFigureClick={(name) => { router.push('/make?artist=' + encodeURIComponent(name)) }} />
+            <CircleCanvas key={circleKey} posts={posts.filter(p => !hiddenIds.has(p.id))} students={circleStudents} circleRadius={circleRadius} figureScale={figureScale} figureY={circleFigureY + (isMobileVp ? circleFigureYM : 0)} figureFacing={circleFigureFacing} drift={figureDrift} showVertexImages={circleShowImages && introImagesReady} vertexSettings={studentVertexSettings} showWireframe={figureWireframe} wireframeStyle={wireframeStyle} dotSize={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotSizeMobile : circleDotSize} dotColor={dotColor} dotCount={typeof window !== 'undefined' && window.innerWidth < 1000 ? circleDotCountMobile : dotCount} studentTextures={studentTextures} studentTextureMappings={studentTextureMappings} onTextureUpload={handleCircleTextureUpload} showNoiseGlobe={showNoiseGlobe} noiseColor1={noiseColor1} noiseColor2={noiseColor2} noiseSpeed={noiseSpeed} noiseScale={noiseScale} audioVolume={audioVolume} cameraMode={circleCameraMode} camX={circleCamX + (isMobileVp ? circleCamXM : 0)} camY={circleCamY + (isMobileVp ? circleCamYM : 0)} camZ={circleCamZ + (isMobileVp ? circleCamZM : 0)} camFov={circleCamFov} camZoom={circleCamZoom + (isMobileVp ? circleCamZoomM : 0)} camXLoop={circleCamXLoop} camXLoopSpeed={circleCamXLoopSpeed} bgColor={bgColor} bgImage={bgImage} analyserRef={analyserRef} cameraInfoRef={isAdmin ? circleCameraInfoRef : undefined} soloReact={false} frameloop={mountedView === 'circle' && phase !== 'entry' ? 'always' : 'demand'} lockPolar={introImagesReady} recordRef={circleRecordRef} onFigureClick={(name) => {
+                  if (circleStudentsOverride) {
+                    const shuffled = [...STUDENTS].sort(() => Math.random() - 0.5)
+                    setCircleStudents(shuffled.slice(0, circleStudents.length))
+                  } else {
+                    router.push('/make?artist=' + encodeURIComponent(name))
+                  }
+                }} />
           </div>
         )}
         {!loading && (posts.length > 0 || visitorPosts.length > 0) && mountedView === 'globe' && !selectedStudent && (
